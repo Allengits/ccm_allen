@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Source Serif 4', 'Times New Roman', Georgia, serif;
+    letter-spacing: -0.015em;
+  }
+
+  body {
+    background-color: #f8fafc;
+    color: #1e293b;
+  }
+}
+
+/* Custom Registry / Judicial styling elements */
+.legal-border {
+  border-left: 3px solid #a6763b;
+}
+
+.registry-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(16, 29, 48, 0.05);
+}
