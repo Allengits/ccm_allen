@@ -4,6 +4,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppLayout from './components/layout/AppLayout';
 import Dashboard from './pages/Dashboard';
 import Cases from './pages/Cases';
+import CaseDetail from './pages/CaseDetail';
 import Hearings from './pages/Hearings';
 import Advocates from './pages/Advocates';
 import Evidence from './pages/Evidence';
@@ -28,6 +29,7 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route index element={<Dashboard />} />
               <Route path="cases" element={<Cases />} />
+              <Route path="cases/:id" element={<CaseDetail />} />
               <Route
                 path="hearings"
                 element={

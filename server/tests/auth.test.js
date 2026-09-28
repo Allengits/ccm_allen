@@ -24,15 +24,18 @@ describe('Court CMS - Authentication & RBAC Suite', () => {
     await prisma.user.deleteMany({
       where: {
         email: {
-          in: [
-            'temp.inactive@courtcms.gov.in',
-            'test.created@courtcms.gov.in',
-            'test.changepw@courtcms.gov.in',
+          notIn: [
+            'admin@courtcms.gov.in',
+            'registrar@courtcms.gov.in',
+            'judge.banerjee@courtcms.gov.in',
+            'judge.swaminathan@courtcms.gov.in',
+            'adv.khan@courtcms.gov.in',
+            'adv.iyer@courtcms.gov.in',
+            'adv.mehta@courtcms.gov.in',
           ],
         },
       },
     });
-    await prisma.$disconnect();
   });
 
   // -------------------------------------------------------------
@@ -294,6 +297,14 @@ describe('Court CMS - Authentication & RBAC Suite', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.message).toContain('reset successfully');
+    });
+
+    afterAll(async () => {
+      if (createdUserId) {
+        await prisma.user.deleteMany({
+          where: { id: createdUserId },
+        });
+      }
     });
   });
 

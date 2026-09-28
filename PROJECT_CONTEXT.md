@@ -82,3 +82,20 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
   - The system must never be left without at least one active ADMIN.
   - Unique emails strictly enforced; passwords must meet complexity rules (>= 8 chars with letter and number).
     Detailed API contract and security decisions documented in docs/AUTH.md.
+
+## Case Management (Phase 4)
+
+- **Automated Sequential Numbering**: Case numbers formatted as `PREFIX/YEAR/00001` (5-digit padded sequence) generated within an exclusive row lock transaction on `case_sequences`. Prefix mapped by case type (`CRIMINAL=CC`, `CIVIL=CV`, `FAMILY=FM`, `PROPERTY=PR`, `COMMERCIAL=CM`, `CONSTITUTIONAL=WP`, `OTHER=MC`).
+- **Atomic Registration**: Registering a case atomically writes the master `Case` record and initial `CaseStatusHistory` (`REGISTERED`, reason "Case registered") inside one transaction.
+- **Strict Role Visibility & 404 Shielding**:
+  - `ADMIN` & `REGISTRAR`: Full docket visibility across the court registry.
+  - `JUDGE`: Scoped strictly to cases assigned to their bench.
+  - `ADVOCATE`: Scoped strictly to cases where they are active counsel.
+  - Out-of-scope case lookups return HTTP 404 to shield sensitive docket existence.
+- **Editability & Legal Immutability**:
+  - Allowed edits (`case.edit` for Admin/Registrar): title, petitioner, respondent, description, priority, judgeId.
+  - Immutable fields: `caseNumber`, `caseType`, `filingDate`, and `status`.
+  - Closed cases (`status === 'CLOSED'`) cannot be modified.
+  - No deletion endpoint exists; court records are permanent legal artifacts.
+- **Backlog Tracking**: Dynamic `ageDays` and `isBacklog` calculation based on `backlog_threshold_days` setting (>= 90 days pendency for open cases).
+  Detailed endpoint specifications documented in docs/CASES.md.

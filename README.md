@@ -236,7 +236,12 @@ npm test
 
 # Run authentication and RBAC test suite specifically
 npm run test:auth
+
+# Run case management and registration test suite specifically
+npm run test:cases
 ```
+
+All test suites enforce global teardown verification, guaranteeing that the MySQL database row counts and case sequences strictly match the seeded baseline upon test completion.
 
 ---
 
@@ -245,7 +250,7 @@ npm run test:auth
 - [x] **Phase 1: Project Setup, Architecture & App Shell**
 - [x] **Phase 2: Database Schema, Migrations & Seed Data**
 - [x] **Phase 3: Authentication, RBAC & User Management**
-- [ ] **Phase 4: Case Filing & Master Docket Registry**
+- [x] **Phase 4: Case Filing & Master Docket Registry**
 - [ ] **Phase 5: Advocate Assignment & Bar Directory**
 - [ ] **Phase 6: Hearing Scheduling, Bench Allocation & Cause Lists**
 - [ ] **Phase 7: Digital Evidence Vault & Chain of Custody**
