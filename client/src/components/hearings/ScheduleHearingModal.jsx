@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
+import { unwrap } from '../../api/unwrap';
 import { X, Calendar, AlertCircle, AlertTriangle, Loader2, Search } from 'lucide-react';
 
 export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseItem = null }) {
@@ -55,9 +56,7 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
         !caseItem ? api.get('/cases?pageSize=50&status=ADVOCATE_ASSIGNED') : Promise.resolve(null),
       ]);
 
-      const metaPayload = metaRes?.data?.courtrooms
-        ? metaRes.data
-        : metaRes?.data?.data || metaRes?.data || {};
+      const metaPayload = unwrap(metaRes);
       const courtroomsList = metaPayload.courtrooms || [];
       if (Array.isArray(courtroomsList) && courtroomsList.length > 0) {
         setCourtrooms(courtroomsList);
@@ -65,9 +64,7 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
       }
 
       if (casesRes) {
-        const casesPayload = casesRes?.data?.items
-          ? casesRes.data
-          : casesRes?.data?.data || casesRes?.data || {};
+        const casesPayload = unwrap(casesRes);
         if (Array.isArray(casesPayload.items)) {
           setOpenCases(casesPayload.items);
         }
@@ -103,9 +100,8 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
       }
 
       const res = await api.get(url);
-      const isSuccess = res?.success ?? res?.data?.success ?? true;
-      const d = res?.data?.availableSlots ? res.data : res?.data?.data || res?.data || {};
-      if (isSuccess && d) {
+      const d = unwrap(res);
+      if (d) {
         setIsWorkingDay(d.isWorkingDay);
         setAvailableSlots(d.availableSlots || []);
         if (!d.isWorkingDay) {
@@ -164,9 +160,8 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
       };
 
       const res = await api.post('/hearings', payload);
-      const isSuccess = res?.success ?? res?.data?.success ?? true;
-      const dataPayload = res?.data?.hearing ? res.data : res?.data?.data || res?.data || {};
-      if (isSuccess && dataPayload.hearing) {
+      const dataPayload = unwrap(res);
+      if (dataPayload.hearing) {
         const warnings = dataPayload.warnings || [];
         if (onSuccess) {
           onSuccess({
@@ -408,9 +403,22 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
           {/* Purpose & Notes */}
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-navy-900 mb-1">
-                Hearing Purpose *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-navy-900">
+                  Hearing Purpose *
+                </label>
+                <span
+                  className={`text-[11px] font-mono ${
+                    purpose.trim().length < 3
+                      ? 'text-amber-600 font-semibold'
+                      : purpose.trim().length > 200
+                        ? 'text-red-600 font-bold'
+                        : 'text-emerald-700'
+                  }`}
+                >
+                  {purpose.trim().length}/3 minimum (max 200)
+                </span>
+              </div>
               <input
                 type="text"
                 value={purpose}
@@ -418,6 +426,9 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
                 placeholder="e.g. Framing of Charges, Final Arguments, Examination of Complainant"
                 className="w-full text-xs border border-gray-300 rounded-md py-2 px-3 focus:ring-2 focus:ring-brass-500 focus:outline-none"
               />
+              <p className="text-[11px] text-gray-500 mt-1">
+                Specify proceeding objective for cause list and daily bench calendar.
+              </p>
             </div>
 
             <div>
@@ -436,6 +447,15 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
 
           {/* Action Buttons */}
           <div className="flex items-center justify-end space-x-3 pt-3 border-t border-gray-200">
+            {(!selectedSlot || !isWorkingDay || purpose.trim().length < 3) && (
+              <span className="text-[11px] text-gray-500 mr-auto">
+                {!isWorkingDay
+                  ? 'Selected date is not a working day'
+                  : !selectedSlot
+                    ? 'Select an available slot'
+                    : `Purpose requires ${3 - purpose.trim().length} more character(s)`}
+              </span>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -445,7 +465,16 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
             </button>
             <button
               type="submit"
-              disabled={submitting || !selectedSlot || !isWorkingDay}
+              disabled={submitting || !selectedSlot || !isWorkingDay || purpose.trim().length < 3}
+              title={
+                !isWorkingDay
+                  ? 'Court is closed on selected date'
+                  : !selectedSlot
+                    ? 'Select an available hearing slot'
+                    : purpose.trim().length < 3
+                      ? `Enter at least 3 characters for purpose (${purpose.trim().length}/3)`
+                      : 'Confirm hearing schedule'
+              }
               className="inline-flex items-center space-x-2 px-4 py-2 bg-navy-900 text-white rounded-md text-xs font-semibold hover:bg-navy-800 transition-colors shadow-sm disabled:opacity-50"
             >
               {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin text-brass-400" />}

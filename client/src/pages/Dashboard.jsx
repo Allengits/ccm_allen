@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
+import { unwrap } from '../api/unwrap';
 import {
   Activity,
   Database,
@@ -35,7 +36,8 @@ export default function Dashboard() {
     setHealthError(null);
     try {
       const res = await api.get('/health');
-      setHealthData(res.data);
+      const data = unwrap(res);
+      setHealthData(data);
       setLastChecked(new Date());
     } catch (err) {
       setHealthError(err.message || 'Unable to reach backend health endpoint');
@@ -50,8 +52,7 @@ export default function Dashboard() {
     setStatsLoading(true);
     try {
       const res = await api.get('/cases/stats');
-      const stats =
-        res?.data?.totalOpenCases !== undefined ? res.data : res?.data?.data || res?.data;
+      const stats = unwrap(res);
       if (stats && typeof stats === 'object') {
         setStatsData(stats);
       }
@@ -66,7 +67,8 @@ export default function Dashboard() {
     setHearingsLoading(true);
     try {
       const res = await api.get('/hearings/cause-list');
-      const count = res?.data?.totalHearings ?? res?.data?.data?.totalHearings ?? 0;
+      const data = unwrap(res);
+      const count = data?.totalHearings ?? 0;
       setHearingsCount(count);
     } catch (err) {
       console.warn('Failed to load hearings statistics:', err.message);

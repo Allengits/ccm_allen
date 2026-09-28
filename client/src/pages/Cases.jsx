@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import { unwrap } from '../api/unwrap';
 import { useAuth } from '../context/AuthContext';
 import RegisterCaseModal from '../components/cases/RegisterCaseModal';
 import {
@@ -104,8 +105,7 @@ export default function Cases() {
     const fetchMeta = async () => {
       try {
         const res = await api.get('/cases/meta');
-        const meta =
-          res?.data?.caseTypes || res?.data?.statuses ? res.data : res?.data?.data || res?.data;
+        const meta = unwrap(res);
         if (meta && typeof meta === 'object') {
           setMetadata(meta);
         }
@@ -139,22 +139,14 @@ export default function Cases() {
       if (toParam) params.to = toParam;
 
       const res = await api.get('/cases', { params });
-      const payload = res?.data?.items
-        ? res.data
-        : res?.data?.data?.items
-          ? res.data.data
-          : res?.data || {};
+      const data = unwrap(res, 'Failed to load case records');
 
-      const isSuccess = res?.success ?? res?.data?.success ?? Array.isArray(payload?.items);
-
-      if (isSuccess && Array.isArray(payload.items)) {
-        setCases(payload.items);
-        setTotal(payload.total ?? payload.items.length);
-        setTotalPages(payload.totalPages ?? 1);
+      if (Array.isArray(data.items)) {
+        setCases(data.items);
+        setTotal(data.total ?? data.items.length);
+        setTotalPages(data.totalPages ?? 1);
       } else {
-        throw new Error(
-          res?.message || res?.data?.message || 'Failed to parse case records from server response'
-        );
+        throw new Error('Failed to parse case records from server response');
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to load case records');

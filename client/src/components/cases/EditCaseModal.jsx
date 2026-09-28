@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
+import { unwrap } from '../../api/unwrap';
 import { X, AlertCircle, Edit2, Loader2 } from 'lucide-react';
 
 export default function EditCaseModal({ isOpen, onClose, caseItem, onCaseUpdated }) {
@@ -35,7 +36,7 @@ export default function EditCaseModal({ isOpen, onClose, caseItem, onCaseUpdated
     const fetchMeta = async () => {
       try {
         const res = await api.get('/cases/meta');
-        const meta = res?.data?.caseTypes ? res.data : res?.data?.data || res?.data || {};
+        const meta = unwrap(res);
         setMetadata(meta);
       } catch (err) {
         setError(err.message || 'Failed to load case metadata');
@@ -76,7 +77,8 @@ export default function EditCaseModal({ isOpen, onClose, caseItem, onCaseUpdated
       };
 
       const res = await api.patch(`/cases/${caseItem.id}`, payload);
-      const updated = res?.data?.case || res?.data?.data?.case || res?.case;
+      const data = unwrap(res);
+      const updated = data?.case;
 
       if (onCaseUpdated) {
         onCaseUpdated(updated);

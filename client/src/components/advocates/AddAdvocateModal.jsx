@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
+import { unwrap } from '../../api/unwrap';
 import { X, UserPlus, AlertCircle } from 'lucide-react';
 
 export default function AddAdvocateModal({ isOpen, onClose, onSuccess, specializations = [] }) {
@@ -85,14 +86,12 @@ export default function AddAdvocateModal({ isOpen, onClose, onSuccess, specializ
         phone: formData.phone.trim() || null,
       });
 
-      const newAdv = res?.data?.advocate || res?.data?.data?.advocate;
-      const isSuccess = res?.success ?? res?.data?.success ?? !!newAdv;
-
-      if (isSuccess && newAdv) {
-        onSuccess(newAdv);
+      const data = unwrap(res, 'Failed to register advocate');
+      if (data.advocate) {
+        onSuccess(data.advocate);
         onClose();
       } else {
-        throw new Error(res?.message || res?.data?.message || 'Failed to register advocate');
+        throw new Error('Failed to register advocate');
       }
     } catch (err) {
       setError(

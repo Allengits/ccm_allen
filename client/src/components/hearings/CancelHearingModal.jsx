@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import api from '../../api/axios';
+import { unwrap } from '../../api/unwrap';
 import { X, AlertTriangle, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function CancelHearingModal({ isOpen, onClose, onSuccess, hearing }) {
@@ -23,9 +24,8 @@ export default function CancelHearingModal({ isOpen, onClose, onSuccess, hearing
       const res = await api.post(`/hearings/${hearing.id}/cancel`, {
         reason: reason.trim(),
       });
-      const isSuccess = res?.success ?? res?.data?.success ?? true;
-      const dataPayload = res?.data?.hearing ? res.data : res?.data?.data || res?.data || {};
-      if (isSuccess && dataPayload.hearing) {
+      const dataPayload = unwrap(res);
+      if (dataPayload.hearing) {
         if (onSuccess) {
           onSuccess({
             hearing: dataPayload.hearing,
@@ -96,9 +96,22 @@ export default function CancelHearingModal({ isOpen, onClose, onSuccess, hearing
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-navy-900 mb-1">
-              Cancellation Reason (Required) *
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-navy-900">
+                Cancellation Reason (Required) *
+              </label>
+              <span
+                className={`text-[11px] font-mono ${
+                  reason.trim().length < 5
+                    ? 'text-amber-600 font-semibold'
+                    : reason.trim().length > 500
+                      ? 'text-red-600 font-bold'
+                      : 'text-emerald-700'
+                }`}
+              >
+                {reason.trim().length}/5 minimum (max 500)
+              </span>
+            </div>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -106,9 +119,17 @@ export default function CancelHearingModal({ isOpen, onClose, onSuccess, hearing
               rows={3}
               className="w-full text-xs border border-gray-300 rounded-md py-2 px-3 focus:ring-2 focus:ring-red-500 focus:outline-none"
             />
+            <p className="text-[11px] text-gray-500 mt-1">
+              Official cancellation reason permanently recorded in the audit trail.
+            </p>
           </div>
 
           <div className="flex items-center justify-end space-x-3 pt-3 border-t border-gray-200">
+            {reason.trim().length < 5 && (
+              <span className="text-[11px] text-gray-500 mr-auto">
+                Reason requires {5 - reason.trim().length} more character(s)
+              </span>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -119,6 +140,11 @@ export default function CancelHearingModal({ isOpen, onClose, onSuccess, hearing
             <button
               type="submit"
               disabled={submitting || reason.trim().length < 5}
+              title={
+                reason.trim().length < 5
+                  ? `Enter at least 5 characters for reason (${reason.trim().length}/5)`
+                  : 'Confirm cancellation'
+              }
               className="inline-flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-md text-xs font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
             >
               {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
+import { unwrap } from '../../api/unwrap';
 import { X, AlertCircle, CheckCircle2, FileText, Loader2 } from 'lucide-react';
 
 export default function RegisterCaseModal({ isOpen, onClose, onCaseRegistered }) {
@@ -39,7 +40,7 @@ export default function RegisterCaseModal({ isOpen, onClose, onCaseRegistered })
     const fetchMeta = async () => {
       try {
         const res = await api.get('/cases/meta');
-        const meta = res?.data?.caseTypes ? res.data : res?.data?.data || res?.data;
+        const meta = unwrap(res);
         if (meta && typeof meta === 'object') {
           setMetadata(meta);
           if (meta.caseTypes?.length > 0) {
@@ -94,7 +95,8 @@ export default function RegisterCaseModal({ isOpen, onClose, onCaseRegistered })
       };
 
       const res = await api.post('/cases', payload);
-      const newCase = res?.data?.case || res?.data?.data?.case || res?.case;
+      const data = unwrap(res);
+      const newCase = data?.case;
 
       if (!newCase) {
         throw new Error(res?.message || 'Failed to register case');

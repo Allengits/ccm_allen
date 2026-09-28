@@ -3,7 +3,16 @@ import request from 'supertest';
 import app from '../src/app.js';
 import prisma from '../src/db/prisma.js';
 import bcrypt from 'bcryptjs';
-import { caseVisibilityFilter, PERMISSIONS, hasPermission } from '../src/config/permissions.js';
+import {
+  caseVisibilityFilter,
+  PERMISSIONS,
+  ROLE_PERMISSIONS,
+  hasPermission,
+} from '../src/config/permissions.js';
+import {
+  PERMISSIONS as CLIENT_PERMISSIONS,
+  ROLE_PERMISSIONS as CLIENT_ROLE_PERMISSIONS,
+} from '../../client/src/constants/permissions.js';
 
 describe('Court CMS - Authentication & RBAC Suite', () => {
   const demoPassword = 'Demo@1234';
@@ -502,6 +511,24 @@ describe('Court CMS - Authentication & RBAC Suite', () => {
       expect(hasPermission('ADVOCATE', 'evidence.submit')).toBe(false);
       expect(hasPermission('JUDGE', 'evidence.review')).toBe(false);
       expect(hasPermission('ADMIN', 'evidence.review')).toBe(false);
+    });
+
+    it('ensures client and server define identical permission keys and role assignments', () => {
+      // Compare permission keys
+      expect(CLIENT_PERMISSIONS).toEqual(PERMISSIONS);
+
+      // Compare role assignments
+      const serverRoles = Object.keys(ROLE_PERMISSIONS).sort();
+      const clientRoles = Object.keys(CLIENT_ROLE_PERMISSIONS).sort();
+      expect(clientRoles).toEqual(serverRoles);
+
+      for (const role of serverRoles) {
+        const serverPerms = [...ROLE_PERMISSIONS[role]].sort();
+        const clientPerms = [...CLIENT_ROLE_PERMISSIONS[role]].sort();
+        expect(clientPerms, `Role ${role} permissions mismatch between client and server`).toEqual(
+          serverPerms
+        );
+      }
     });
   });
 

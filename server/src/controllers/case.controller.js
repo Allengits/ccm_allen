@@ -625,63 +625,7 @@ export const getCaseById = async (req, res) => {
     }));
 
     // Merge advocate assignment/unassignment & hearing events into timeline
-    const timeline = [...c.statusHistory];
-    const existingReasons = new Set(c.statusHistory.map((h) => h.reason));
-
-    for (const a of c.advocates) {
-      // Check assignment event
-      const assignReasonStr = `Advocate ${a.advocate.name} assigned`;
-      if (!existingReasons.has(assignReasonStr)) {
-        timeline.push({
-          id: `adv-assign-${a.id}`,
-          fromStatus: null,
-          toStatus: null,
-          reason: `Advocate ${a.advocate.name} assigned to ${a.side}`,
-          changedById: a.assignedById,
-          changedBy: a.assignedBy
-            ? { id: a.assignedBy.id, name: a.assignedBy.name, role: 'REGISTRAR' }
-            : null,
-          createdAt: a.assignedAt,
-        });
-      }
-
-      // Check unassignment event
-      if (!a.isActive && a.unassignedAt && a.unassignReason) {
-        if (!existingReasons.has(a.unassignReason)) {
-          timeline.push({
-            id: `adv-unassign-${a.id}`,
-            fromStatus: null,
-            toStatus: null,
-            reason: `Advocate ${a.advocate.name} unassigned from ${a.side}: ${a.unassignReason}`,
-            changedById: a.unassignedById,
-            changedBy: a.unassignedBy
-              ? { id: a.unassignedBy.id, name: a.unassignedBy.name, role: 'REGISTRAR' }
-              : null,
-            createdAt: a.unassignedAt,
-          });
-        }
-      }
-    }
-
-    // Merge hearing events into history timeline
-    for (const h of c.hearings) {
-      for (const he of h.events || []) {
-        timeline.push({
-          id: `hearing-event-${he.id}`,
-          fromStatus: null,
-          toStatus: null,
-          reason: `Hearing [${he.action}]: ${he.note || he.action}`,
-          changedById: he.performedById,
-          changedBy: he.performedBy
-            ? { id: he.performedBy.id, name: he.performedBy.name, role: he.performedBy.role }
-            : null,
-          createdAt: he.createdAt,
-        });
-      }
-    }
-
-    // Sort timeline chronologically descending
-    timeline.sort((x, y) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime());
+    const timeline = buildCaseTimeline(c);
 
     return res.status(200).json({
       success: true,
@@ -701,6 +645,135 @@ export const getCaseById = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to retrieve case detail',
+      errors: [error.message],
+    });
+  }
+};
+
+/**
+ * Builds unified case timeline merging status transitions, advocate assignment audits, and hearing events.
+ */
+export const buildCaseTimeline = (c) => {
+  const timeline = [...(c.statusHistory || [])];
+  const existingReasons = new Set((c.statusHistory || []).map((h) => h.reason));
+
+  for (const a of c.advocates || []) {
+    const assignReasonStr = `Advocate ${a.advocate?.name || ''} assigned`;
+    if (!existingReasons.has(assignReasonStr)) {
+      timeline.push({
+        id: `adv-assign-${a.id}`,
+        fromStatus: null,
+        toStatus: null,
+        reason: `Advocate ${a.advocate?.name || 'Advocate'} assigned to ${a.side}`,
+        changedById: a.assignedById,
+        changedBy: a.assignedBy
+          ? { id: a.assignedBy.id, name: a.assignedBy.name, role: a.assignedBy.role || 'REGISTRAR' }
+          : null,
+        createdAt: a.assignedAt,
+      });
+    }
+
+    if (!a.isActive && a.unassignedAt && a.unassignReason) {
+      if (!existingReasons.has(a.unassignReason)) {
+        timeline.push({
+          id: `adv-unassign-${a.id}`,
+          fromStatus: null,
+          toStatus: null,
+          reason: `Advocate ${a.advocate?.name || 'Advocate'} unassigned from ${a.side}: ${a.unassignReason}`,
+          changedById: a.unassignedById,
+          changedBy: a.unassignedBy
+            ? {
+                id: a.unassignedBy.id,
+                name: a.unassignedBy.name,
+                role: a.unassignedBy.role || 'REGISTRAR',
+              }
+            : null,
+          createdAt: a.unassignedAt,
+        });
+      }
+    }
+  }
+
+  for (const h of c.hearings || []) {
+    for (const he of h.events || []) {
+      timeline.push({
+        id: `hearing-event-${he.id}`,
+        fromStatus: null,
+        toStatus: null,
+        reason: `Hearing [${he.action}]: ${he.note || he.action}`,
+        changedById: he.performedById,
+        changedBy: he.performedBy
+          ? { id: he.performedBy.id, name: he.performedBy.name, role: he.performedBy.role }
+          : null,
+        createdAt: he.createdAt,
+      });
+    }
+  }
+
+  timeline.sort((x, y) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime());
+  return timeline;
+};
+
+/**
+ * GET /api/v1/cases/:id/history
+ * Returns the chronological audit trail and timeline events for a case.
+ */
+export const getCaseHistory = async (req, res) => {
+  try {
+    const visibilityWhere = caseVisibilityFilter(req.user);
+    const c = await prisma.case.findFirst({
+      where: {
+        id: req.params.id,
+        ...visibilityWhere,
+      },
+      include: {
+        advocates: {
+          include: {
+            advocate: { select: { id: true, name: true, barNumber: true } },
+            assignedBy: { select: { id: true, name: true, role: true } },
+            unassignedBy: { select: { id: true, name: true, role: true } },
+          },
+        },
+        hearings: {
+          include: {
+            events: {
+              include: {
+                performedBy: { select: { id: true, name: true, role: true } },
+              },
+              orderBy: { createdAt: 'desc' },
+            },
+          },
+        },
+        statusHistory: {
+          include: {
+            changedBy: { select: { id: true, name: true, role: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!c) {
+      return res.status(404).json({
+        success: false,
+        message: 'Case not found',
+        errors: ['Case not found'],
+      });
+    }
+
+    const timeline = buildCaseTimeline(c);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Case history retrieved successfully',
+      data: {
+        history: timeline,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve case history',
       errors: [error.message],
     });
   }

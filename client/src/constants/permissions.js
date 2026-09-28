@@ -68,3 +68,12 @@ export const hasPermission = (role, permission) => {
   if (!role || !ROLE_PERMISSIONS[role]) return false;
   return ROLE_PERMISSIONS[role].includes(permission);
 };
+
+export const ALL_VALID_PERMISSIONS = new Set(Object.values(PERMISSIONS));
+
+/**
+ * Validates whether a permission key exists in the RBAC permission schema.
+ * @param {string} permission
+ * @returns {boolean}
+ */
+export const isValidPermission = (permission) => ALL_VALID_PERMISSIONS.has(permission);

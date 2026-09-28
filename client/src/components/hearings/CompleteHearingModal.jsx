@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import api from '../../api/axios';
+import { unwrap } from '../../api/unwrap';
 import { X, CheckCircle2, AlertCircle, Loader2, Scale } from 'lucide-react';
 
 export default function CompleteHearingModal({ isOpen, onClose, onSuccess, hearing }) {
@@ -23,9 +24,8 @@ export default function CompleteHearingModal({ isOpen, onClose, onSuccess, heari
       const res = await api.post(`/hearings/${hearing.id}/complete`, {
         outcomeNotes: outcomeNotes.trim(),
       });
-      const isSuccess = res?.success ?? res?.data?.success ?? true;
-      const dataPayload = res?.data?.hearing ? res.data : res?.data?.data || res?.data || {};
-      if (isSuccess && dataPayload.hearing) {
+      const dataPayload = unwrap(res);
+      if (dataPayload.hearing) {
         if (onSuccess) {
           onSuccess({
             hearing: dataPayload.hearing,
@@ -97,9 +97,22 @@ export default function CompleteHearingModal({ isOpen, onClose, onSuccess, heari
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-navy-900 mb-1">
-              Daily Order / Proceedings Outcome Notes *
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-navy-900">
+                Daily Order / Proceedings Outcome Notes *
+              </label>
+              <span
+                className={`text-[11px] font-mono ${
+                  outcomeNotes.trim().length < 5
+                    ? 'text-amber-600 font-semibold'
+                    : outcomeNotes.trim().length > 2000
+                      ? 'text-red-600 font-bold'
+                      : 'text-emerald-700'
+                }`}
+              >
+                {outcomeNotes.trim().length}/5 minimum (max 2000)
+              </span>
+            </div>
             <textarea
               value={outcomeNotes}
               onChange={(e) => setOutcomeNotes(e.target.value)}
@@ -107,9 +120,17 @@ export default function CompleteHearingModal({ isOpen, onClose, onSuccess, heari
               rows={4}
               className="w-full text-xs border border-gray-300 rounded-md py-2 px-3 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             />
+            <p className="text-[11px] text-gray-500 mt-1">
+              Recorded in daily order. Formal record of proceeding findings.
+            </p>
           </div>
 
           <div className="flex items-center justify-end space-x-3 pt-3 border-t border-gray-200">
+            {outcomeNotes.trim().length < 5 && (
+              <span className="text-[11px] text-gray-500 mr-auto">
+                Notes require {5 - outcomeNotes.trim().length} more character(s)
+              </span>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -120,6 +141,11 @@ export default function CompleteHearingModal({ isOpen, onClose, onSuccess, heari
             <button
               type="submit"
               disabled={submitting || outcomeNotes.trim().length < 5}
+              title={
+                outcomeNotes.trim().length < 5
+                  ? `Enter at least 5 characters for outcome notes (${outcomeNotes.trim().length}/5)`
+                  : 'Conclude & Record Order'
+              }
               className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-700 text-white rounded-md text-xs font-semibold hover:bg-emerald-800 transition-colors disabled:opacity-50"
             >
               {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}

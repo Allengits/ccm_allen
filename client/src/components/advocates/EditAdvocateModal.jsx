@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
+import { unwrap } from '../../api/unwrap';
 import { X, Edit3, AlertCircle, Lock } from 'lucide-react';
 
 export default function EditAdvocateModal({
@@ -80,14 +81,12 @@ export default function EditAdvocateModal({
         phone: formData.phone.trim() || null,
       });
 
-      const updatedAdv = res?.data?.advocate || res?.data?.data?.advocate;
-      const isSuccess = res?.success ?? res?.data?.success ?? !!updatedAdv;
-
-      if (isSuccess && updatedAdv) {
-        onSuccess(updatedAdv);
+      const data = unwrap(res, 'Failed to update advocate');
+      if (data.advocate) {
+        onSuccess(data.advocate);
         onClose();
       } else {
-        throw new Error(res?.message || res?.data?.message || 'Failed to update advocate');
+        throw new Error('Failed to update advocate');
       }
     } catch (err) {
       setError(

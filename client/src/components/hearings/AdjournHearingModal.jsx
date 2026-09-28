@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
+import { unwrap } from '../../api/unwrap';
 import { X, Clock, AlertCircle, AlertTriangle, Loader2, CalendarPlus } from 'lucide-react';
 
 export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearing }) {
@@ -46,7 +47,7 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
   const fetchCourtrooms = async () => {
     try {
       const res = await api.get('/hearings/meta');
-      const metaPayload = res?.data?.courtrooms ? res.data : res?.data?.data || res?.data || {};
+      const metaPayload = unwrap(res);
       if (Array.isArray(metaPayload.courtrooms)) {
         setCourtrooms(metaPayload.courtrooms);
       }
@@ -75,9 +76,8 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
       if (targetJudgeId) url += `&judgeId=${targetJudgeId}`;
 
       const res = await api.get(url);
-      const isSuccess = res?.success ?? res?.data?.success ?? true;
-      const d = res?.data?.availableSlots ? res.data : res?.data?.data || res?.data || {};
-      if (isSuccess && d) {
+      const d = unwrap(res);
+      if (d) {
         setIsWorkingDay(d.isWorkingDay);
         setAvailableSlots(d.availableSlots || []);
         if (!d.isWorkingDay) {
@@ -127,12 +127,8 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
       };
 
       const res = await api.post(`/hearings/${hearing.id}/adjourn`, payload);
-      const isSuccess = res?.success ?? res?.data?.success ?? true;
-      const dataPayload =
-        res?.data?.hearing || res?.data?.adjournedHearing
-          ? res.data
-          : res?.data?.data || res?.data || {};
-      if (isSuccess && (dataPayload.hearing || dataPayload.adjournedHearing)) {
+      const dataPayload = unwrap(res);
+      if (dataPayload.hearing || dataPayload.adjournedHearing) {
         if (onSuccess) {
           onSuccess({
             result: dataPayload,
@@ -179,9 +175,22 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
           )}
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-navy-900 mb-1">
-              Adjournment Reason (Recorded in Daily Order) *
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-navy-900">
+                Adjournment Reason (Recorded in Daily Order) *
+              </label>
+              <span
+                className={`text-[11px] font-mono ${
+                  reason.trim().length < 5
+                    ? 'text-amber-600 font-semibold'
+                    : reason.trim().length > 500
+                      ? 'text-red-600 font-bold'
+                      : 'text-emerald-700'
+                }`}
+              >
+                {reason.trim().length}/5 minimum (max 500)
+              </span>
+            </div>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -189,6 +198,9 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
               rows={2}
               className="w-full text-xs border border-gray-300 rounded-md py-2 px-3 focus:ring-2 focus:ring-brass-500 focus:outline-none"
             />
+            <p className="text-[11px] text-gray-500 mt-1">
+              Official adjournment justification recorded in daily judicial order.
+            </p>
           </div>
 
           {/* Toggle Next Hearing */}
@@ -307,9 +319,22 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                    Purpose of Next Hearing
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-gray-700">
+                      Purpose of Next Hearing *
+                    </label>
+                    <span
+                      className={`text-[11px] font-mono ${
+                        nextPurpose.trim().length < 3
+                          ? 'text-amber-600 font-semibold'
+                          : nextPurpose.trim().length > 200
+                            ? 'text-red-600 font-bold'
+                            : 'text-emerald-700'
+                      }`}
+                    >
+                      {nextPurpose.trim().length}/3 minimum (max 200)
+                    </span>
+                  </div>
                   <input
                     type="text"
                     value={nextPurpose}
@@ -317,12 +342,25 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
                     placeholder="e.g. Filing of Written Statement, Framing of Issues"
                     className="w-full text-xs border border-gray-300 rounded py-1.5 px-2 focus:ring-1 focus:ring-brass-500 focus:outline-none"
                   />
+                  <p className="text-[10px] text-gray-500 mt-0.5">
+                    Specify objective for next hearing session.
+                  </p>
                 </div>
               </div>
             )}
           </div>
 
           <div className="flex items-center justify-end space-x-3 pt-3 border-t border-gray-200">
+            {(reason.trim().length < 5 ||
+              (scheduleNext && (!selectedSlot || nextPurpose.trim().length < 3))) && (
+              <span className="text-[11px] text-gray-500 mr-auto">
+                {reason.trim().length < 5
+                  ? `Reason requires ${5 - reason.trim().length} more character(s)`
+                  : scheduleNext && !selectedSlot
+                    ? 'Select an available slot'
+                    : `Next purpose requires ${3 - nextPurpose.trim().length} more character(s)`}
+              </span>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -332,7 +370,20 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
             </button>
             <button
               type="submit"
-              disabled={submitting || reason.trim().length < 5 || (scheduleNext && !selectedSlot)}
+              disabled={
+                submitting ||
+                reason.trim().length < 5 ||
+                (scheduleNext && (!selectedSlot || nextPurpose.trim().length < 3))
+              }
+              title={
+                reason.trim().length < 5
+                  ? `Enter at least 5 characters for reason (${reason.trim().length}/5)`
+                  : scheduleNext && !selectedSlot
+                    ? 'Select an available slot for next hearing date'
+                    : scheduleNext && nextPurpose.trim().length < 3
+                      ? `Next purpose requires at least 3 characters (${nextPurpose.trim().length}/3)`
+                      : 'Confirm adjournment'
+              }
               className="inline-flex items-center space-x-2 px-4 py-2 bg-navy-900 text-white rounded-md text-xs font-semibold hover:bg-navy-800 transition-colors disabled:opacity-50"
             >
               {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin text-brass-400" />}

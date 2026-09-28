@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
+import { unwrap } from '../../api/unwrap';
 import { X, UserCheck, Search, AlertCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export default function AssignAdvocateModal({
@@ -41,11 +42,7 @@ export default function AssignAdvocateModal({
     setFetchingList(true);
     try {
       const res = await api.get('/advocates?pageSize=50');
-      const payload = res?.data?.items
-        ? res.data
-        : res?.data?.data?.items
-          ? res.data.data
-          : res?.data || {};
+      const payload = unwrap(res);
       setAdvocates(Array.isArray(payload.items) ? payload.items : []);
     } catch {
       setError('Failed to fetch available advocates');
@@ -92,25 +89,18 @@ export default function AssignAdvocateModal({
         side,
       });
 
-      const isSuccess = res?.success ?? res?.data?.success ?? true;
-      const dataPayload = res?.data?.assignment ? res.data : res?.data?.data || res?.data || {};
+      const dataPayload = unwrap(res);
 
-      if (isSuccess) {
-        onSuccess({
-          assignment: dataPayload.assignment,
-          warning: dataPayload.warning,
-          statusChanged: dataPayload.statusChanged,
-          currentStatus: dataPayload.currentStatus,
-          message: res?.message || res?.data?.message,
-        });
-        onClose();
-      }
+      onSuccess({
+        assignment: dataPayload.assignment,
+        warning: dataPayload.warning,
+        statusChanged: dataPayload.statusChanged,
+        currentStatus: dataPayload.currentStatus,
+        message: res?.message || 'Advocate assigned successfully',
+      });
+      onClose();
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          err.response?.data?.errors?.[0] ||
-          'Failed to assign advocate'
-      );
+      setError(err.message || 'Failed to assign advocate');
     } finally {
       setLoading(false);
     }
@@ -300,6 +290,13 @@ export default function AssignAdvocateModal({
 
           {/* Footer Actions */}
           <div className="pt-4 border-t border-gray-100 flex items-center justify-end space-x-3">
+            {(!selectedAdvocateId || !!selectedAlreadyOnCaseSide) && (
+              <span className="text-[11px] text-gray-500 mr-auto">
+                {!selectedAdvocateId
+                  ? 'Select an advocate from the list to assign counsel'
+                  : `Advocate is already actively assigned on ${selectedAlreadyOnCaseSide}`}
+              </span>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -310,6 +307,13 @@ export default function AssignAdvocateModal({
             <button
               type="submit"
               disabled={loading || !selectedAdvocateId || !!selectedAlreadyOnCaseSide}
+              title={
+                !selectedAdvocateId
+                  ? 'Select an advocate from the directory above'
+                  : selectedAlreadyOnCaseSide
+                    ? `Advocate is already assigned on ${selectedAlreadyOnCaseSide}`
+                    : 'Confirm advocate assignment'
+              }
               className="px-5 py-2 text-xs font-semibold text-white bg-navy-900 hover:bg-navy-800 disabled:opacity-50 rounded-lg shadow-sm transition-colors flex items-center space-x-1.5"
             >
               {loading ? (

@@ -721,12 +721,13 @@ export const scheduleHearing = async (req, res) => {
       const dayEndUTC = slotStart.endOf('day').toJSDate();
 
       const existingCourtroomHearings = await tx.$queryRaw`
-        SELECT id, scheduled_at AS scheduledAt, duration_mins AS durationMins
-        FROM hearings
-        WHERE courtroom_id = ${courtroomId}
-          AND status = 'SCHEDULED'
-          AND scheduled_at >= ${dayStartUTC}
-          AND scheduled_at <= ${dayEndUTC}
+        SELECT h.id, h.scheduled_at AS scheduledAt, h.duration_mins AS durationMins, c.case_number AS caseNumber
+        FROM hearings h
+        JOIN cases c ON h.case_id = c.id
+        WHERE h.courtroom_id = ${courtroomId}
+          AND h.status = 'SCHEDULED'
+          AND h.scheduled_at >= ${dayStartUTC}
+          AND h.scheduled_at <= ${dayEndUTC}
         FOR UPDATE
       `;
 
@@ -734,8 +735,9 @@ export const scheduleHearing = async (req, res) => {
         if (hearingOverlapsSlot(h.scheduledAt, h.durationMins, slotStartJS, slotEndJS)) {
           const hStart = new Date(h.scheduledAt);
           const hEnd = computeEndsAt(h.scheduledAt, h.durationMins);
+          const caseRef = h.caseNumber ? ` for case ${h.caseNumber}` : '';
           const err = new Error(
-            `Courtroom ${courtroom.name} is already booked from ${formatTimeIST(hStart)} to ${formatTimeIST(hEnd)} on ${formatDateTimeIST(hStart).split(',')[0]}`
+            `Courtroom ${courtroom.name} is already booked${caseRef} from ${formatTimeIST(hStart)} to ${formatTimeIST(hEnd)} on ${formatDateTimeIST(hStart).split(',')[0]}`
           );
           err.statusCode = 409;
           throw err;
@@ -744,12 +746,13 @@ export const scheduleHearing = async (req, res) => {
 
       // 5. Overlap checks for judge (using locking current read)
       const existingJudgeHearings = await tx.$queryRaw`
-        SELECT id, scheduled_at AS scheduledAt, duration_mins AS durationMins
-        FROM hearings
-        WHERE judge_id = ${courtCase.judgeId}
-          AND status = 'SCHEDULED'
-          AND scheduled_at >= ${dayStartUTC}
-          AND scheduled_at <= ${dayEndUTC}
+        SELECT h.id, h.scheduled_at AS scheduledAt, h.duration_mins AS durationMins, c.case_number AS caseNumber
+        FROM hearings h
+        JOIN cases c ON h.case_id = c.id
+        WHERE h.judge_id = ${courtCase.judgeId}
+          AND h.status = 'SCHEDULED'
+          AND h.scheduled_at >= ${dayStartUTC}
+          AND h.scheduled_at <= ${dayEndUTC}
         FOR UPDATE
       `;
 
@@ -757,8 +760,9 @@ export const scheduleHearing = async (req, res) => {
         if (hearingOverlapsSlot(h.scheduledAt, h.durationMins, slotStartJS, slotEndJS)) {
           const hStart = new Date(h.scheduledAt);
           const hEnd = computeEndsAt(h.scheduledAt, h.durationMins);
+          const caseRef = h.caseNumber ? ` for case ${h.caseNumber}` : '';
           const err = new Error(
-            `Judge ${courtCase.judge.name} already has another hearing scheduled from ${formatTimeIST(hStart)} to ${formatTimeIST(hEnd)} on ${formatDateTimeIST(hStart).split(',')[0]}`
+            `Judge ${courtCase.judge.name} already has another hearing scheduled${caseRef} from ${formatTimeIST(hStart)} to ${formatTimeIST(hEnd)} on ${formatDateTimeIST(hStart).split(',')[0]}`
           );
           err.statusCode = 409;
           throw err;

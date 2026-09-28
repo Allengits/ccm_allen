@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
+import { unwrap } from '../api/unwrap';
 import { useAuth } from '../context/AuthContext';
 import AddAdvocateModal from '../components/advocates/AddAdvocateModal';
 import EditAdvocateModal from '../components/advocates/EditAdvocateModal';
@@ -99,13 +100,9 @@ export default function Advocates() {
       api
         .get('/advocates/meta')
         .then((res) => {
-          const specs =
-            res?.data?.specializations ||
-            res?.data?.data?.specializations ||
-            res?.specializations ||
-            [];
-          if (Array.isArray(specs) && specs.length > 0) {
-            setSpecializations(specs);
+          const data = unwrap(res);
+          if (Array.isArray(data.specializations)) {
+            setSpecializations(data.specializations);
           }
         })
         .catch((err) => {
@@ -130,26 +127,14 @@ export default function Advocates() {
       if (hasLoginParam) params.hasLogin = hasLoginParam;
 
       const res = await api.get('/advocates', { params });
+      const data = unwrap(res, 'Failed to load advocate directory');
 
-      // Support both unwrapped interceptor response and raw Axios response shapes
-      const payload = res?.data?.items
-        ? res.data
-        : res?.data?.data?.items
-          ? res.data.data
-          : res?.data || {};
-
-      const isSuccess = res?.success ?? res?.data?.success ?? Array.isArray(payload?.items);
-
-      if (isSuccess && Array.isArray(payload.items)) {
-        setAdvocates(payload.items);
-        setTotal(payload.total ?? payload.items.length);
-        setTotalPages(payload.totalPages ?? 1);
+      if (Array.isArray(data.items)) {
+        setAdvocates(data.items);
+        setTotal(data.total ?? data.items.length);
+        setTotalPages(data.totalPages ?? 1);
       } else {
-        throw new Error(
-          res?.message ||
-            res?.data?.message ||
-            'Failed to parse advocate records from server response'
-        );
+        throw new Error('Failed to parse advocate records from server response');
       }
     } catch (err) {
       setError(
@@ -177,18 +162,12 @@ export default function Advocates() {
       }
 
       const res = await api.get(`/advocates/${advocateId}`);
-      const profile = res?.data?.advocate || res?.data?.data?.advocate || res?.advocate || null;
+      const data = unwrap(res, 'Failed to load your advocate profile');
 
-      const isSuccess = res?.success ?? res?.data?.success ?? !!profile;
-
-      if (isSuccess && profile) {
-        setMyProfile(profile);
+      if (data.advocate) {
+        setMyProfile(data.advocate);
       } else {
-        throw new Error(
-          res?.message ||
-            res?.data?.message ||
-            'Failed to parse advocate profile from server response'
-        );
+        throw new Error('Failed to parse advocate profile from server response');
       }
     } catch (err) {
       setError(

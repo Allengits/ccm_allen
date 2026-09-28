@@ -7,6 +7,7 @@ import {
   registerCase,
   getCases,
   getCaseById,
+  getCaseHistory,
   updateCase,
 } from '../controllers/case.controller.js';
 import {
@@ -28,6 +29,9 @@ router.post('/', requirePermission(PERMISSIONS.CASE_CREATE), registerCase);
 
 // Case query list (filtered by role visibility)
 router.get('/', requirePermission(PERMISSIONS.CASE_VIEW), getCases);
+
+// Case history audit timeline (returns 404 if out of scope)
+router.get('/:id/history', requirePermission(PERMISSIONS.CASE_VIEW), getCaseHistory);
 
 // Case detail (returns 404 if out of scope)
 router.get('/:id', requirePermission(PERMISSIONS.CASE_VIEW), getCaseById);

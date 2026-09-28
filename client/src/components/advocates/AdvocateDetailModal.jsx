@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
+import { unwrap } from '../../api/unwrap';
 import { useAuth } from '../../context/AuthContext';
 import { X, Mail, Phone, Scale, CheckCircle2, XCircle, ExternalLink, Edit3 } from 'lucide-react';
 
@@ -23,13 +24,12 @@ export default function AdvocateDetailModal({ isOpen, onClose, advocateId, onEdi
     setError(null);
     try {
       const res = await api.get(`/advocates/${advocateId}`);
-      const adv = res?.data?.advocate || res?.data?.data?.advocate;
-      const isSuccess = res?.success ?? res?.data?.success ?? !!adv;
+      const data = unwrap(res, 'Failed to load advocate profile');
 
-      if (isSuccess && adv) {
-        setAdvocate(adv);
+      if (data.advocate) {
+        setAdvocate(data.advocate);
       } else {
-        throw new Error(res?.message || res?.data?.message || 'Failed to parse advocate profile');
+        throw new Error('Failed to parse advocate profile');
       }
     } catch (err) {
       setError(

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
+import { unwrap } from '../api/unwrap';
 import { useAuth } from '../context/AuthContext';
 import ScheduleHearingModal from '../components/hearings/ScheduleHearingModal';
 import RescheduleHearingModal from '../components/hearings/RescheduleHearingModal';
@@ -67,13 +68,12 @@ export default function Hearings() {
     setError(null);
     try {
       const res = await api.get(`/hearings/cause-list?date=${dateStr}`);
-      const causeList = res?.data?.courtrooms ? res.data : res?.data?.data || res?.data;
-      const isSuccess = res?.success ?? res?.data?.success ?? !!causeList;
+      const data = unwrap(res, 'Failed to load daily cause list');
 
-      if (isSuccess && causeList) {
-        setCauseListData(causeList);
+      if (data && typeof data === 'object') {
+        setCauseListData(data);
       } else {
-        throw new Error(res?.message || res?.data?.message || 'Failed to load daily cause list');
+        throw new Error('Failed to load daily cause list');
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to load daily cause list');
@@ -96,20 +96,14 @@ export default function Hearings() {
       if (courtroomFilter) params.append('courtroomId', courtroomFilter);
 
       const res = await api.get(`/hearings?${params.toString()}`);
-      const payload = res?.data?.items
-        ? res.data
-        : res?.data?.data?.items
-          ? res.data.data
-          : res?.data || {};
+      const data = unwrap(res, 'Failed to load hearings registry');
 
-      const isSuccess = res?.success ?? res?.data?.success ?? Array.isArray(payload?.items);
-
-      if (isSuccess && Array.isArray(payload.items)) {
-        setHearings(payload.items);
-        setRegistryTotalPages(payload.totalPages ?? 1);
-        setRegistryTotal(payload.total ?? payload.items.length);
+      if (Array.isArray(data.items)) {
+        setHearings(data.items);
+        setRegistryTotalPages(data.totalPages ?? 1);
+        setRegistryTotal(data.total ?? data.items.length);
       } else {
-        throw new Error(res?.message || res?.data?.message || 'Failed to load hearings registry');
+        throw new Error('Failed to load hearings registry');
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to load hearings registry');
@@ -122,9 +116,9 @@ export default function Hearings() {
   const fetchMeta = useCallback(async () => {
     try {
       const res = await api.get('/hearings/meta');
-      const rooms = res?.data?.courtrooms || res?.data?.data?.courtrooms || [];
-      if (Array.isArray(rooms) && rooms.length > 0) {
-        setCourtroomsList(rooms);
+      const data = unwrap(res);
+      if (Array.isArray(data.courtrooms) && data.courtrooms.length > 0) {
+        setCourtroomsList(data.courtrooms);
       }
     } catch {
       // non-blocking

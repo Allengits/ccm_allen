@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
+import { unwrap } from '../../api/unwrap';
 import { X, Calendar, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function RescheduleHearingModal({ isOpen, onClose, onSuccess, hearing }) {
@@ -42,7 +43,7 @@ export default function RescheduleHearingModal({ isOpen, onClose, onSuccess, hea
     setLoadingMeta(true);
     try {
       const res = await api.get('/hearings/meta');
-      const metaPayload = res?.data?.courtrooms ? res.data : res?.data?.data || res?.data || {};
+      const metaPayload = unwrap(res);
       if (Array.isArray(metaPayload.courtrooms)) {
         setCourtrooms(metaPayload.courtrooms);
       }
@@ -73,9 +74,8 @@ export default function RescheduleHearingModal({ isOpen, onClose, onSuccess, hea
       if (targetJudgeId) url += `&judgeId=${targetJudgeId}`;
 
       const res = await api.get(url);
-      const isSuccess = res?.success ?? res?.data?.success ?? true;
-      const d = res?.data?.availableSlots ? res.data : res?.data?.data || res?.data || {};
-      if (isSuccess && d) {
+      const d = unwrap(res);
+      if (d) {
         setIsWorkingDay(d.isWorkingDay);
         setAvailableSlots(d.availableSlots || []);
         if (!d.isWorkingDay) {
@@ -120,9 +120,8 @@ export default function RescheduleHearingModal({ isOpen, onClose, onSuccess, hea
       };
 
       const res = await api.patch(`/hearings/${hearing.id}`, payload);
-      const isSuccess = res?.success ?? res?.data?.success ?? true;
-      const dataPayload = res?.data?.hearing ? res.data : res?.data?.data || res?.data || {};
-      if (isSuccess && dataPayload.hearing) {
+      const dataPayload = unwrap(res);
+      if (dataPayload.hearing) {
         if (onSuccess) {
           onSuccess({
             hearing: dataPayload.hearing,
@@ -275,9 +274,22 @@ export default function RescheduleHearingModal({ isOpen, onClose, onSuccess, hea
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-navy-900 mb-1">
-              Reason for Rescheduling (Audit Trail) *
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-navy-900">
+                Reason for Rescheduling (Audit Trail) *
+              </label>
+              <span
+                className={`text-[11px] font-mono ${
+                  reason.trim().length < 5
+                    ? 'text-amber-600 font-semibold'
+                    : reason.trim().length > 500
+                      ? 'text-red-600 font-bold'
+                      : 'text-emerald-700'
+                }`}
+              >
+                {reason.trim().length}/5 minimum (max 500)
+              </span>
+            </div>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -285,9 +297,19 @@ export default function RescheduleHearingModal({ isOpen, onClose, onSuccess, hea
               rows={2}
               className="w-full text-xs border border-gray-300 rounded-md py-2 px-3 focus:ring-2 focus:ring-brass-500 focus:outline-none"
             />
+            <p className="text-[11px] text-gray-500 mt-1">
+              Mandatory administrative justification recorded in docket history.
+            </p>
           </div>
 
           <div className="flex items-center justify-end space-x-3 pt-3 border-t border-gray-200">
+            {(!selectedSlot || reason.trim().length < 5) && (
+              <span className="text-[11px] text-gray-500 mr-auto">
+                {!selectedSlot
+                  ? 'Select an available slot'
+                  : `Reason requires ${5 - reason.trim().length} more character(s)`}
+              </span>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -298,6 +320,13 @@ export default function RescheduleHearingModal({ isOpen, onClose, onSuccess, hea
             <button
               type="submit"
               disabled={submitting || !selectedSlot || reason.trim().length < 5}
+              title={
+                !selectedSlot
+                  ? 'Select an available hearing slot above'
+                  : reason.trim().length < 5
+                    ? `Enter at least 5 characters for reason (${reason.trim().length}/5)`
+                    : 'Confirm reschedule'
+              }
               className="inline-flex items-center space-x-2 px-4 py-2 bg-navy-900 text-white rounded-md text-xs font-semibold hover:bg-navy-800 transition-colors disabled:opacity-50"
             >
               {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin text-brass-400" />}

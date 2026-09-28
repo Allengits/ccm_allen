@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
+import { unwrap } from '../api/unwrap';
 import { useAuth } from '../context/AuthContext';
 import EditCaseModal from '../components/cases/EditCaseModal';
 import AssignAdvocateModal from '../components/cases/AssignAdvocateModal';
@@ -56,11 +57,11 @@ export default function CaseDetail() {
       setLoading(true);
       setError(null);
       const res = await api.get(`/cases/${id}`);
-      const c = res?.data?.case || res?.data?.data?.case || res?.case;
-      if (c) {
-        setCaseData(c);
+      const data = unwrap(res, 'Case record not found');
+      if (data.case) {
+        setCaseData(data.case);
       } else {
-        throw new Error(res?.message || res?.data?.message || 'Case record not found');
+        throw new Error('Case record not found');
       }
     } catch (err) {
       if (err.status === 404 || err.response?.status === 404) {

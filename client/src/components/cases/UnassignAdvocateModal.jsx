@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
+import { unwrap } from '../../api/unwrap';
 import { X, UserMinus, AlertCircle, AlertTriangle } from 'lucide-react';
 
 export default function UnassignAdvocateModal({
@@ -45,24 +46,17 @@ export default function UnassignAdvocateModal({
         reason: reason.trim(),
       });
 
-      const isSuccess = res?.success ?? res?.data?.success ?? true;
-      const dataPayload = res?.data?.assignment ? res.data : res?.data?.data || res?.data || {};
+      const dataPayload = unwrap(res);
 
-      if (isSuccess) {
-        onSuccess({
-          assignment: dataPayload.assignment,
-          statusChanged: dataPayload.statusChanged,
-          currentStatus: dataPayload.currentStatus,
-          message: res?.message || res?.data?.message,
-        });
-        onClose();
-      }
+      onSuccess({
+        assignment: dataPayload.assignment,
+        statusChanged: dataPayload.statusChanged,
+        currentStatus: dataPayload.currentStatus,
+        message: res?.message || 'Advocate unassigned successfully',
+      });
+      onClose();
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          err.response?.data?.errors?.[0] ||
-          'Failed to unassign advocate'
-      );
+      setError(err.message || 'Failed to unassign advocate');
     } finally {
       setLoading(false);
     }
@@ -145,14 +139,14 @@ export default function UnassignAdvocateModal({
               </label>
               <span
                 className={`text-[11px] font-mono ${
-                  reason.length < 5
-                    ? 'text-gray-400'
-                    : reason.length > 500
+                  reason.trim().length < 5
+                    ? 'text-amber-600 font-semibold'
+                    : reason.trim().length > 500
                       ? 'text-red-600 font-bold'
                       : 'text-emerald-700'
                 }`}
               >
-                {reason.length} / 500 chars (min 5)
+                {reason.trim().length}/5 minimum (max 500)
               </span>
             </div>
             <textarea
@@ -163,13 +157,18 @@ export default function UnassignAdvocateModal({
               className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-navy-600"
             />
             <p className="text-[11px] text-gray-500 mt-1">
-              This statement will be permanently recorded in the immutable judicial case audit
+              Provide formal administrative justification. Recorded permanently in the case audit
               trail.
             </p>
           </div>
 
           {/* Modal Actions */}
           <div className="pt-4 border-t border-gray-100 flex items-center justify-end space-x-3">
+            {reason.trim().length < 5 && (
+              <span className="text-[11px] text-gray-500 mr-auto">
+                Minimum 5 characters required ({reason.trim().length}/5)
+              </span>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -180,6 +179,13 @@ export default function UnassignAdvocateModal({
             <button
               type="submit"
               disabled={loading || reason.trim().length < 5 || reason.trim().length > 500}
+              title={
+                reason.trim().length < 5
+                  ? `Provide at least 5 characters (${reason.trim().length}/5)`
+                  : reason.trim().length > 500
+                    ? 'Reason exceeds 500 characters'
+                    : 'Confirm unassignment'
+              }
               className="px-5 py-2 text-xs font-semibold text-white bg-red-700 hover:bg-red-800 disabled:opacity-50 rounded-lg shadow-sm transition-colors flex items-center space-x-1.5"
             >
               {loading ? (

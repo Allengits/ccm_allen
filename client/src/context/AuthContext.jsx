@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
-import { hasPermission } from '../constants/permissions';
+import { unwrap } from '../api/unwrap';
+import { hasPermission, isValidPermission } from '../constants/permissions';
 
 const AuthContext = createContext(null);
 
@@ -14,7 +15,8 @@ export function AuthProvider({ children }) {
     try {
       setLoading(true);
       const res = await api.get('/auth/me');
-      setUser(res.data?.user || null);
+      const data = unwrap(res);
+      setUser(data.user || null);
       setError(null);
     } catch (err) {
       setUser(null);
@@ -69,6 +71,9 @@ export function AuthProvider({ children }) {
    */
   const can = useCallback(
     (permission) => {
+      if (import.meta.env?.DEV && !isValidPermission(permission)) {
+        console.error(`[RBAC] Unknown permission key requested: "${permission}"`);
+      }
       if (!user) return false;
       return hasPermission(user.role, permission);
     },

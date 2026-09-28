@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
+import { unwrap } from '../api/unwrap';
 import { useAuth } from '../context/AuthContext';
 import {
   UserPlus,
@@ -55,7 +56,8 @@ export default function Users() {
       if (roleFilter) params.role = roleFilter;
 
       const res = await api.get('/users', { params });
-      const userList = res?.data?.users || res?.users || res?.data?.data?.users || [];
+      const data = unwrap(res);
+      const userList = data?.users || [];
       setUsers(Array.isArray(userList) ? userList : []);
     } catch (err) {
       showToast(err.message || 'Failed to fetch users', 'error');
