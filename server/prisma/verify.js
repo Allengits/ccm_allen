@@ -155,12 +155,22 @@ async function runVerification() {
               `${c.caseNumber} (UNDER_TRIAL): Needs active advocate (has:${hasAdvocate}) and at least one COMPLETED hearing (has:${hasCompletedHearing})`
             );
           }
+          if (c.judgment) {
+            statusFailures.push(
+              `${c.caseNumber} (UNDER_TRIAL): Has unexpected judgment record prior to reservation`
+            );
+          }
           break;
         }
         case 'JUDGMENT_RESERVED': {
-          if (activeAdvocates.length === 0 || !c.judgment || c.judgment.status !== 'RESERVED') {
+          if (
+            activeAdvocates.length === 0 ||
+            !c.judgment ||
+            c.judgment.status !== 'RESERVED' ||
+            c.judgment.outcome !== null
+          ) {
             statusFailures.push(
-              `${c.caseNumber} (JUDGMENT_RESERVED): Expected >= 1 active advocate and Judgment record with status RESERVED`
+              `${c.caseNumber} (JUDGMENT_RESERVED): Expected >= 1 active advocate, Judgment record with status RESERVED, and no outcome yet`
             );
           }
           break;
@@ -170,10 +180,14 @@ async function runVerification() {
             activeAdvocates.length === 0 ||
             !c.judgment ||
             c.judgment.status !== 'DELIVERED' ||
+            !c.judgment.outcome ||
+            !c.judgment.summary ||
+            !c.judgment.judgmentDate ||
+            !c.judgment.deliveredById ||
             !c.closedAt
           ) {
             statusFailures.push(
-              `${c.caseNumber} (CLOSED): Expected >= 1 active advocate, Judgment with status DELIVERED, and non-null closedAt`
+              `${c.caseNumber} (CLOSED): Expected >= 1 active advocate, delivered Judgment (outcome, summary, judgmentDate, deliveredById), and non-null closedAt`
             );
           }
           break;
@@ -276,21 +290,52 @@ async function runVerification() {
     }
 
     // -------------------------------------------------------------
-    // CHECK 4: Judgment Uniqueness per Case
+    // CHECK 4: Judgment Uniqueness & Lifecycle Constraints
     // -------------------------------------------------------------
-    console.log('[4/5] Checking judgment uniqueness per case...');
-    const judgments = await prisma.judgment.findMany();
+    console.log('[4/5] Checking judgment uniqueness and lifecycle constraints...');
+    const judgments = await prisma.judgment.findMany({
+      include: { case: true },
+    });
     const caseIdsInJudgments = judgments.map((j) => j.caseId);
     const uniqueCaseIds = new Set(caseIdsInJudgments);
+    const judgmentErrors = [];
 
-    if (caseIdsInJudgments.length === uniqueCaseIds.size) {
+    if (caseIdsInJudgments.length !== uniqueCaseIds.size) {
+      judgmentErrors.push('Duplicate caseId found among judgments');
+    }
+
+    for (const j of judgments) {
+      if (j.status === 'DELIVERED') {
+        if (j.case.status !== 'CLOSED') {
+          judgmentErrors.push(
+            `Judgment ${j.id} is DELIVERED but case ${j.case.caseNumber} status is ${j.case.status}`
+          );
+        }
+        if (!j.outcome || !j.summary || !j.judgmentDate || !j.deliveredById) {
+          judgmentErrors.push(
+            `Delivered judgment ${j.id} missing outcome, summary, judgmentDate, or deliveredById`
+          );
+        }
+      } else if (j.status === 'RESERVED') {
+        if (j.case.status !== 'JUDGMENT_RESERVED') {
+          judgmentErrors.push(
+            `Judgment ${j.id} is RESERVED but case ${j.case.caseNumber} status is ${j.case.status}`
+          );
+        }
+        if (j.outcome !== null) {
+          judgmentErrors.push(`Reserved judgment ${j.id} has unexpected outcome`);
+        }
+      }
+    }
+
+    if (judgmentErrors.length === 0) {
       recordResult(
-        'Judgment Uniqueness',
+        'Judgment Integrity & Uniqueness',
         true,
-        `All ${judgments.length} judgments have unique caseId (enforces 1:1 relation)`
+        `All ${judgments.length} judgments have unique caseId, conform to lifecycle constraints, and delivered cases are CLOSED`
       );
     } else {
-      recordResult('Judgment Uniqueness', false, `Duplicate caseId found among judgments!`);
+      recordResult('Judgment Integrity & Uniqueness', false, judgmentErrors.join('; '));
     }
 
     // -------------------------------------------------------------

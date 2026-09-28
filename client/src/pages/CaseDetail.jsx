@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import { unwrap } from '../api/unwrap';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,8 @@ import RescheduleHearingModal from '../components/hearings/RescheduleHearingModa
 import CancelHearingModal from '../components/hearings/CancelHearingModal';
 import CompleteHearingModal from '../components/hearings/CompleteHearingModal';
 import AdjournHearingModal from '../components/hearings/AdjournHearingModal';
+import ReserveJudgmentModal from '../components/judgments/ReserveJudgmentModal';
+import DeliverJudgmentModal from '../components/judgments/DeliverJudgmentModal';
 import {
   ArrowLeft,
   Calendar,
@@ -32,12 +34,15 @@ import {
 
 export default function CaseDetail() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const { user, can } = useAuth();
 
   const [caseData, setCaseData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+
+  const initialTab = searchParams.get('tab') || 'overview';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [unassigningAdvocate, setUnassigningAdvocate] = useState(null);
@@ -51,6 +56,19 @@ export default function CaseDetail() {
   const [completingHearing, setCompletingHearing] = useState(null);
   const [adjourningHearing, setAdjourningHearing] = useState(null);
   const [hearingNotice, setHearingNotice] = useState(null);
+
+  // Judgment modal state
+  const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
+  const [isDeliverModalOpen, setIsDeliverModalOpen] = useState(false);
+  const [judgmentNotice, setJudgmentNotice] = useState(null);
+
+  // Sync tab with URL if search param changes
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['overview', 'advocates', 'hearings', 'judgment', 'history'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   const fetchCaseDetail = async () => {
     try {
@@ -149,15 +167,31 @@ export default function CaseDetail() {
           <span>Back to Master Docket</span>
         </Link>
 
-        {canEdit && (
-          <button
-            type="button"
-            onClick={() => setIsEditModalOpen(true)}
-            className="inline-flex items-center space-x-2 px-3 py-1.5 bg-white border border-navy-800 text-navy-900 rounded-md text-xs font-semibold hover:bg-navy-50 transition-colors shadow-xs"
-          >
-            <Edit2 className="w-3.5 h-3.5 text-brass-600" />
-            <span>Edit Case Details</span>
-          </button>
+        {can('case.edit') && (
+          isClosed ? (
+            <div className="relative group inline-block">
+              <button
+                type="button"
+                disabled
+                className="inline-flex items-center space-x-2 px-3 py-1.5 bg-gray-100 border border-gray-300 text-gray-400 rounded-md text-xs font-semibold cursor-not-allowed shadow-none"
+              >
+                <Edit2 className="w-3.5 h-3.5 text-gray-400" />
+                <span>Edit Case Details</span>
+              </button>
+              <div className="absolute right-0 top-full mt-1 hidden group-hover:block bg-gray-900 text-white text-[11px] rounded px-2.5 py-1 whitespace-nowrap shadow-lg z-50">
+                Case is CLOSED and permanently read-only
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              className="inline-flex items-center space-x-2 px-3 py-1.5 bg-white border border-navy-800 text-navy-900 rounded-md text-xs font-semibold hover:bg-navy-50 transition-colors shadow-xs"
+            >
+              <Edit2 className="w-3.5 h-3.5 text-brass-600" />
+              <span>Edit Case Details</span>
+            </button>
+          )
         )}
       </div>
 
@@ -242,6 +276,35 @@ export default function CaseDetail() {
           })}
         </div>
       </div>
+
+      {/* Closed Case Permanent Read-Only Advisory Banner */}
+      {isClosed && (
+        <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-lg flex items-start space-x-3 text-emerald-950 text-xs shadow-xs">
+          <CheckCircle2 className="w-5 h-5 text-emerald-700 flex-shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold text-sm block">Case Docket Concluded & Permanently Closed</span>
+            <span className="text-emerald-800">
+              Final judgment has been pronounced. This docket is permanently closed and read-only. Further pleadings, advocate assignments, and hearing schedules are barred under court rules.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Judgment Notification Banner */}
+      {judgmentNotice && (
+        <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between shadow-xs">
+          <div className="flex items-center space-x-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span className="font-medium">{judgmentNotice}</span>
+          </div>
+          <button
+            onClick={() => setJudgmentNotice(null)}
+            className="text-emerald-700 hover:text-emerald-950 font-bold ml-4"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Tab Panels */}
       <div className="space-y-4">
@@ -340,14 +403,29 @@ export default function CaseDetail() {
                 </p>
               </div>
 
-              {can('advocate.assign') && caseData.status !== 'CLOSED' && (
-                <button
-                  onClick={() => setIsAssignModalOpen(true)}
-                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-navy-900 text-white rounded-lg text-xs font-semibold hover:bg-navy-800 transition-colors shadow-sm self-start sm:self-auto"
-                >
-                  <UserPlus className="w-3.5 h-3.5 text-brass-400" />
-                  <span>Assign Advocate</span>
-                </button>
+              {can('advocate.assign') && (
+                isClosed ? (
+                  <div className="relative group inline-block">
+                    <button
+                      disabled
+                      className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-gray-200 text-gray-400 rounded-lg text-xs font-semibold cursor-not-allowed self-start sm:self-auto"
+                    >
+                      <UserPlus className="w-3.5 h-3.5 text-gray-400" />
+                      <span>Assign Advocate</span>
+                    </button>
+                    <div className="absolute right-0 top-full mt-1 hidden group-hover:block bg-gray-900 text-white text-[11px] rounded px-2.5 py-1 whitespace-nowrap shadow-lg z-50">
+                      Case is CLOSED and permanently read-only
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsAssignModalOpen(true)}
+                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-navy-900 text-white rounded-lg text-xs font-semibold hover:bg-navy-800 transition-colors shadow-sm self-start sm:self-auto"
+                  >
+                    <UserPlus className="w-3.5 h-3.5 text-brass-400" />
+                    <span>Assign Advocate</span>
+                  </button>
+                )
               )}
             </div>
 
@@ -546,9 +624,21 @@ export default function CaseDetail() {
                 </p>
               </div>
 
-              {can('hearing.schedule') &&
-                caseData.status !== 'CLOSED' &&
-                caseData.status !== 'REGISTERED' && (
+              {can('hearing.schedule') && (
+                isClosed ? (
+                  <div className="relative group inline-block">
+                    <button
+                      disabled
+                      className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-gray-200 text-gray-400 rounded-lg text-xs font-semibold cursor-not-allowed self-start sm:self-auto"
+                    >
+                      <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                      <span>Schedule Hearing</span>
+                    </button>
+                    <div className="absolute right-0 top-full mt-1 hidden group-hover:block bg-gray-900 text-white text-[11px] rounded px-2.5 py-1 whitespace-nowrap shadow-lg z-50">
+                      Case is CLOSED and permanently read-only
+                    </div>
+                  </div>
+                ) : caseData.status !== 'REGISTERED' ? (
                   <button
                     onClick={() => setIsScheduleModalOpen(true)}
                     className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-navy-900 text-white rounded-lg text-xs font-semibold hover:bg-navy-800 transition-colors shadow-sm self-start sm:self-auto"
@@ -556,7 +646,8 @@ export default function CaseDetail() {
                     <Calendar className="w-3.5 h-3.5 text-brass-400" />
                     <span>Schedule Hearing</span>
                   </button>
-                )}
+                ) : null
+              )}
             </div>
 
             {/* Lifecycle Automation Notice */}
@@ -609,6 +700,7 @@ export default function CaseDetail() {
                   <tbody className="divide-y divide-gray-100">
                     {caseData.hearings.map((h) => {
                       const isActionable =
+                        !isClosed &&
                         h.status === 'SCHEDULED' &&
                         (user?.role === 'ADMIN' ||
                           user?.role === 'REGISTRAR' ||
@@ -723,92 +815,300 @@ export default function CaseDetail() {
         )}
 
         {/* JUDGMENT TAB */}
-        {activeTab === 'judgment' && (
-          <div className="registry-card rounded-lg p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <div>
-                <h3 className="text-base font-serif font-bold text-navy-900">
-                  Judicial Decree & Orders
-                </h3>
-                <p className="text-xs text-gray-500">
-                  Reserved rulings, delivered decrees, and operative judicial orders.
-                </p>
-              </div>
-              <span className="text-xs italic text-gray-400 bg-gray-50 px-2.5 py-1 rounded border border-gray-200">
-                Phase 8 will enable judgment reservation & formal delivery.
-              </span>
-            </div>
+        {activeTab === 'judgment' && (() => {
+          const isUnderTrial = caseData.status === 'UNDER_TRIAL';
+          const completedHearings = caseData.hearings?.filter((h) => h.status === 'COMPLETED') || [];
+          const hasCompletedHearing = completedHearings.length > 0;
+          const scheduledHearings = caseData.hearings?.filter((h) => h.status === 'SCHEDULED') || [];
+          const scheduledCount = scheduledHearings.length;
+          const hasNoScheduled = scheduledCount === 0;
 
-            {!caseData.judgment ? (
-              <div className="text-center py-10 text-gray-400 text-sm">
-                No judgment reserved or delivered yet for this case docket.
-              </div>
-            ) : (
-              <div className="p-6 bg-navy-50/40 rounded-lg border border-navy-100 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 pb-3">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-serif font-bold text-navy-950 text-lg">
-                      Judgment Decree
-                    </span>
-                    <span
-                      className={`font-mono uppercase text-xs px-2.5 py-0.5 rounded font-bold ${
-                        caseData.judgment.status === 'DELIVERED'
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                          : 'bg-amber-100 text-amber-800 border border-amber-300'
-                      }`}
+          const isCaseJudge = user?.id === caseData.judgeId;
+          const isAdmin = user?.role === 'ADMIN';
+          const canActOnJudgment = isAdmin || isCaseJudge;
+          const canRecord = can('judgment.record');
+          const canDeliver = can('judgment.deliver');
+
+          const isEligibleToReserve = isUnderTrial && hasCompletedHearing && hasNoScheduled;
+
+          let reserveBlockReason = '';
+          if (!canActOnJudgment) {
+            reserveBlockReason = `Only the presiding judge (${caseData.judge?.name || 'Assigned Judge'}) or an Administrator may reserve judgment.`;
+          } else if (!isUnderTrial) {
+            reserveBlockReason = `Case must be UNDER_TRIAL (current status: ${caseData.status})`;
+          } else if (!hasCompletedHearing) {
+            reserveBlockReason = 'Case must have at least one completed trial hearing';
+          } else if (!hasNoScheduled) {
+            reserveBlockReason = `Case has ${scheduledCount} scheduled hearing(s). All scheduled hearings must be completed, adjourned, or cancelled first.`;
+          }
+
+          const judgment = caseData.judgment;
+
+          return (
+            <div className="registry-card rounded-lg p-6 space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
+                <div>
+                  <h3 className="text-base font-serif font-bold text-navy-900">
+                    Judicial Decrees & Final Orders
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Pronouncement of judgments, operative decree summaries, and formal closure of proceedings.
+                  </p>
+                </div>
+
+                {/* Top Action for State A or State B */}
+                {!judgment && canRecord && (
+                  <div className="relative group inline-block">
+                    <button
+                      type="button"
+                      disabled={!isEligibleToReserve || !canActOnJudgment}
+                      onClick={() => setIsReserveModalOpen(true)}
+                      className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-navy-900 text-white rounded-lg text-xs font-semibold hover:bg-navy-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors shadow-xs"
                     >
-                      {caseData.judgment.status}
-                    </span>
+                      <Gavel className="w-3.5 h-3.5 text-brass-400" />
+                      <span>Reserve Judgment</span>
+                    </button>
+                    {reserveBlockReason && (
+                      <div className="absolute right-0 top-full mt-1 hidden group-hover:block bg-gray-900 text-white text-[11px] rounded px-2.5 py-1 whitespace-nowrap shadow-lg z-50 max-w-xs text-center">
+                        {reserveBlockReason}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {judgment && judgment.status === 'RESERVED' && canDeliver && (
+                  <div className="relative group inline-block">
+                    <button
+                      type="button"
+                      disabled={!canActOnJudgment}
+                      onClick={() => setIsDeliverModalOpen(true)}
+                      className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-navy-900 text-white rounded-lg text-xs font-semibold hover:bg-navy-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors shadow-xs"
+                    >
+                      <Scale className="w-3.5 h-3.5 text-brass-400" />
+                      <span>Deliver Judgment</span>
+                    </button>
+                    {!canActOnJudgment && (
+                      <div className="absolute right-0 top-full mt-1 hidden group-hover:block bg-gray-900 text-white text-[11px] rounded px-2.5 py-1 whitespace-nowrap shadow-lg z-50">
+                        Only the presiding judge ({caseData.judge?.name || 'Assigned Judge'}) or an Administrator may deliver judgment.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* STATE A: NO JUDGMENT YET */}
+              {!judgment && (
+                <div className="space-y-5">
+                  <div className="p-4 bg-navy-50/50 rounded-lg border border-navy-100 text-xs text-gray-700 space-y-3">
+                    <div className="font-semibold text-navy-950 font-serif text-sm">
+                      Judgment Reservation Eligibility Prerequisites
+                    </div>
+                    <p className="text-gray-600">
+                      Under high court civil and criminal procedure, a presiding judge may reserve judgment only after trial arguments are fully concluded:
+                    </p>
+                    <ul className="space-y-2 text-xs">
+                      <li className="flex items-center space-x-2">
+                        <span
+                          className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                            isUnderTrial ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {isUnderTrial ? '✓' : '✗'}
+                        </span>
+                        <span>
+                          <strong>Docket Status:</strong> Case must be in{' '}
+                          <code className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200 text-navy-900">
+                            UNDER_TRIAL
+                          </code>{' '}
+                          (Current: <code className="font-mono">{caseData.status}</code>)
+                        </span>
+                      </li>
+                      <li className="flex items-center space-x-2">
+                        <span
+                          className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                            hasCompletedHearing ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {hasCompletedHearing ? '✓' : '✗'}
+                        </span>
+                        <span>
+                          <strong>Trial Hearing Record:</strong> At least one hearing must be marked{' '}
+                          <code className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200 text-navy-900">
+                            COMPLETED
+                          </code>{' '}
+                          ({completedHearings.length} completed)
+                        </span>
+                      </li>
+                      <li className="flex items-center space-x-2">
+                        <span
+                          className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                            hasNoScheduled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {hasNoScheduled ? '✓' : '✗'}
+                        </span>
+                        <span>
+                          <strong>Clear Cause List:</strong> Zero pending scheduled hearings on the calendar{' '}
+                          ({scheduledCount} scheduled remaining)
+                        </span>
+                      </li>
+                    </ul>
                   </div>
 
-                  {caseData.judgment.outcome && (
-                    <span className="bg-navy-900 text-brass-300 px-3 py-1 rounded text-xs font-semibold uppercase tracking-wider">
-                      Outcome: {caseData.judgment.outcome}
-                    </span>
+                  {!canRecord && (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-md text-xs text-gray-500 italic">
+                      Registry officers and appearing advocates have read-only access to judgment records. Reserving or pronouncing judgments is restricted to the presiding bench and Administrative Chambers.
+                    </div>
                   )}
                 </div>
+              )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-gray-600">
-                  <div>
-                    <span className="text-gray-400 block font-medium uppercase">
-                      Authoring Judge
-                    </span>
-                    <span className="font-semibold text-navy-950">
-                      {caseData.judgment.judge?.name}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 block font-medium uppercase">Reserved Date</span>
-                    <span>
-                      {caseData.judgment.reservedOn
-                        ? new Date(caseData.judgment.reservedOn).toLocaleDateString('en-IN')
-                        : '—'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 block font-medium uppercase">
-                      Delivered Date
-                    </span>
-                    <span>
-                      {caseData.judgment.deliveredOn
-                        ? new Date(caseData.judgment.deliveredOn).toLocaleDateString('en-IN')
-                        : 'Pending formal delivery'}
-                    </span>
+              {/* STATE B: JUDGMENT RESERVED */}
+              {judgment && judgment.status === 'RESERVED' && (
+                <div className="space-y-4">
+                  <div className="p-5 bg-amber-50/70 border border-amber-300 rounded-lg space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 pb-3">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-serif font-bold text-navy-950 text-base">
+                          Judicial Status
+                        </span>
+                        <span className="bg-amber-100 text-amber-900 border border-amber-400 font-mono uppercase text-xs px-2.5 py-0.5 rounded-xs font-bold">
+                          JUDGMENT RESERVED
+                        </span>
+                      </div>
+                      <span className="text-xs text-amber-800 font-medium">
+                        Matter pending formal pronouncement of decree
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+                      <div>
+                        <span className="text-gray-500 uppercase block font-semibold text-[10px]">
+                          Reserved By
+                        </span>
+                        <span className="font-semibold text-navy-950">
+                          {judgment.reservedByName || caseData.judge?.name || 'Presiding Judge'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 uppercase block font-semibold text-[10px]">
+                          Date & Time Reserved (IST)
+                        </span>
+                        <span className="font-mono text-navy-900">
+                          {judgment.reservedAt
+                            ? new Date(judgment.reservedAt).toLocaleString('en-IN', {
+                                dateStyle: 'medium',
+                                timeStyle: 'short',
+                              })
+                            : '—'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 uppercase block font-semibold text-[10px]">
+                          Presiding Bench
+                        </span>
+                        <span className="text-navy-950 font-medium">
+                          {caseData.judge?.name || 'Unassigned'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {judgment.reserveNote && (
+                      <div className="pt-2 border-t border-amber-200">
+                        <span className="text-[10px] text-gray-500 uppercase font-semibold block mb-1">
+                          Bench Memorandum / Note
+                        </span>
+                        <p className="text-xs text-navy-950 bg-white p-3 rounded border border-amber-200 font-serif italic">
+                          "{judgment.reserveNote}"
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
+              )}
 
-                <div>
-                  <span className="text-xs text-gray-400 uppercase font-semibold block mb-1">
-                    Operative Judgment Summary
-                  </span>
-                  <div className="p-4 bg-white rounded border border-gray-200 text-sm text-navy-950 leading-relaxed font-serif">
-                    {caseData.judgment.summary}
+              {/* STATE C: JUDGMENT DELIVERED (CASE CLOSED) */}
+              {judgment && judgment.status === 'DELIVERED' && (
+                <div className="space-y-4">
+                  <div className="p-6 bg-emerald-50/50 border border-emerald-300 rounded-lg space-y-5">
+                    {/* Top status bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 pb-3">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-serif font-bold text-navy-950 text-base">
+                          Final Judicial Decree
+                        </span>
+                        <span className="bg-emerald-100 text-emerald-900 border border-emerald-400 font-mono uppercase text-xs px-2.5 py-0.5 rounded-xs font-bold">
+                          DELIVERED & CLOSED
+                        </span>
+                      </div>
+
+                      {judgment.outcome && (
+                        <span className="bg-navy-900 text-brass-300 px-3.5 py-1 rounded text-xs font-bold font-mono tracking-wider border border-navy-800 uppercase shadow-xs">
+                          OUTCOME: {judgment.outcome}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Metadata Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                      <div>
+                        <span className="text-gray-500 uppercase block font-semibold text-[10px]">
+                          Pronounced By
+                        </span>
+                        <span className="font-semibold text-navy-950">
+                          {judgment.deliveredByName || judgment.judgeName || caseData.judge?.name}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 uppercase block font-semibold text-[10px]">
+                          Date of Pronouncement (IST)
+                        </span>
+                        <span className="font-mono text-navy-950 font-semibold">
+                          {judgment.judgmentDate
+                            ? new Date(judgment.judgmentDate).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                              })
+                            : new Date(judgment.deliveredAt).toLocaleDateString('en-IN')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 uppercase block font-semibold text-[10px]">
+                          Reservation Date
+                        </span>
+                        <span className="text-gray-700 font-mono">
+                          {judgment.reservedAt
+                            ? new Date(judgment.reservedAt).toLocaleDateString('en-IN')
+                            : '—'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Operative Summary */}
+                    <div>
+                      <span className="text-[11px] text-gray-500 uppercase font-bold block mb-1.5 tracking-wider">
+                        Operative Judgment Summary & Reasoning
+                      </span>
+                      <div className="p-4 bg-white rounded-md border border-gray-200 text-sm text-navy-950 font-serif leading-relaxed shadow-2xs whitespace-pre-wrap">
+                        {judgment.summary}
+                      </div>
+                    </div>
+
+                    {/* Case Closed Final Notice */}
+                    <div className="p-3 bg-white/80 border border-emerald-200 rounded text-xs text-emerald-950 flex items-center space-x-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                      <span>
+                        <strong>Case Closed:</strong> Final judgment has been entered into the high court archives. This docket is permanently closed and sealed against further modification.
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          );
+        })()}
 
         {/* HISTORY TAB */}
         {activeTab === 'history' && (
@@ -978,6 +1278,32 @@ export default function CaseDetail() {
           hearing={adjourningHearing}
           onSuccess={({ message }) => {
             setHearingNotice(message);
+            fetchCaseDetail();
+          }}
+        />
+      )}
+
+      {/* Reserve Judgment Modal */}
+      {isReserveModalOpen && (
+        <ReserveJudgmentModal
+          isOpen={isReserveModalOpen}
+          onClose={() => setIsReserveModalOpen(false)}
+          courtCase={caseData}
+          onReserved={(msg) => {
+            setJudgmentNotice(msg);
+            fetchCaseDetail();
+          }}
+        />
+      )}
+
+      {/* Deliver Judgment Modal */}
+      {isDeliverModalOpen && (
+        <DeliverJudgmentModal
+          isOpen={isDeliverModalOpen}
+          onClose={() => setIsDeliverModalOpen(false)}
+          courtCase={caseData}
+          onDelivered={(msg) => {
+            setJudgmentNotice(msg);
             fetchCaseDetail();
           }}
         />

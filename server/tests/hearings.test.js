@@ -651,7 +651,11 @@ describe('Court CMS - Phase 6 Hearing Scheduling, Cause Lists & Automation Suite
     });
 
     it('rejects rescheduling a COMPLETED hearing', async () => {
-      const completedHearing = seededHearings.find((h) => h.status === 'COMPLETED');
+      const completedHearing = seededHearings.find(
+        (h) =>
+          h.status === 'COMPLETED' &&
+          !seededCases.some((c) => c.id === h.caseId && c.status === 'CLOSED')
+      );
       const newSlot = getFutureWorkingSlot(15, 11, 0);
 
       const res = await request(app)

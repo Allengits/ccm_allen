@@ -13,7 +13,8 @@ erDiagram
     User ||--o{ Case : "registers as clerk"
     User ||--o{ Hearing : "presides hearing"
     User ||--o{ Hearing : "schedules hearing"
-    User ||--o{ HearingEvent : "authorizes event"
+    User ||--o{ Judgment : "authoring judge"
+    User ||--o{ Judgment : "reserves judgment"
     User ||--o{ Judgment : "delivers judgment"
     User ||--o{ CaseStatusHistory : "authorizes status change"
     User ||--o{ CaseAdvocate : "assigns advocate"
@@ -127,8 +128,12 @@ erDiagram
         JudgmentStatus status
         JudgmentOutcome outcome
         text summary
-        datetime reservedOn
-        datetime deliveredOn
+        text reserveNote
+        datetime reservedAt
+        string reservedById FK
+        datetime judgmentDate
+        datetime deliveredAt
+        string deliveredById FK
         datetime createdAt
         datetime updatedAt
     }
@@ -310,18 +315,24 @@ _Indexes_: `hearing_id`, `(hearing_id, timestamp)`.
 
 Final orders, reserved judgments, and decrees delivered by presiding judges.
 
-| Column         | Type         | Constraints                      | Description                                                             |
-| :------------- | :----------- | :------------------------------- | :---------------------------------------------------------------------- |
-| `id`           | VARCHAR(191) | PK, UUID                         | Unique judgment ID                                                      |
-| `case_id`      | VARCHAR(191) | UNIQUE, FK(cases.id)             | One-to-one link to case docket                                          |
-| `judge_id`     | VARCHAR(191) | FK(users.id), NOT NULL           | Authoring judge                                                         |
-| `status`       | ENUM         | NOT NULL                         | `RESERVED`, `DELIVERED`                                                 |
-| `outcome`      | ENUM         | NULLABLE (mandatory on delivery) | `ALLOWED`, `DISMISSED`, `CONVICTED`, `ACQUITTED`, `SETTLED`, `DISPOSED` |
-| `summary`      | TEXT         | NOT NULL                         | Operative findings and judicial reasoning                               |
-| `reserved_on`  | DATETIME(3)  | NULLABLE                         | Date judgment was formally reserved                                     |
-| `delivered_on` | DATETIME(3)  | NULLABLE                         | Date delivered in open court                                            |
-| `created_at`   | DATETIME(3)  | DEFAULT NOW()                    | Record creation timestamp                                               |
-| `updated_at`   | DATETIME(3)  | UPDATED AT                       | Modification timestamp                                                  |
+| Column            | Type         | Constraints                      | Description                                                             |
+| :---------------- | :----------- | :------------------------------- | :---------------------------------------------------------------------- |
+| `id`              | VARCHAR(191) | PK, UUID                         | Unique judgment ID                                                      |
+| `case_id`         | VARCHAR(191) | UNIQUE, FK(cases.id)             | One-to-one link to case docket                                          |
+| `judge_id`        | VARCHAR(191) | FK(users.id), NOT NULL           | Authoring / presiding judge                                             |
+| `status`          | ENUM         | NOT NULL, DEFAULT `RESERVED`     | `RESERVED`, `DELIVERED`                                                 |
+| `outcome`         | ENUM         | NULLABLE (mandatory on delivery) | `ALLOWED`, `DISMISSED`, `CONVICTED`, `ACQUITTED`, `SETTLED`, `DISPOSED` |
+| `summary`         | TEXT         | NULLABLE (mandatory on delivery) | Operative findings and judicial reasoning                               |
+| `reserve_note`    | TEXT         | NULLABLE                         | Note recorded when arguments conclude and judgment is reserved          |
+| `reserved_at`     | DATETIME(3)  | DEFAULT NOW()                    | Date and time judgment was formally reserved                            |
+| `reserved_by_id`  | VARCHAR(191) | FK(users.id), NULLABLE           | User (judge or admin) who reserved the judgment                         |
+| `judgment_date`   | DATETIME(3)  | NULLABLE                         | Calendar date of judgment pronouncement                                 |
+| `delivered_at`    | DATETIME(3)  | NULLABLE                         | Date and time delivered in open court                                   |
+| `delivered_by_id` | VARCHAR(191) | FK(users.id), NULLABLE           | User (judge or admin) who delivered the judgment                        |
+| `created_at`      | DATETIME(3)  | DEFAULT NOW()                    | Record creation timestamp                                               |
+| `updated_at`      | DATETIME(3)  | UPDATED AT                       | Modification timestamp                                                  |
+
+_Indexes_: `case_id` (unique), `status`, `outcome`, `judgment_date`, `reserved_at`, `judge_id`.
 
 ---
 

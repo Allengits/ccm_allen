@@ -952,6 +952,14 @@ export const rescheduleHearing = async (req, res) => {
       });
     }
 
+    if (hearing.case?.status === 'CLOSED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot reschedule hearings on a closed case',
+        errors: ['Case is CLOSED and read-only'],
+      });
+    }
+
     if (hearing.status !== 'SCHEDULED') {
       return res.status(400).json({
         success: false,
@@ -1201,6 +1209,14 @@ export const cancelHearing = async (req, res) => {
       });
     }
 
+    if (hearing.case?.status === 'CLOSED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot cancel hearings on a closed case',
+        errors: ['Case is CLOSED and read-only'],
+      });
+    }
+
     if (hearing.status !== 'SCHEDULED') {
       return res.status(400).json({
         success: false,
@@ -1314,6 +1330,14 @@ export const completeHearing = async (req, res) => {
         success: false,
         message: 'Forbidden - Presiding judge can only complete their assigned hearings',
         errors: ['Insufficient permissions'],
+      });
+    }
+
+    if (hearing.case?.status === 'CLOSED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot complete hearings on a closed case',
+        errors: ['Case is CLOSED and read-only'],
       });
     }
 
@@ -1443,6 +1467,14 @@ export const adjournHearing = async (req, res) => {
         success: false,
         message: 'Forbidden - Presiding judge can only adjourn their assigned hearings',
         errors: ['Insufficient permissions'],
+      });
+    }
+
+    if (hearing.case?.status === 'CLOSED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot adjourn hearings on a closed case',
+        errors: ['Case is CLOSED and read-only'],
       });
     }
 

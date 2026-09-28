@@ -157,6 +157,24 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
   - Case detail timeline seamlessly merges status transitions and hearing events.
     Detailed endpoint specifications, rules, and workflows documented in docs/HEARINGS.md.
 
+## Judgment Tracker (Phase 7)
+
+- **Two-Stage Disposition Workflow**:
+  - **Reserve Stage (`UNDER_TRIAL -> JUDGMENT_RESERVED`)**: Presiding judge or admin reserves judgment when oral arguments conclude. Requires at least 1 `COMPLETED` hearing and 0 `SCHEDULED` hearings.
+  - **Deliver Stage (`JUDGMENT_RESERVED -> CLOSED`)**: Presiding judge or admin delivers operative judgment decree with mandatory outcome (`ALLOWED`, `DISMISSED`, `CONVICTED`, `ACQUITTED`, `SETTLED`, `DISPOSED`), summary text ($\ge 20$ chars), and IST calendar date.
+- **Pessimistic Concurrency & Double-Pronouncement Defense**:
+  - Both reservation and delivery execute inside atomic transactions with exclusive row locks (`SELECT ... FOR UPDATE` on `cases` and `judgments`).
+  - Concurrent delivery attempts result in exactly 1 successful delivery and deterministic 409 Conflicts for all others.
+- **Permanent Closure & Read-Only Guarantees**:
+  - Transitioning to `CLOSED` permanently stamps `cases.closed_at`.
+  - Closed cases are strictly immutable across all endpoints: case editing, advocate assignment/unassignment, hearing scheduling/updating, and judgment modifications are permanently blocked with 400 Bad Request.
+- **Dedicated Registry & Case Detail Integration**:
+  - Full registry view at `/judgments` with search, state filtering (`RESERVED` / `DELIVERED`), outcome filtering, judge selector, and summary preview.
+  - Dynamic 3-state Judgment Tab on `/cases/:id?tab=judgment` with live character counters, action modals, and closed-case banner.
+- **Client Response Unification (`client/src/api/unwrap.js`)**:
+  - Centralized unwrapper eliminating dual-shape payload parsing across frontend components.
+    Detailed endpoint specifications, rules, and workflows documented in docs/JUDGMENTS.md.
+
 ## Implementation Roadmap
 
 - **Phase 1**: Project Setup, Architecture & App Shell (Completed)
@@ -165,6 +183,6 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
 - **Phase 4**: Case Filing & Master Docket Registry (Completed)
 - **Phase 5**: Advocate Assignment & Bar Directory (Completed)
 - **Phase 6**: Hearing Scheduling, Cause Lists & Case-Status Automation (Completed)
-- **Phase 7**: Judgment tracker
+- **Phase 7**: Judgment Tracker, State Machine & Permissions (Completed)
 - **Phase 8**: Automation engine and registry dashboard
 - **Phase 9**: Testing, polish and final documentation

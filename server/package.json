@@ -10,6 +10,7 @@
     "test:cases": "vitest run tests/cases.test.js",
     "test:advocates": "vitest run tests/advocates.test.js",
     "test:hearings": "vitest run tests/hearings.test.js",
+    "test:judgments": "vitest run tests/judgments.test.js",
     "test:tz": "node scripts/run_test_tz.js",
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

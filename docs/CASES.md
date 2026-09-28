@@ -110,7 +110,15 @@ Case status transitions automatically through hearing operations:
 3. **Cancellation / Adjournment Reversion**: If a scheduled hearing is cancelled or adjourned without immediately booking a new date, and no other `SCHEDULED` hearings remain for the case, the case status safely reverts back to `ADVOCATE_ASSIGNED`.
 4. **History Timeline Merging**: The case detail endpoint (`GET /cases/:id`) retrieves both formal `statusHistory` records and all `HearingEvent` entries (`SCHEDULED`, `RESCHEDULED`, `CANCELLED`, `COMPLETED`, `ADJOURNED`), merging them into a unified chronological audit trail with ISO timestamps, actors, and reasons.
 
-### 4.6 Prohibition of Deletion
+### 4.6 Judgment Tracker Lifecycle & Permanent Closure
+
+Case status progresses to conclusion through the Judgment module:
+
+1. **Judgment Reserved (`UNDER_TRIAL -> JUDGMENT_RESERVED`)**: Once all oral arguments and evidence hearings conclude, a judge reserves judgment. Requires at least 1 `COMPLETED` hearing and 0 `SCHEDULED` hearings.
+2. **Judgment Delivered (`JUDGMENT_RESERVED -> CLOSED`)**: Formal delivery of decree sheet and operative summary transitions the case to `CLOSED` and permanently stamps `closedAt`.
+3. **Permanent Read-Only Guarantees**: A `CLOSED` case is strictly read-only across all endpoints. No edits, advocate assignments/unassignments, or hearing actions can be performed.
+
+### 4.7 Prohibition of Deletion
 
 There is **no DELETE endpoint** in Court CMS. In judicial practice, case filings, proceedings, and orders constitute official public records. Deleting records violates statutory preservation requirements. Erroneously filed cases are disposed of through formal judicial dismissal or closure orders, never by database deletion.
 
@@ -393,3 +401,37 @@ Updates editable metadata on an active case. Requires `case.edit` (`ADMIN` or `R
   - `400 Bad Request`: Attempting to edit closed cases, empty title, or sending immutable fields (`caseNumber`, `caseType`, `filingDate`, `status`).
   - `403 Forbidden`: User lacks `case.edit` permission.
   - `404 Not Found`: Case not found.
+
+---
+
+### 6.7 `GET /api/v1/cases/:id/history`
+
+Retrieves the merged chronological case history timeline (status transitions, advocate assignments/unassignments, and hearing events). Requires `case.view`.
+
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "message": "Case history retrieved successfully",
+    "data": {
+      "history": [
+        {
+          "id": "uuid-hist-1",
+          "action": "STATUS_CHANGE",
+          "fromStatus": "UNDER_TRIAL",
+          "toStatus": "JUDGMENT_RESERVED",
+          "reason": "Judgment reserved by Hon. Justice D. Swaminathan",
+          "timestamp": "2026-09-28T14:30:00.000Z",
+          "performedBy": {
+            "id": "uuid-judge",
+            "name": "Hon. Justice D. Swaminathan",
+            "role": "JUDGE"
+          }
+        }
+      ]
+    }
+  }
+  ```
+- **Error Responses**:
+  - `401 Unauthorized`: Not logged in.
+  - `404 Not Found`: Case not found or outside user's visibility scope.

@@ -92,6 +92,7 @@ Court CMS defines 13 granular, named permissions managed centrally in [server/sr
 | `hearing.view`        | View daily cause lists, hearing calendar, and scheduled proceedings     |
 | `hearing.schedule`    | Allocate hearing schedules, dates, and courtroom venues                 |
 | `hearing.update`      | Record hearing bench outcomes, proceedings, and daily cause notes       |
+| `judgment.view`       | View judgment registry, reserved matters, and delivered decrees         |
 | `judgment.record`     | Draft, record, and transition judgments to RESERVED state               |
 | `judgment.deliver`    | Authorize and formally deliver certified case judgments                 |
 | `user.manage`         | Create, modify, deactivate users and reset credentials (Admin only)     |
@@ -110,6 +111,7 @@ Court CMS defines 13 granular, named permissions managed centrally in [server/sr
 | `hearing.view`     | ✅ (All) | ✅ (All)  | ✅ (Presiding) | ✅ (Client) |
 | `hearing.schedule` |    ✅    |    ✅     |       ❌       |     ❌      |
 | `hearing.update`   |    ✅    |    ❌     |       ✅       |     ❌      |
+| `judgment.view`    | ✅ (All) | ✅ (All)  | ✅ (Assigned)  | ✅ (Client) |
 | `judgment.record`  |    ✅    |    ❌     |       ✅       |     ❌      |
 | `judgment.deliver` |    ✅    |    ❌     |       ✅       |     ❌      |
 | `user.manage`      |    ✅    |    ❌     |       ❌       |     ❌      |

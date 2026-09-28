@@ -245,11 +245,14 @@ npm run test:advocates
 # Run hearing scheduling and cause list test suite specifically
 npm run test:hearings
 
+# Run judgment tracking and state transition test suite specifically
+npm run test:judgments
+
 # Run test suites across both UTC and Asia/Kolkata timezones
 npm run test:tz
 ```
 
-All test suites enforce global teardown verification, guaranteeing that the MySQL database row counts and case sequences strictly match the seeded baseline upon test completion.
+All 5 test suites (177 tests total) enforce global teardown verification, guaranteeing that the MySQL database row counts, case sequences, and judgment constraints strictly match the seeded baseline upon test completion.
 
 For comprehensive API and architectural documentation:
 
@@ -258,6 +261,7 @@ For comprehensive API and architectural documentation:
 - [docs/CASES.md](docs/CASES.md) - Case registration, number generation & docket querying
 - [docs/ADVOCATES.md](docs/ADVOCATES.md) - Advocate directory, assignment rules & workflow state automation
 - [docs/HEARINGS.md](docs/HEARINGS.md) - Hearing scheduling, cause lists, slot availability & audit events
+- [docs/JUDGMENTS.md](docs/JUDGMENTS.md) - Judgment reservation, delivery, concurrency control & permanent read-only rules
 
 ---
 
@@ -269,6 +273,6 @@ For comprehensive API and architectural documentation:
 - [x] **Phase 4: Case Filing & Master Docket Registry**
 - [x] **Phase 5: Advocate Assignment & Bar Directory**
 - [x] **Phase 6: Hearing Scheduling, Cause Lists & Case-Status Automation**
-- [ ] **Phase 7: Judgment tracker**
+- [x] **Phase 7: Judgment Tracker, State Machine & Permissions**
 - [ ] **Phase 8: Automation engine and registry dashboard**
 - [ ] **Phase 9: Testing, polish and final documentation**

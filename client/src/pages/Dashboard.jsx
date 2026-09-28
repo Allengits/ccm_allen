@@ -31,6 +31,10 @@ export default function Dashboard() {
   const [hearingsCount, setHearingsCount] = useState(null);
   const [hearingsLoading, setHearingsLoading] = useState(true);
 
+  // Real reserved judgments statistics from Phase 7 API
+  const [reservedJudgmentsCount, setReservedJudgmentsCount] = useState(null);
+  const [judgmentsLoading, setJudgmentsLoading] = useState(true);
+
   const fetchHealth = useCallback(async () => {
     setHealthLoading(true);
     setHealthError(null);
@@ -77,16 +81,32 @@ export default function Dashboard() {
     }
   }, []);
 
+  const fetchJudgmentsStats = useCallback(async () => {
+    setJudgmentsLoading(true);
+    try {
+      const res = await api.get('/judgments?state=RESERVED');
+      const data = unwrap(res);
+      const count = data?.pagination?.total ?? 0;
+      setReservedJudgmentsCount(count);
+    } catch (err) {
+      console.warn('Failed to load judgments statistics:', err.message);
+    } finally {
+      setJudgmentsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchHealth();
     fetchStats();
     fetchHearingsStats();
-  }, [fetchHealth, fetchStats, fetchHearingsStats]);
+    fetchJudgmentsStats();
+  }, [fetchHealth, fetchStats, fetchHearingsStats, fetchJudgmentsStats]);
 
   const handleRefreshAll = () => {
     fetchHealth();
     fetchStats();
     fetchHearingsStats();
+    fetchJudgmentsStats();
   };
 
   const isApiOk = healthData?.api === 'ok';
@@ -217,8 +237,8 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Card 4: Judgments Preview */}
-          <div className="registry-card rounded-lg p-5 flex flex-col justify-between opacity-85">
+          {/* Card 4: Reserved Judgments */}
+          <div className="registry-card rounded-lg p-5 legal-border flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between text-navy-700">
                 <span className="text-xs font-semibold uppercase text-gray-500">
@@ -227,12 +247,22 @@ export default function Dashboard() {
                 <Scale className="w-5 h-5 text-navy-800" />
               </div>
               <div className="mt-3">
-                <div className="text-2xl font-serif font-bold text-gray-400">--</div>
-                <p className="text-xs text-gray-500 font-medium mt-1">Awaiting Orders (Phase 7)</p>
+                <div className="text-3xl font-serif font-bold text-navy-950 font-mono">
+                  {judgmentsLoading ? '--' : (reservedJudgmentsCount ?? 0)}
+                </div>
+                <p className="text-xs text-navy-700 font-medium mt-1">
+                  Matters pending decree pronouncement
+                </p>
               </div>
             </div>
-            <div className="mt-4 pt-3 border-t border-gray-100 text-[11px] text-gray-400 italic">
-              Module arrives in Phase 7
+            <div className="mt-4 pt-3 border-t border-gray-100">
+              <Link
+                to="/judgments"
+                className="inline-flex items-center space-x-1 text-xs font-semibold text-brass-700 hover:text-brass-900 transition-colors"
+              >
+                <span>View Judgments Registry</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
           </div>
         </div>

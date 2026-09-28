@@ -45,7 +45,7 @@ const allNavigationItems = [
     name: 'Judgments',
     path: '/judgments',
     icon: Scale,
-    roles: ['ADMIN', 'JUDGE'],
+    roles: ['ADMIN', 'REGISTRAR', 'JUDGE', 'ADVOCATE'],
   },
   {
     name: 'User Management',

@@ -149,12 +149,14 @@ The hearing module automatically orchestrates case state transitions via `caseWo
   - If a `nextHearing` slot is provided, it is atomically scheduled and the case remains in `HEARING_SCHEDULED` (or `UNDER_TRIAL`).
   - If adjourned without a next date and no other scheduled hearings exist, the case reverts to `ADVOCATE_ASSIGNED`.
 - **Cross-Module Rule**: `PATCH /api/v1/cases/:id` rejects attempts to reassign the presiding judge if active `SCHEDULED` hearings exist for that case.
+- **Closed Case Protection**: Scheduling, rescheduling, cancelling, completing, or adjourning a hearing on a `CLOSED` case is strictly forbidden and rejected with **400 Bad Request**.
+- **Judgment Reservation Precondition**: A case in `UNDER_TRIAL` cannot proceed to `JUDGMENT_RESERVED` if any `SCHEDULED` hearings remain pending. All scheduled hearings must be completed, adjourned, or cancelled first.
 
 ---
 
 ## 4. RBAC Permissions Matrix
 
-The system includes **13 distinct permissions** with granular hearing access:
+The system includes **14 distinct permissions** with granular hearing and judgment access:
 
 | Permission Key     | Description                                                     | ADMIN | REGISTRAR |     JUDGE     | ADVOCATE |
 | ------------------ | --------------------------------------------------------------- | :---: | :-------: | :-----------: | :------: |

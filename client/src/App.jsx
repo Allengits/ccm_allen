@@ -48,7 +48,7 @@ export default function App() {
               <Route
                 path="judgments"
                 element={
-                  <ProtectedRoute allowedRoles={['ADMIN', 'JUDGE']}>
+                  <ProtectedRoute allowedRoles={['ADMIN', 'REGISTRAR', 'JUDGE', 'ADVOCATE']}>
                     <Judgments />
                   </ProtectedRoute>
                 }

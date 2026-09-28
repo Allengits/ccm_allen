@@ -2,7 +2,22 @@
  * Case Lifecycle Workflow Service
  *
  * Provides central, reusable state machine transitions and audit logging
- * for court cases across all system phases.
+ * for court cases across all system phases:
+ *
+ * Full Lifecycle Transition Map:
+ * ┌────────────────────┬───────────────────────────────────────┬──────────────────────────────────────────┐
+ * │ Current Status     │ Permitted Target Statuses             │ Business Trigger / Rule                  │
+ * ├────────────────────┼───────────────────────────────────────┼──────────────────────────────────────────┤
+ * │ REGISTERED         │ ADVOCATE_ASSIGNED                     │ First active advocate assigned (Phase 5) │
+ * │ ADVOCATE_ASSIGNED  │ REGISTERED, HEARING_SCHEDULED         │ Unassign last advocate -> REGISTERED;    │
+ * │                    │                                       │ Schedule first hearing -> SCHEDULED (P6) │
+ * │ HEARING_SCHEDULED  │ UNDER_TRIAL, ADVOCATE_ASSIGNED        │ First hearing completed -> UNDER_TRIAL;  │
+ * │                    │                                       │ All hearings cancelled/adjourned ->      │
+ * │                    │                                       │ ADVOCATE_ASSIGNED (Phase 6)              │
+ * │ UNDER_TRIAL        │ JUDGMENT_RESERVED                     │ Reserve judgment after trial (Phase 7)   │
+ * │ JUDGMENT_RESERVED  │ CLOSED                                │ Pronounce/deliver final decree (Phase 7) │
+ * │ CLOSED             │ [] (Terminal / Permanently Read-Only) │ Delivered cases are immutable (Phase 7)  │
+ * └────────────────────┴───────────────────────────────────────┴──────────────────────────────────────────┘
  */
 
 export class WorkflowError extends Error {
@@ -13,15 +28,6 @@ export class WorkflowError extends Error {
   }
 }
 
-/**
- * Validated status transition graph according to legal court procedure rules:
- * - REGISTERED: Initial filing -> ADVOCATE_ASSIGNED
- * - ADVOCATE_ASSIGNED: Ready for hearing -> HEARING_SCHEDULED, or reverts to REGISTERED if last advocate unassigned
- * - HEARING_SCHEDULED: First hearing occurs -> UNDER_TRIAL, or reverts if hearings cancelled
- * - UNDER_TRIAL: Trial concludes -> JUDGMENT_RESERVED
- * - JUDGMENT_RESERVED: Final order pronounced -> CLOSED
- * - CLOSED: Final decree reached; terminal state
- */
 export const ALLOWED_TRANSITIONS = {
   REGISTERED: ['ADVOCATE_ASSIGNED'],
   ADVOCATE_ASSIGNED: ['REGISTERED', 'HEARING_SCHEDULED'],
@@ -41,9 +47,10 @@ export const ALLOWED_TRANSITIONS = {
  * @param {string} params.toStatus - Target CaseStatus enum
  * @param {string} params.reason - Mandatory explanation for the transition
  * @param {string} params.userId - User ID of the staff/judge authorizing the change
+ * @param {Date} [params.closedAt] - Optional specific closedAt timestamp for CLOSED transition
  * @returns {Promise<object>} The updated case record
  */
-export async function transitionCaseStatus({ tx, caseId, toStatus, reason, userId }) {
+export async function transitionCaseStatus({ tx, caseId, toStatus, reason, userId, closedAt }) {
   if (!tx) {
     throw new WorkflowError('A database transaction client is required for case transitions', 500);
   }
@@ -89,7 +96,7 @@ export async function transitionCaseStatus({ tx, caseId, toStatus, reason, userI
     where: { id: caseId },
     data: {
       status: toStatus,
-      ...(toStatus === 'CLOSED' ? { closedAt: new Date() } : {}),
+      ...(toStatus === 'CLOSED' ? { closedAt: closedAt || new Date() } : {}),
       ...(fromStatus === 'CLOSED' && toStatus !== 'CLOSED' ? { closedAt: null } : {}),
     },
   });

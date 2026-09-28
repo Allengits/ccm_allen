@@ -101,7 +101,9 @@ model User {
   hearings                Hearing[]            @relation("JudgeHearings")
   scheduledHearings       Hearing[]            @relation("HearingScheduledBy")
   hearingEvents           HearingEvent[]       @relation("HearingEventPerformedBy")
-  deliveredJudgments      Judgment[]           @relation("JudgeJudgments")
+  judgeJudgments          Judgment[]           @relation("JudgeJudgments")
+  reservedJudgments       Judgment[]           @relation("JudgmentReservedBy")
+  deliveredJudgments      Judgment[]           @relation("JudgmentDeliveredBy")
   caseStatusChanges       CaseStatusHistory[]  @relation("StatusChanger")
   assignedCaseAdvocates   CaseAdvocate[]       @relation("AdvocateAssignedBy")
   unassignedCaseAdvocates CaseAdvocate[]       @relation("AdvocateUnassignedBy")
@@ -247,19 +249,32 @@ model HearingEvent {
 
 /// Final decree, reserved order, or delivered judgment for a case
 model Judgment {
-  id          String           @id @default(uuid())
-  caseId      String           @unique @map("case_id") // Exactly one judgment record per case
-  case        Case             @relation(fields: [caseId], references: [id], onDelete: Restrict)
-  judgeId     String           @map("judge_id")
-  judge       User             @relation("JudgeJudgments", fields: [judgeId], references: [id], onDelete: Restrict)
-  status      JudgmentStatus
-  outcome     JudgmentOutcome? // Required when delivered, optional while reserved
-  summary     String           @db.Text // Operative portion / rationale
-  reservedOn  DateTime?        @map("reserved_on")
-  deliveredOn DateTime?        @map("delivered_on")
-  createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @updatedAt @map("updated_at")
+  id            String           @id @default(uuid())
+  caseId        String           @unique @map("case_id") // Exactly one judgment record per case
+  case          Case             @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  judgeId       String?          @map("judge_id")
+  judge         User?            @relation("JudgeJudgments", fields: [judgeId], references: [id], onDelete: Restrict)
+  status        JudgmentStatus
+  outcome       JudgmentOutcome? // Required when delivered, empty while reserved
+  summary       String?          @db.Text // Operative portion / rationale, empty while reserved
+  reservedAt    DateTime?        @map("reserved_at")
+  reservedById  String?          @map("reserved_by_id")
+  reservedBy    User?            @relation("JudgmentReservedBy", fields: [reservedById], references: [id], onDelete: Restrict)
+  reserveNote   String?          @map("reserve_note") @db.VarChar(500)
+  judgmentDate  DateTime?        @map("judgment_date") // Date of judgment delivery
+  deliveredAt   DateTime?        @map("delivered_at")
+  deliveredById String?          @map("delivered_by_id")
+  deliveredBy   User?            @relation("JudgmentDeliveredBy", fields: [deliveredById], references: [id], onDelete: Restrict)
+  reservedOn    DateTime?        @map("reserved_on")
+  deliveredOn   DateTime?        @map("delivered_on")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
 
+  @@index([status])
+  @@index([reservedAt])
+  @@index([judgmentDate])
+  @@index([outcome])
+  @@index([judgeId])
   @@map("judgments")
 }
 

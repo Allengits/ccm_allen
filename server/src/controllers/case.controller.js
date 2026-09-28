@@ -566,6 +566,12 @@ export const getCaseById = async (req, res) => {
             judge: {
               select: { id: true, name: true },
             },
+            reservedBy: {
+              select: { id: true, name: true },
+            },
+            deliveredBy: {
+              select: { id: true, name: true },
+            },
           },
         },
         statusHistory: {
@@ -624,6 +630,15 @@ export const getCaseById = async (req, res) => {
       endsAt: new Date(new Date(h.scheduledAt).getTime() + (h.durationMins || 30) * 60 * 1000),
     }));
 
+    // Format judgment with reservedBy and deliveredBy details
+    const formattedJudgment = c.judgment
+      ? {
+          ...c.judgment,
+          reservedByName: c.judgment.reservedBy?.name || c.judgment.judge?.name || null,
+          deliveredByName: c.judgment.deliveredBy?.name || c.judgment.judge?.name || null,
+        }
+      : null;
+
     // Merge advocate assignment/unassignment & hearing events into timeline
     const timeline = buildCaseTimeline(c);
 
@@ -633,6 +648,7 @@ export const getCaseById = async (req, res) => {
       data: {
         case: {
           ...c,
+          judgment: formattedJudgment,
           advocates: formattedAdvocates,
           hearings: formattedHearings,
           statusHistory: timeline,
