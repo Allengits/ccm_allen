@@ -43,3 +43,21 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
 
 1. Objective 2. What was built 3. Files and folders changed 4. How to run and verify (exact commands) 5. Test evidence (commands run and results) 6. Decisions and assumptions 7. Issues and limitations 8. Deviations from the prompt 9. Ready-for-next-phase checklist
    Also give me a short summary in chat.
+
+## Data Model (Phase 2)
+
+12 core entities implemented in Prisma MySQL:
+
+- User (ADMIN, REGISTRAR, JUDGE, ADVOCATE)
+- Advocate (Bar Council ID, specialization, optional User link)
+- Courtroom (court complex halls, location, availability)
+- Case (caseNumber, CaseType, Priority, CaseStatus, petitioner, respondent, judge, registeredBy)
+- CaseAdvocate (join table linking cases and counsel on PETITIONER/RESPONDENT side)
+- Hearing (case, courtroom, judge, scheduledAt, duration, HearingStatus, outcomeNotes)
+- Evidence (case, EvidenceType, submitter, EvidenceStatus, digital file attributes, SHA-256 hash)
+- EvidenceCustodyLog (CustodyAction audit entries cascading with evidence)
+- Judgment (caseId [1:1], authoring judge, JudgmentStatus, JudgmentOutcome, summary, reserved/delivered dates)
+- CaseStatusHistory (immutable audit log tracking transitions across the 6-state lifecycle)
+- CaseSequence (prefix, year, lastNumber for consecutive case number generation)
+- SystemSetting (key/value, e.g. backlog_threshold_days = 90)
+  Detailed ER diagram and data dictionary documented in docs/DATABASE.md.

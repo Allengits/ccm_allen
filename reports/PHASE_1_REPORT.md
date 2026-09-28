@@ -1,11 +1,13 @@
 # Phase 1 Report: Project Setup, Architecture & App Shell
 
 ## 1. Objective
+
 Establish the foundational monorepo structure, core server architecture, database integration via Prisma ORM, modern client application shell with judicial registry styling, and automated code quality tooling for the Court Case Management System.
 
 ---
 
 ## 2. What Was Built
+
 1. **Repository & Workspace Setup**:
    - Monorepo structure with `/client` and `/server`.
    - Root `package.json` with concurrently dev script, ESLint, Prettier, and unified install commands.
@@ -27,7 +29,7 @@ Establish the foundational monorepo structure, core server architecture, databas
 4. **Frontend Client & App Shell**:
    - React application built with Vite and Tailwind CSS.
    - Complete design system with palette tokens: Navy (`#1C2B45`), Brass (`#A6763B`), and neutral registry backgrounds.
-   - Typography setup with Google Fonts: *Source Serif 4* for judicial headings and *Inter* for body text.
+   - Typography setup with Google Fonts: _Source Serif 4_ for judicial headings and _Inter_ for body text.
    - Complete App Shell layout featuring:
      - Left navigation sidebar: Dashboard, Cases, Hearings, Advocates, Evidence, Judgments.
      - Top bar: Court jurisdiction title, live IST clock, and role indicator.
@@ -135,10 +137,13 @@ Invoke-RestMethod -Uri http://localhost:5000/api/v1/health | ConvertTo-Json -Dep
 ## 5. Test Evidence (Commands Run and Results)
 
 ### Test 1: Environment Versions Verification
+
 ```powershell
 node -v; npm -v; git --version
 ```
+
 **Output:**
+
 ```
 v24.14.0
 11.9.0
@@ -146,10 +151,13 @@ git version 2.55.0.windows.4
 ```
 
 ### Test 2: MySQL Port Connectivity Check
+
 ```powershell
 Test-NetConnection -ComputerName localhost -Port 3307
 ```
+
 **Output:**
+
 ```
 ComputerName     : localhost
 RemoteAddress    : ::1
@@ -160,22 +168,29 @@ TcpTestSucceeded : True
 ```
 
 ### Test 3: Prisma Connection & Database Version Check
+
 ```powershell
 node test-db.js
 ```
+
 **Output:**
+
 ```
 Attempting to connect to MySQL via Prisma...
 Connection successful!
 Database version result: [ { version: '26.7.0' } ]
 ```
-*Note: Prisma connected to MySQL 26.7.0 without any warnings, deprecation notes, or version incompatibility rejections.*
+
+_Note: Prisma connected to MySQL 26.7.0 without any warnings, deprecation notes, or version incompatibility rejections._
 
 ### Test 4: Express API Health Check Response
+
 ```powershell
 Invoke-RestMethod -Uri http://localhost:5000/api/v1/health | ConvertTo-Json -Depth 4
 ```
+
 **Output:**
+
 ```json
 {
   "success": true,
@@ -189,10 +204,13 @@ Invoke-RestMethod -Uri http://localhost:5000/api/v1/health | ConvertTo-Json -Dep
 ```
 
 ### Test 5: Client & Server Concurrent Run
+
 ```powershell
 npm run dev
 ```
+
 **Output:**
+
 ```
 [CLIENT]   VITE v6.4.3  ready in 879 ms
 [CLIENT]   ➜  Local:   http://localhost:5173/
@@ -202,10 +220,13 @@ npm run dev
 ```
 
 ### Test 6: ESLint Verification
+
 ```powershell
 npm run lint
 ```
+
 **Output:**
+
 ```
 > court-case-management-system@1.0.0 lint
 > eslint .
@@ -213,10 +234,13 @@ npm run lint
 ```
 
 ### Test 7: Prettier Code Style Verification
+
 ```powershell
 npm run format:check
 ```
+
 **Output:**
+
 ```
 Checking formatting...
 All matched files use Prettier code style!
@@ -225,6 +249,7 @@ All matched files use Prettier code style!
 ---
 
 ## 6. Decisions and Assumptions
+
 1. **Prisma Version**: Used Prisma ORM `v6.19.3` (stable). Confirmed that Prisma handles MySQL server version `26.7.0` gracefully via standard native drivers.
 2. **ES Modules**: Both server and client use ECMAScript Modules (`"type": "module"`).
 3. **Concurrently Script Configuration**: Configured concurrently with `-k` (kill other process on failure) and color-coded prefixes (`[SERVER]`, `[CLIENT]`) for clear terminal logging.
@@ -233,17 +258,20 @@ All matched files use Prettier code style!
 ---
 
 ## 7. Issues and Limitations
+
 1. **Automated Browser Subagent Environment**: The autonomous browser subagent encountered a Playwright driver CDN 404 download issue (`playwright-1.57.0-win32_x64.zip` from Microsoft CDN), preventing headless browser recording. However, the client builds cleanly (`vite build` exited 0) and HTTP responses from both Vite (port 5173) and Express (port 5000) were validated.
 2. **No Business Logic / Models**: As instructed by the prompt, no authentication, database models, or CRUD feature logic were implemented in this phase.
 
 ---
 
 ## 8. Deviations from the Prompt
+
 None. All instructions for Phase 1 were strictly followed.
 
 ---
 
 ## 9. Ready-for-Next-Phase Checklist
+
 - [x] Environment verified (Node v24.14.0, npm 11.9.0, Git 2.55.0).
 - [x] PROJECT_CONTEXT.md created and aligned with requirements.
 - [x] Monorepo scaffolded with `/client` and `/server`.

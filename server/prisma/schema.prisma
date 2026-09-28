@@ -1,5 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Court Case Management System - Prisma Schema
+// Defines judicial domain models, enums, relationships, and audit trails.
 
 generator client {
   provider = "prisma-client-js"
@@ -8,4 +8,325 @@ generator client {
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum Role {
+  ADMIN
+  REGISTRAR
+  JUDGE
+  ADVOCATE
+}
+
+enum CaseType {
+  CRIMINAL
+  CIVIL
+  FAMILY
+  PROPERTY
+  COMMERCIAL
+  CONSTITUTIONAL
+  OTHER
+}
+
+enum CaseStatus {
+  REGISTERED
+  ADVOCATE_ASSIGNED
+  HEARING_SCHEDULED
+  UNDER_TRIAL
+  JUDGMENT_RESERVED
+  CLOSED
+}
+
+enum Priority {
+  NORMAL
+  URGENT
+}
+
+enum AdvocateSide {
+  PETITIONER
+  RESPONDENT
+}
+
+enum HearingStatus {
+  SCHEDULED
+  COMPLETED
+  ADJOURNED
+  CANCELLED
+}
+
+enum EvidenceType {
+  DOCUMENT
+  PHOTOGRAPH
+  VIDEO
+  AUDIO
+  PHYSICAL
+  DIGITAL_RECORD
+  TESTIMONY
+}
+
+enum EvidenceStatus {
+  SUBMITTED
+  ADMITTED
+  REJECTED
+}
+
+enum CustodyAction {
+  SUBMITTED
+  VIEWED
+  TRANSFERRED
+  ADMITTED
+  REJECTED
+  RETURNED
+}
+
+enum JudgmentStatus {
+  RESERVED
+  DELIVERED
+}
+
+enum JudgmentOutcome {
+  ALLOWED
+  DISMISSED
+  CONVICTED
+  ACQUITTED
+  SETTLED
+  DISPOSED
+}
+
+// ==========================================
+// MODELS
+// ==========================================
+
+/// System user representing court staff, judges, advocates, or administrators
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  advocateProfile       Advocate?            @relation("UserAdvocate")
+  assignedCases         Case[]               @relation("JudgeCases")
+  registeredCases       Case[]               @relation("RegisteredByCases")
+  hearings              Hearing[]            @relation("JudgeHearings")
+  submittedEvidence     Evidence[]           @relation("EvidenceSubmitter")
+  evidenceCustodyLogs   EvidenceCustodyLog[] @relation("CustodyActor")
+  deliveredJudgments    Judgment[]           @relation("JudgeJudgments")
+  caseStatusChanges     CaseStatusHistory[]  @relation("StatusChanger")
+
+  @@map("users")
+}
+
+/// Practicing legal counsel registered with the Bar Council
+model Advocate {
+  id             String   @id @default(uuid())
+  userId         String?  @unique @map("user_id") // Optional link to a User with role ADVOCATE
+  user           User?    @relation("UserAdvocate", fields: [userId], references: [id], onDelete: Restrict)
+  name           String
+  barNumber      String   @unique @map("bar_number") // Official bar enrollment ID, e.g. TN/2011/0456
+  specialization String
+  email          String
+  phone          String
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  caseAssignments CaseAdvocate[]
+
+  @@map("advocates")
+}
+
+/// Physical or virtual courtroom within the court complex
+model Courtroom {
+  id        String   @id @default(uuid())
+  name      String   @unique // e.g. "Courtroom 1 (Bench A)"
+  location  String   // e.g. "Main Wing, 1st Floor"
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  hearings  Hearing[]
+
+  @@map("courtrooms")
+}
+
+/// Master judicial case record tracking filing, allocation, and lifecycle
+model Case {
+  id             String     @id @default(uuid())
+  caseNumber     String     @unique @map("case_number") // Unique court reference, e.g. CC/2026/00187
+  title          String
+  caseType       CaseType   @map("case_type")
+  status         CaseStatus @default(REGISTERED)
+  priority       Priority   @default(NORMAL)
+  petitioner     String     // Complainant / Plaintiff name
+  respondent     String     // Accused / Defendant name
+  description    String?    @db.Text
+  filingDate     DateTime   @map("filing_date")
+  judgeId        String?    @map("judge_id") // Assigned presiding judge (User with role JUDGE)
+  judge          User?      @relation("JudgeCases", fields: [judgeId], references: [id], onDelete: Restrict)
+  registeredById String     @map("registered_by_id") // Registrar / Clerk who entered the filing
+  registeredBy   User       @relation("RegisteredByCases", fields: [registeredById], references: [id], onDelete: Restrict)
+  closedAt       DateTime?  @map("closed_at") // Timestamp when judgment delivered and case closed
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  // Relationships
+  advocates      CaseAdvocate[]
+  hearings       Hearing[]
+  evidence       Evidence[]
+  judgment       Judgment?
+  statusHistory  CaseStatusHistory[]
+
+  @@index([status])
+  @@index([filingDate])
+  @@index([caseType])
+  @@map("cases")
+}
+
+/// Join table linking an advocate to a case with side representation
+model CaseAdvocate {
+  id         String       @id @default(uuid())
+  caseId     String       @map("case_id")
+  case       Case         @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  advocateId String       @map("advocate_id")
+  advocate   Advocate     @relation(fields: [advocateId], references: [id], onDelete: Restrict)
+  side       AdvocateSide // Representation side: PETITIONER or RESPONDENT
+  assignedAt DateTime     @default(now()) @map("assigned_at")
+  isActive   Boolean      @default(true) @map("is_active")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  @@unique([caseId, advocateId])
+  @@map("case_advocates")
+}
+
+/// Scheduled court proceedings session for a specific case
+model Hearing {
+  id           String        @id @default(uuid())
+  caseId       String        @map("case_id")
+  case         Case          @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  courtroomId  String        @map("courtroom_id")
+  courtroom    Courtroom     @relation(fields: [courtroomId], references: [id], onDelete: Restrict)
+  judgeId      String        @map("judge_id")
+  judge        User          @relation("JudgeHearings", fields: [judgeId], references: [id], onDelete: Restrict)
+  scheduledAt  DateTime      @map("scheduled_at")
+  durationMins Int           @default(30) @map("duration_mins")
+  purpose      String        // e.g. "Framing of Charges", "Cross-Examination"
+  status       HearingStatus @default(SCHEDULED)
+  outcomeNotes String?       @db.Text @map("outcome_notes") // Daily order summary / remarks
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@index([scheduledAt])
+  @@index([courtroomId, scheduledAt])
+  @@index([judgeId, scheduledAt])
+  @@map("hearings")
+}
+
+/// Exhibit, digital record, or physical item produced in evidence
+model Evidence {
+  id            String         @id @default(uuid())
+  caseId        String         @map("case_id")
+  case          Case           @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  title         String
+  evidenceType  EvidenceType   @map("evidence_type")
+  description   String?        @db.Text
+  submittedBy   String         @map("submitted_by") // Submitter display name
+  submittedById String?        @map("submitted_by_id") // Optional User ID if submitted by logged-in advocate/party
+  submittedUser User?          @relation("EvidenceSubmitter", fields: [submittedById], references: [id], onDelete: Restrict)
+  status        EvidenceStatus @default(SUBMITTED)
+  submittedAt   DateTime       @default(now()) @map("submitted_at")
+  fileName      String?        @map("file_name") // Stored file name
+  filePath      String?        @map("file_path") // Storage path in vault
+  mimeType      String?        @map("mime_type")
+  fileSize      Int?           @map("file_size") // Size in bytes
+  fileHash      String?        @map("file_hash") // Cryptographic SHA-256 hash for tamper evidence
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  // Relationships
+  custodyLogs   EvidenceCustodyLog[]
+
+  @@index([caseId])
+  @@map("evidence")
+}
+
+/// Chain-of-custody audit log for evidentiary integrity
+model EvidenceCustodyLog {
+  id            String        @id @default(uuid())
+  evidenceId    String        @map("evidence_id")
+  evidence      Evidence      @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  action        CustodyAction
+  performedById String        @map("performed_by_id")
+  performedBy   User          @relation("CustodyActor", fields: [performedById], references: [id], onDelete: Restrict)
+  note          String?       @db.Text
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  @@map("evidence_custody_logs")
+}
+
+/// Final decree, reserved order, or delivered judgment for a case
+model Judgment {
+  id          String           @id @default(uuid())
+  caseId      String           @unique @map("case_id") // Exactly one judgment record per case
+  case        Case             @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  judgeId     String           @map("judge_id")
+  judge       User             @relation("JudgeJudgments", fields: [judgeId], references: [id], onDelete: Restrict)
+  status      JudgmentStatus
+  outcome     JudgmentOutcome? // Required when delivered, optional while reserved
+  summary     String           @db.Text // Operative portion / rationale
+  reservedOn  DateTime?        @map("reserved_on")
+  deliveredOn DateTime?        @map("delivered_on")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@map("judgments")
+}
+
+/// Audit trail capturing each transition of a case through the lifecycle
+model CaseStatusHistory {
+  id          String      @id @default(uuid())
+  caseId      String      @map("case_id")
+  case        Case        @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  fromStatus  CaseStatus? @map("from_status")
+  toStatus    CaseStatus  @map("to_status")
+  reason      String      // Audit reason for transition, e.g. "Advocate assigned by Registry"
+  changedById String?     @map("changed_by_id")
+  changedBy   User?       @relation("StatusChanger", fields: [changedById], references: [id], onDelete: Restrict)
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@index([caseId])
+  @@map("case_status_history")
+}
+
+/// Sequence tracking table for thread-safe sequential case number generation
+model CaseSequence {
+  id         String   @id @default(uuid())
+  prefix     String   // e.g. "CC" (Court Case), "CRL" (Criminal)
+  year       Int      // Filing year, e.g. 2026
+  lastNumber Int      @default(0) @map("last_number")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([prefix, year])
+  @@map("case_sequences")
+}
+
+/// Global configurable court settings (e.g., backlog threshold days)
+model SystemSetting {
+  key         String   @id
+  value       String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
 }
