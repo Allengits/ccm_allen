@@ -120,6 +120,8 @@ model User {
   evidenceCustodyLogs   EvidenceCustodyLog[] @relation("CustodyActor")
   deliveredJudgments    Judgment[]           @relation("JudgeJudgments")
   caseStatusChanges     CaseStatusHistory[]  @relation("StatusChanger")
+  assignedCaseAdvocates   CaseAdvocate[]       @relation("AdvocateAssignedBy")
+  unassignedCaseAdvocates CaseAdvocate[]       @relation("AdvocateUnassignedBy")
 
   @@map("users")
 }
@@ -199,10 +201,16 @@ model CaseAdvocate {
   advocateId String       @map("advocate_id")
   advocate   Advocate     @relation(fields: [advocateId], references: [id], onDelete: Restrict)
   side       AdvocateSide // Representation side: PETITIONER or RESPONDENT
-  assignedAt DateTime     @default(now()) @map("assigned_at")
-  isActive   Boolean      @default(true) @map("is_active")
-  createdAt  DateTime     @default(now()) @map("created_at")
-  updatedAt  DateTime     @updatedAt @map("updated_at")
+  assignedAt     DateTime     @default(now()) @map("assigned_at")
+  assignedById   String?      @map("assigned_by_id")
+  assignedBy     User?        @relation("AdvocateAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+  isActive       Boolean      @default(true) @map("is_active")
+  unassignedAt   DateTime?    @map("unassigned_at")
+  unassignedById String?      @map("unassigned_by_id")
+  unassignedBy   User?        @relation("AdvocateUnassignedBy", fields: [unassignedById], references: [id], onDelete: Restrict)
+  unassignReason String?      @map("unassign_reason") @db.VarChar(500)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
 
   @@unique([caseId, advocateId])
   @@map("case_advocates")

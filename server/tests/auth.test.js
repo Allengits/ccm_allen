@@ -479,6 +479,20 @@ describe('Court CMS - Authentication & RBAC Suite', () => {
       expect(hasPermission('REGISTRAR', PERMISSIONS.JUDGMENT_DELIVER)).toBe(false);
       expect(hasPermission('ADVOCATE', PERMISSIONS.JUDGMENT_DELIVER)).toBe(false);
     });
+
+    it('grants advocate.view to ADMIN, REGISTRAR, and JUDGE but not ADVOCATE', () => {
+      expect(hasPermission('ADMIN', PERMISSIONS.ADVOCATE_VIEW)).toBe(true);
+      expect(hasPermission('REGISTRAR', PERMISSIONS.ADVOCATE_VIEW)).toBe(true);
+      expect(hasPermission('JUDGE', PERMISSIONS.ADVOCATE_VIEW)).toBe(true);
+      expect(hasPermission('ADVOCATE', PERMISSIONS.ADVOCATE_VIEW)).toBe(false);
+    });
+
+    it('grants advocate.manage to ADMIN and REGISTRAR but not JUDGE or ADVOCATE', () => {
+      expect(hasPermission('ADMIN', PERMISSIONS.ADVOCATE_MANAGE)).toBe(true);
+      expect(hasPermission('REGISTRAR', PERMISSIONS.ADVOCATE_MANAGE)).toBe(true);
+      expect(hasPermission('JUDGE', PERMISSIONS.ADVOCATE_MANAGE)).toBe(false);
+      expect(hasPermission('ADVOCATE', PERMISSIONS.ADVOCATE_MANAGE)).toBe(false);
+    });
   });
 
   // -------------------------------------------------------------

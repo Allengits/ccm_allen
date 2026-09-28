@@ -239,9 +239,19 @@ npm run test:auth
 
 # Run case management and registration test suite specifically
 npm run test:cases
+
+# Run advocate management and assignment test suite specifically
+npm run test:advocates
 ```
 
 All test suites enforce global teardown verification, guaranteeing that the MySQL database row counts and case sequences strictly match the seeded baseline upon test completion.
+
+For comprehensive API and architectural documentation:
+
+- [docs/DATABASE.md](docs/DATABASE.md) - Database schema, relations & data dictionary
+- [docs/AUTH.md](docs/AUTH.md) - Authentication, sessions & RBAC permission matrix
+- [docs/CASES.md](docs/CASES.md) - Case registration, number generation & docket querying
+- [docs/ADVOCATES.md](docs/ADVOCATES.md) - Advocate directory, assignment rules & workflow state automation
 
 ---
 
@@ -251,7 +261,7 @@ All test suites enforce global teardown verification, guaranteeing that the MySQ
 - [x] **Phase 2: Database Schema, Migrations & Seed Data**
 - [x] **Phase 3: Authentication, RBAC & User Management**
 - [x] **Phase 4: Case Filing & Master Docket Registry**
-- [ ] **Phase 5: Advocate Assignment & Bar Directory**
+- [x] **Phase 5: Advocate Assignment & Bar Directory**
 - [ ] **Phase 6: Hearing Scheduling, Bench Allocation & Cause Lists**
 - [ ] **Phase 7: Digital Evidence Vault & Chain of Custody**
 - [ ] **Phase 8: Judgment Reservation & Orders Repository**

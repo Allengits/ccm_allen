@@ -6,20 +6,19 @@ export const SEEDED_BASELINE = {
   advocates: 6,
   courtrooms: 4,
   cases: 14,
-  caseAdvocates: 24,
+  caseAdvocates: 26,
   hearings: 16,
   evidence: 8,
   evidenceCustodyLogs: 16,
   judgments: 4,
   caseStatusHistory: 50,
-  caseSequences: 3,
-  systemSettings: 2,
+  caseSequences: 2,
+  systemSettings: 3,
 };
 
 export const SEEDED_SEQUENCES = [
   { prefix: 'CC', year: 2025, lastNumber: 85 },
   { prefix: 'CC', year: 2026, lastNumber: 112 },
-  { prefix: 'CRL', year: 2026, lastNumber: 0 },
 ];
 
 export async function verifyDatabaseBaseline() {

@@ -99,3 +99,32 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
   - No deletion endpoint exists; court records are permanent legal artifacts.
 - **Backlog Tracking**: Dynamic `ageDays` and `isBacklog` calculation based on `backlog_threshold_days` setting (>= 90 days pendency for open cases).
   Detailed endpoint specifications documented in docs/CASES.md.
+
+## Advocate Management & Case Assignment (Phase 5)
+
+- **Advocate Directory (`/api/v1/advocates`)**:
+  - Filter by `specialization` and `hasLogin`, search across `name`, `barNumber`, `email`, with pagination up to 50 items.
+  - Active and total case count aggregation without N+1 queries.
+  - Strict Bar Council number format validation (`/^[A-Z0-9/-]{5,20}$/`) and duplicate collision rejection; bar numbers are permanent legal identifiers and immutable once created.
+  - Basic Indian mobile and landline telephone format verification.
+  - Advocate profile lookups role-scoped: `ADVOCATE` role is restricted to viewing exclusively their own advocate profile (`404` for out-of-scope IDs).
+  - No advocate deletion endpoint exists (preserves historical legal integrity).
+- **Case Advocate Audit & Schema**:
+  - `CaseAdvocate` records include `assignedById`, `unassignedAt`, `unassignedById`, and `unassignReason`.
+- **Assignment Business Rules & Conflict Defense**:
+  - Executed inside a single atomic database transaction with `advocate.assign` permission.
+  - Cannot assign to `CLOSED` cases.
+  - Advocates with linked user accounts must have active logins (`isActive: true`).
+  - Strict conflict-of-interest check: an advocate cannot simultaneously represent both petitioner and respondent on the same case.
+  - Maximum of 2 active advocates allowed per side per case.
+  - Re-assignment of a previously unassigned advocate reactivates the existing join record (retaining unassign reason in historical timeline).
+  - Removing the last active advocate is permitted only when status is `ADVOCATE_ASSIGNED`; cases further along (`HEARING_SCHEDULED`, `UNDER_TRIAL`, `JUDGMENT_RESERVED`) require assigning a replacement first.
+- **Workflow State Automation (`caseWorkflow.js`)**:
+  - Assigning the first active advocate to a `REGISTERED` case automatically transitions status to `ADVOCATE_ASSIGNED` with audit entry.
+  - Unassigning the last active advocate from an `ADVOCATE_ASSIGNED` case automatically reverts status back to `REGISTERED` with reason recorded.
+  - Assignments on cases in subsequent lifecycle statuses do not alter status.
+- **Workload Soft Warning**:
+  - Evaluates configurable `advocate_workload_warning_threshold` (seeded default: 15 active open cases). Emits an informational warning without blocking assignment.
+- **Audit Timeline Integration**:
+  - Case History timeline merges `CaseStatusHistory` records and `CaseAdvocate` assignment/unassignment events sorted chronologically without requiring auxiliary audit tables.
+    Detailed endpoint specifications and workflow contracts documented in docs/ADVOCATES.md.

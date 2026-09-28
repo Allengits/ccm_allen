@@ -16,6 +16,8 @@ erDiagram
     User ||--o{ EvidenceCustodyLog : "performs custody action"
     User ||--o{ Judgment : "delivers judgment"
     User ||--o{ CaseStatusHistory : "authorizes status change"
+    User ||--o{ CaseAdvocate : "assigns advocate"
+    User ||--o{ CaseAdvocate : "unassigns advocate"
 
     Advocate ||--o{ CaseAdvocate : "assigned to"
     Case ||--o{ CaseAdvocate : "has legal representation"
@@ -85,7 +87,11 @@ erDiagram
         string advocateId FK
         AdvocateSide side
         datetime assignedAt
+        string assignedById FK
         boolean isActive
+        datetime unassignedAt
+        string unassignedById FK
+        string unassignReason
         datetime createdAt
         datetime updatedAt
     }
@@ -255,18 +261,22 @@ _Indexes_: `status`, `filing_date`, `case_type`.
 
 ### Table: `case_advocates`
 
-Associates practicing advocates with a case under a specific side of representation.
+Associates practicing advocates with a case under a specific side of representation. Tracks full lifecycle audit trail including who assigned the counsel, when representation ended, who authorized unassignment, and the recorded legal/administrative justification.
 
-| Column        | Type         | Constraints                | Description                                     |
-| :------------ | :----------- | :------------------------- | :---------------------------------------------- |
-| `id`          | VARCHAR(191) | PK, UUID                   | Unique assignment identifier                    |
-| `case_id`     | VARCHAR(191) | FK(cases.id), NOT NULL     | Associated case                                 |
-| `advocate_id` | VARCHAR(191) | FK(advocates.id), NOT NULL | Assigned counsel                                |
-| `side`        | ENUM         | NOT NULL                   | Representation side: `PETITIONER`, `RESPONDENT` |
-| `assigned_at` | DATETIME(3)  | DEFAULT NOW()              | Vakalatnama filing / assignment date            |
-| `is_active`   | BOOLEAN      | DEFAULT TRUE               | Active representation indicator                 |
-| `created_at`  | DATETIME(3)  | DEFAULT NOW()              | Record creation timestamp                       |
-| `updated_at`  | DATETIME(3)  | UPDATED AT                 | Last modification timestamp                     |
+| Column             | Type         | Constraints                | Description                                        |
+| :----------------- | :----------- | :------------------------- | :------------------------------------------------- |
+| `id`               | VARCHAR(191) | PK, UUID                   | Unique assignment identifier                       |
+| `case_id`          | VARCHAR(191) | FK(cases.id), NOT NULL     | Associated case                                    |
+| `advocate_id`      | VARCHAR(191) | FK(advocates.id), NOT NULL | Assigned counsel                                   |
+| `side`             | ENUM         | NOT NULL                   | Representation side: `PETITIONER`, `RESPONDENT`    |
+| `assigned_at`      | DATETIME(3)  | DEFAULT NOW()              | Vakalatnama filing / assignment date               |
+| `assigned_by_id`   | VARCHAR(191) | FK(users.id), NULLABLE     | Staff user (Admin/Registrar) performing assignment |
+| `is_active`        | BOOLEAN      | DEFAULT TRUE               | Active representation indicator                    |
+| `unassigned_at`    | DATETIME(3)  | NULLABLE                   | Timestamp when representation ceased               |
+| `unassigned_by_id` | VARCHAR(191) | FK(users.id), NULLABLE     | Staff user (Admin/Registrar) authorizing removal   |
+| `unassign_reason`  | VARCHAR(500) | NULLABLE                   | Mandatory recorded justification for unassignment  |
+| `created_at`       | DATETIME(3)  | DEFAULT NOW()              | Record creation timestamp                          |
+| `updated_at`       | DATETIME(3)  | UPDATED AT                 | Last modification timestamp                        |
 
 _Constraints_: Unique composite constraint on `(case_id, advocate_id)`.
 
@@ -380,7 +390,7 @@ Thread-safe counter table supporting automated generation of consecutive case do
 | Column        | Type         | Constraints   | Description                         |
 | :------------ | :----------- | :------------ | :---------------------------------- |
 | `id`          | VARCHAR(191) | PK, UUID      | Sequence record ID                  |
-| `prefix`      | VARCHAR(191) | NOT NULL      | Docket prefix (e.g., `CC`, `CRL`)   |
+| `prefix`      | VARCHAR(191) | NOT NULL      | Docket prefix (e.g., `CC`)          |
 | `year`        | INT          | NOT NULL      | Filing calendar year (e.g., `2026`) |
 | `last_number` | INT          | DEFAULT 0     | Last sequential integer generated   |
 | `created_at`  | DATETIME(3)  | DEFAULT NOW() | Sequence creation date              |
@@ -392,15 +402,15 @@ _Constraints_: Unique composite index on `(prefix, year)`.
 
 ### Table: `system_settings`
 
-Global key-value configuration repository for court-wide thresholds and operational flags.
+Global key-value configuration repository for court-wide thresholds and operational flags (e.g., `backlog_threshold_days`, `court_jurisdiction`, `advocate_workload_warning_threshold`).
 
-| Column        | Type         | Constraints   | Description                                         |
-| :------------ | :----------- | :------------ | :-------------------------------------------------- |
-| `key`         | VARCHAR(191) | PK            | Unique setting key (e.g., `backlog_threshold_days`) |
-| `value`       | VARCHAR(191) | NOT NULL      | Configuration value (e.g., `90`)                    |
-| `description` | VARCHAR(191) | NULLABLE      | Setting explanation                                 |
-| `created_at`  | DATETIME(3)  | DEFAULT NOW() | Setting creation timestamp                          |
-| `updated_at`  | DATETIME(3)  | UPDATED AT    | Last change timestamp                               |
+| Column        | Type         | Constraints   | Description                                                                                |
+| :------------ | :----------- | :------------ | :----------------------------------------------------------------------------------------- |
+| `key`         | VARCHAR(191) | PK            | Unique setting key (e.g., `backlog_threshold_days`, `advocate_workload_warning_threshold`) |
+| `value`       | VARCHAR(191) | NOT NULL      | Configuration value (e.g., `90`)                                                           |
+| `description` | VARCHAR(191) | NULLABLE      | Setting explanation                                                                        |
+| `created_at`  | DATETIME(3)  | DEFAULT NOW() | Setting creation timestamp                                                                 |
+| `updated_at`  | DATETIME(3)  | UPDATED AT    | Last change timestamp                                                                      |
 
 ---
 

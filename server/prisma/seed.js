@@ -59,6 +59,12 @@ async function main() {
         value: 'District & Sessions Court, Central Judicial Complex',
         description: 'Official court jurisdiction title',
       },
+      {
+        key: 'advocate_workload_warning_threshold',
+        value: '15',
+        description:
+          'Active open cases threshold beyond which a soft workload warning is flagged during advocate assignment',
+      },
     ],
   });
 
@@ -70,7 +76,6 @@ async function main() {
     data: [
       { prefix: 'CC', year: 2026, lastNumber: 112 },
       { prefix: 'CC', year: 2025, lastNumber: 85 },
-      { prefix: 'CRL', year: 2026, lastNumber: 0 },
     ],
   });
 
@@ -509,52 +514,242 @@ async function main() {
   await prisma.caseAdvocate.createMany({
     data: [
       // Case 3 (ADVOCATE_ASSIGNED)
-      { caseId: case3.id, advocateId: adv3.id, side: 'PETITIONER', assignedAt: daysAgo(20) },
-      { caseId: case3.id, advocateId: adv4.id, side: 'RESPONDENT', assignedAt: daysAgo(18) },
+      {
+        caseId: case3.id,
+        advocateId: adv3.id,
+        side: 'PETITIONER',
+        assignedAt: daysAgo(20),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
+      {
+        caseId: case3.id,
+        advocateId: adv4.id,
+        side: 'RESPONDENT',
+        assignedAt: daysAgo(18),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
 
       // Case 4 (ADVOCATE_ASSIGNED - Backlog)
-      { caseId: case4.id, advocateId: adv2.id, side: 'PETITIONER', assignedAt: daysAgo(100) },
-      { caseId: case4.id, advocateId: adv6.id, side: 'RESPONDENT', assignedAt: daysAgo(95) },
+      {
+        caseId: case4.id,
+        advocateId: adv2.id,
+        side: 'PETITIONER',
+        assignedAt: daysAgo(100),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
+      {
+        caseId: case4.id,
+        advocateId: adv6.id,
+        side: 'RESPONDENT',
+        assignedAt: daysAgo(95),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
 
       // Case 5 (HEARING_SCHEDULED)
-      { caseId: case5.id, advocateId: adv4.id, side: 'PETITIONER', assignedAt: daysAgo(30) },
-      { caseId: case5.id, advocateId: adv1.id, side: 'RESPONDENT', assignedAt: daysAgo(28) },
+      {
+        caseId: case5.id,
+        advocateId: adv4.id,
+        side: 'PETITIONER',
+        assignedAt: daysAgo(30),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
+      {
+        caseId: case5.id,
+        advocateId: adv1.id,
+        side: 'RESPONDENT',
+        assignedAt: daysAgo(28),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
 
       // Case 6 (HEARING_SCHEDULED - Backlog)
-      { caseId: case6.id, advocateId: adv1.id, side: 'PETITIONER', assignedAt: daysAgo(130) },
-      { caseId: case6.id, advocateId: adv5.id, side: 'RESPONDENT', assignedAt: daysAgo(125) },
+      {
+        caseId: case6.id,
+        advocateId: adv1.id,
+        side: 'PETITIONER',
+        assignedAt: daysAgo(130),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
+      {
+        caseId: case6.id,
+        advocateId: adv5.id,
+        side: 'RESPONDENT',
+        assignedAt: daysAgo(125),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
 
       // Case 7 (UNDER_TRIAL - Backlog)
-      { caseId: case7.id, advocateId: adv1.id, side: 'PETITIONER', assignedAt: daysAgo(175) },
-      { caseId: case7.id, advocateId: adv5.id, side: 'RESPONDENT', assignedAt: daysAgo(170) },
+      {
+        caseId: case7.id,
+        advocateId: adv3.id,
+        side: 'PETITIONER',
+        assignedAt: daysAgo(190),
+        assignedById: registrarUser.id,
+        isActive: false,
+        unassignedAt: daysAgo(176),
+        unassignedById: registrarUser.id,
+        unassignReason: 'Advocate withdrew due to scheduling conflict before the High Court',
+      },
+      {
+        caseId: case7.id,
+        advocateId: adv1.id,
+        side: 'PETITIONER',
+        assignedAt: daysAgo(175),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
+      {
+        caseId: case7.id,
+        advocateId: adv5.id,
+        side: 'RESPONDENT',
+        assignedAt: daysAgo(170),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
 
       // Case 8 (UNDER_TRIAL - Backlog)
-      { caseId: case8.id, advocateId: adv2.id, side: 'PETITIONER', assignedAt: daysAgo(145) },
-      { caseId: case8.id, advocateId: adv6.id, side: 'RESPONDENT', assignedAt: daysAgo(140) },
+      {
+        caseId: case8.id,
+        advocateId: adv2.id,
+        side: 'PETITIONER',
+        assignedAt: daysAgo(145),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
+      {
+        caseId: case8.id,
+        advocateId: adv6.id,
+        side: 'RESPONDENT',
+        assignedAt: daysAgo(140),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
 
       // Case 9 (UNDER_TRIAL)
-      { caseId: case9.id, advocateId: adv3.id, side: 'PETITIONER', assignedAt: daysAgo(65) },
-      { caseId: case9.id, advocateId: adv4.id, side: 'RESPONDENT', assignedAt: daysAgo(60) },
+      {
+        caseId: case9.id,
+        advocateId: adv1.id,
+        side: 'RESPONDENT',
+        assignedAt: daysAgo(80),
+        assignedById: registrarUser.id,
+        isActive: false,
+        unassignedAt: daysAgo(61),
+        unassignedById: registrarUser.id,
+        unassignReason: 'Client requested substitution of legal counsel',
+      },
+      {
+        caseId: case9.id,
+        advocateId: adv3.id,
+        side: 'PETITIONER',
+        assignedAt: daysAgo(65),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
+      {
+        caseId: case9.id,
+        advocateId: adv4.id,
+        side: 'RESPONDENT',
+        assignedAt: daysAgo(60),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
 
       // Case 10 (UNDER_TRIAL)
-      { caseId: case10.id, advocateId: adv2.id, side: 'PETITIONER', assignedAt: daysAgo(48) },
-      { caseId: case10.id, advocateId: adv6.id, side: 'RESPONDENT', assignedAt: daysAgo(45) },
+      {
+        caseId: case10.id,
+        advocateId: adv2.id,
+        side: 'PETITIONER',
+        assignedAt: daysAgo(48),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
+      {
+        caseId: case10.id,
+        advocateId: adv6.id,
+        side: 'RESPONDENT',
+        assignedAt: daysAgo(45),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
 
       // Case 11 (JUDGMENT_RESERVED - Backlog)
-      { caseId: case11.id, advocateId: adv1.id, side: 'PETITIONER', assignedAt: daysAgo(200) },
-      { caseId: case11.id, advocateId: adv5.id, side: 'RESPONDENT', assignedAt: daysAgo(195) },
+      {
+        caseId: case11.id,
+        advocateId: adv1.id,
+        side: 'PETITIONER',
+        assignedAt: daysAgo(200),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
+      {
+        caseId: case11.id,
+        advocateId: adv5.id,
+        side: 'RESPONDENT',
+        assignedAt: daysAgo(195),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
 
       // Case 12 (JUDGMENT_RESERVED)
-      { caseId: case12.id, advocateId: adv2.id, side: 'PETITIONER', assignedAt: daysAgo(78) },
-      { caseId: case12.id, advocateId: adv6.id, side: 'RESPONDENT', assignedAt: daysAgo(75) },
+      {
+        caseId: case12.id,
+        advocateId: adv2.id,
+        side: 'PETITIONER',
+        assignedAt: daysAgo(78),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
+      {
+        caseId: case12.id,
+        advocateId: adv6.id,
+        side: 'RESPONDENT',
+        assignedAt: daysAgo(75),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
 
       // Case 13 (CLOSED)
-      { caseId: case13.id, advocateId: adv4.id, side: 'PETITIONER', assignedAt: daysAgo(300) },
-      { caseId: case13.id, advocateId: adv3.id, side: 'RESPONDENT', assignedAt: daysAgo(295) },
+      {
+        caseId: case13.id,
+        advocateId: adv4.id,
+        side: 'PETITIONER',
+        assignedAt: daysAgo(300),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
+      {
+        caseId: case13.id,
+        advocateId: adv3.id,
+        side: 'RESPONDENT',
+        assignedAt: daysAgo(295),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
 
       // Case 14 (CLOSED)
-      { caseId: case14.id, advocateId: adv1.id, side: 'PETITIONER', assignedAt: daysAgo(260) },
-      { caseId: case14.id, advocateId: adv5.id, side: 'RESPONDENT', assignedAt: daysAgo(255) },
+      {
+        caseId: case14.id,
+        advocateId: adv1.id,
+        side: 'PETITIONER',
+        assignedAt: daysAgo(260),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
+      {
+        caseId: case14.id,
+        advocateId: adv5.id,
+        side: 'RESPONDENT',
+        assignedAt: daysAgo(255),
+        assignedById: registrarUser.id,
+        isActive: true,
+      },
     ],
   });
 

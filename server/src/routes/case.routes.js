@@ -9,6 +9,10 @@ import {
   getCaseById,
   updateCase,
 } from '../controllers/case.controller.js';
+import {
+  assignAdvocateToCase,
+  unassignAdvocateFromCase,
+} from '../controllers/caseAdvocate.controller.js';
 
 const router = Router();
 
@@ -30,5 +34,13 @@ router.get('/:id', requirePermission(PERMISSIONS.CASE_VIEW), getCaseById);
 
 // Case modification (ADMIN, REGISTRAR - closed cases blocked)
 router.patch('/:id', requirePermission(PERMISSIONS.CASE_EDIT), updateCase);
+
+// Case advocate assignment & unassignment (ADMIN, REGISTRAR)
+router.post('/:id/advocates', requirePermission(PERMISSIONS.ADVOCATE_ASSIGN), assignAdvocateToCase);
+router.post(
+  '/:id/advocates/:advocateId/unassign',
+  requirePermission(PERMISSIONS.ADVOCATE_ASSIGN),
+  unassignAdvocateFromCase
+);
 
 export default router;

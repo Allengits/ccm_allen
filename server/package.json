@@ -8,6 +8,7 @@
     "test": "vitest run",
     "test:auth": "vitest run tests/auth.test.js",
     "test:cases": "vitest run tests/cases.test.js",
+    "test:advocates": "vitest run tests/advocates.test.js",
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node prisma/seed.js",

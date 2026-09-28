@@ -533,6 +533,12 @@ export const getCaseById = async (req, res) => {
                 phone: true,
               },
             },
+            assignedBy: {
+              select: { id: true, name: true, email: true },
+            },
+            unassignedBy: {
+              select: { id: true, name: true, email: true },
+            },
           },
           orderBy: { assignedAt: 'asc' },
         },
@@ -599,12 +605,75 @@ export const getCaseById = async (req, res) => {
     );
     const isBacklog = c.status !== 'CLOSED' && ageDays >= thresholdDays;
 
+    // Format advocates with direct access to assignedByName and unassignedByName
+    const formattedAdvocates = c.advocates.map((a) => ({
+      id: a.id,
+      caseId: a.caseId,
+      advocateId: a.advocateId,
+      side: a.side,
+      isActive: a.isActive,
+      assignedAt: a.assignedAt,
+      assignedById: a.assignedById,
+      assignedBy: a.assignedBy,
+      assignedByName: a.assignedBy?.name || null,
+      unassignedAt: a.unassignedAt,
+      unassignedById: a.unassignedById,
+      unassignedBy: a.unassignedBy,
+      unassignedByName: a.unassignedBy?.name || null,
+      unassignReason: a.unassignReason,
+      advocate: a.advocate,
+    }));
+
+    // Merge advocate assignment/unassignment events into timeline if not already represented by a status change
+    const timeline = [...c.statusHistory];
+    const existingReasons = new Set(c.statusHistory.map((h) => h.reason));
+
+    for (const a of c.advocates) {
+      // Check assignment event
+      const assignReasonStr = `Advocate ${a.advocate.name} assigned`;
+      if (!existingReasons.has(assignReasonStr)) {
+        timeline.push({
+          id: `adv-assign-${a.id}`,
+          fromStatus: null,
+          toStatus: null,
+          reason: `Advocate ${a.advocate.name} assigned to ${a.side}`,
+          changedById: a.assignedById,
+          changedBy: a.assignedBy
+            ? { id: a.assignedBy.id, name: a.assignedBy.name, role: 'REGISTRAR' }
+            : null,
+          createdAt: a.assignedAt,
+        });
+      }
+
+      // Check unassignment event
+      if (!a.isActive && a.unassignedAt && a.unassignReason) {
+        if (!existingReasons.has(a.unassignReason)) {
+          timeline.push({
+            id: `adv-unassign-${a.id}`,
+            fromStatus: null,
+            toStatus: null,
+            reason: `Advocate ${a.advocate.name} unassigned from ${a.side}: ${a.unassignReason}`,
+            changedById: a.unassignedById,
+            changedBy: a.unassignedBy
+              ? { id: a.unassignedBy.id, name: a.unassignedBy.name, role: 'REGISTRAR' }
+              : null,
+            createdAt: a.unassignedAt,
+          });
+        }
+      }
+    }
+
+    // Sort timeline chronologically descending
+    timeline.sort((x, y) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime());
+
     return res.status(200).json({
       success: true,
       message: 'Case retrieved successfully',
       data: {
         case: {
           ...c,
+          advocates: formattedAdvocates,
+          statusHistory: timeline,
           ageDays,
           isBacklog,
         },

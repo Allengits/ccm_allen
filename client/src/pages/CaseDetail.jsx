@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import EditCaseModal from '../components/cases/EditCaseModal';
+import AssignAdvocateModal from '../components/cases/AssignAdvocateModal';
+import UnassignAdvocateModal from '../components/cases/UnassignAdvocateModal';
 import {
   ArrowLeft,
   Calendar,
@@ -15,6 +17,11 @@ import {
   History,
   Edit2,
   Loader2,
+  UserPlus,
+  UserMinus,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle2,
 } from 'lucide-react';
 
 export default function CaseDetail() {
@@ -26,6 +33,10 @@ export default function CaseDetail() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [unassigningAdvocate, setUnassigningAdvocate] = useState(null);
+  const [assignmentNotice, setAssignmentNotice] = useState(null);
+  const [showPastAssignments, setShowPastAssignments] = useState(false);
 
   const fetchCaseDetail = async () => {
     try {
@@ -303,7 +314,7 @@ export default function CaseDetail() {
         {/* ADVOCATES TAB */}
         {activeTab === 'advocates' && (
           <div className="registry-card rounded-lg p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
               <div>
                 <h3 className="text-base font-serif font-bold text-navy-900">
                   Legal Representation
@@ -312,61 +323,197 @@ export default function CaseDetail() {
                   Advocates assigned as legal counsel for litigating parties.
                 </p>
               </div>
-              <span className="text-xs italic text-gray-400 bg-gray-50 px-2.5 py-1 rounded border border-gray-200">
-                Phase 5 will enable advocate allocation & side designations.
-              </span>
+
+              {can('advocate.assign') && caseData.status !== 'CLOSED' && (
+                <button
+                  onClick={() => setIsAssignModalOpen(true)}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-navy-900 text-white rounded-lg text-xs font-semibold hover:bg-navy-800 transition-colors shadow-sm self-start sm:self-auto"
+                >
+                  <UserPlus className="w-3.5 h-3.5 text-brass-400" />
+                  <span>Assign Advocate</span>
+                </button>
+              )}
             </div>
 
-            {caseData.advocates?.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 text-sm">
-                No legal counsel currently assigned to this case.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-xs text-left">
-                  <thead className="bg-gray-50 uppercase text-gray-500 font-semibold border-y border-gray-200">
-                    <tr>
-                      <th className="py-2.5 px-3">Advocate Name</th>
-                      <th className="py-2.5 px-3">Bar Council Number</th>
-                      <th className="py-2.5 px-3">Specialization</th>
-                      <th className="py-2.5 px-3">Representation Side</th>
-                      <th className="py-2.5 px-3">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {caseData.advocates.map((ca) => (
-                      <tr key={ca.id} className="hover:bg-gray-50">
-                        <td className="py-2.5 px-3 font-semibold text-navy-950">
-                          {ca.advocate?.name}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono text-gray-600">
-                          {ca.advocate?.barNumber}
-                        </td>
-                        <td className="py-2.5 px-3 text-gray-600">{ca.advocate?.specialization}</td>
-                        <td className="py-2.5 px-3">
-                          <span
-                            className={`font-semibold uppercase px-2 py-0.5 rounded text-[11px] ${
-                              ca.side === 'PETITIONER'
-                                ? 'bg-blue-50 text-blue-800 border border-blue-200'
-                                : 'bg-purple-50 text-purple-800 border border-purple-200'
-                            }`}
-                          >
-                            {ca.side}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          {ca.isActive ? (
-                            <span className="text-emerald-700 font-semibold">Active</span>
-                          ) : (
-                            <span className="text-gray-400">Withdrawn</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {/* Assignment Feedback Banner */}
+            {assignmentNotice && (
+              <div className="space-y-2">
+                <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <span>{assignmentNotice.message}</span>
+                  </div>
+                  <button
+                    onClick={() => setAssignmentNotice(null)}
+                    className="text-emerald-700 hover:text-emerald-950 font-semibold text-xs ml-4"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+
+                {assignmentNotice.warning && (
+                  <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start space-x-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-semibold">Caseload Advisory:</span>{' '}
+                      {assignmentNotice.warning}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
+
+            {/* Active Advocates List */}
+            {(() => {
+              const activeAdvocates = caseData.advocates?.filter((a) => a.isActive) || [];
+              const pastAdvocates = caseData.advocates?.filter((a) => !a.isActive) || [];
+
+              return (
+                <div className="space-y-6">
+                  {activeAdvocates.length === 0 ? (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-gray-500 text-sm">
+                      No active legal counsel currently assigned to this docket.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                      <table className="min-w-full text-xs text-left">
+                        <thead className="bg-gray-50 uppercase text-gray-500 font-semibold border-b border-gray-200">
+                          <tr>
+                            <th className="py-2.5 px-3">Advocate Name</th>
+                            <th className="py-2.5 px-3">Bar Council Number</th>
+                            <th className="py-2.5 px-3">Specialization</th>
+                            <th className="py-2.5 px-3">Representation Side</th>
+                            <th className="py-2.5 px-3">Assigned Date & By</th>
+                            {can('advocate.assign') && caseData.status !== 'CLOSED' && (
+                              <th className="py-2.5 px-3 text-right">Actions</th>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 bg-white">
+                          {activeAdvocates.map((ca) => (
+                            <tr key={ca.id} className="hover:bg-gray-50">
+                              <td className="py-2.5 px-3 font-semibold text-navy-950">
+                                {ca.advocate?.name}
+                              </td>
+                              <td className="py-2.5 px-3 font-mono text-gray-600">
+                                {ca.advocate?.barNumber}
+                              </td>
+                              <td className="py-2.5 px-3 text-gray-600">
+                                {ca.advocate?.specialization}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <span
+                                  className={`font-semibold uppercase px-2 py-0.5 rounded text-[11px] ${
+                                    ca.side === 'PETITIONER'
+                                      ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                                      : 'bg-purple-50 text-purple-800 border border-purple-200'
+                                  }`}
+                                >
+                                  {ca.side}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-gray-600 whitespace-nowrap">
+                                <div>{new Date(ca.assignedAt).toLocaleDateString('en-IN')}</div>
+                                {ca.assignedByName && (
+                                  <div className="text-[10px] text-gray-400">
+                                    By {ca.assignedByName}
+                                  </div>
+                                )}
+                              </td>
+                              {can('advocate.assign') && caseData.status !== 'CLOSED' && (
+                                <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                                  <button
+                                    onClick={() => setUnassigningAdvocate(ca)}
+                                    className="px-2.5 py-1 text-xs font-semibold text-red-700 hover:text-red-900 hover:bg-red-50 rounded transition-colors inline-flex items-center space-x-1"
+                                  >
+                                    <UserMinus className="w-3.5 h-3.5" />
+                                    <span>Unassign</span>
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Previous Assignments Collapsible Accordion */}
+                  {pastAdvocates.length > 0 && (
+                    <div className="pt-2 border-t border-gray-100">
+                      <button
+                        onClick={() => setShowPastAssignments(!showPastAssignments)}
+                        className="flex items-center space-x-2 text-xs font-semibold text-gray-600 hover:text-navy-900 transition-colors py-1"
+                      >
+                        {showPastAssignments ? (
+                          <ChevronDown className="w-4 h-4 text-gray-500" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-gray-500" />
+                        )}
+                        <span>Previous Assignments ({pastAdvocates.length})</span>
+                      </button>
+
+                      {showPastAssignments && (
+                        <div className="mt-3 overflow-x-auto border border-gray-200 rounded-lg">
+                          <table className="min-w-full text-xs text-left">
+                            <thead className="bg-gray-50 uppercase text-gray-500 font-semibold border-b border-gray-200">
+                              <tr>
+                                <th className="py-2.5 px-3">Advocate Name</th>
+                                <th className="py-2.5 px-3">Bar Council Number</th>
+                                <th className="py-2.5 px-3">Side</th>
+                                <th className="py-2.5 px-3">Assigned Date & By</th>
+                                <th className="py-2.5 px-3">Withdrawn Date & By</th>
+                                <th className="py-2.5 px-3">Withdrawal Reason</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 bg-white text-gray-600">
+                              {pastAdvocates.map((pa) => (
+                                <tr key={pa.id} className="hover:bg-gray-50">
+                                  <td className="py-2.5 px-3 font-semibold text-gray-700">
+                                    {pa.advocate?.name}
+                                  </td>
+                                  <td className="py-2.5 px-3 font-mono text-[11px] text-gray-500">
+                                    {pa.advocate?.barNumber}
+                                  </td>
+                                  <td className="py-2.5 px-3">
+                                    <span className="font-semibold uppercase px-2 py-0.5 rounded text-[10px] bg-gray-100 text-gray-700">
+                                      {pa.side}
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 px-3 whitespace-nowrap">
+                                    <div>{new Date(pa.assignedAt).toLocaleDateString('en-IN')}</div>
+                                    {pa.assignedByName && (
+                                      <div className="text-[10px] text-gray-400">
+                                        By {pa.assignedByName}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="py-2.5 px-3 whitespace-nowrap">
+                                    <div>
+                                      {pa.unassignedAt
+                                        ? new Date(pa.unassignedAt).toLocaleDateString('en-IN')
+                                        : '—'}
+                                    </div>
+                                    {pa.unassignedByName && (
+                                      <div className="text-[10px] text-gray-400">
+                                        By {pa.unassignedByName}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="py-2.5 px-3 max-w-xs italic text-gray-700">
+                                    {pa.unassignReason || 'No reason specified'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -616,7 +763,7 @@ export default function CaseDetail() {
                         <span className="font-semibold text-navy-950 font-mono text-[11px] uppercase">
                           {item.fromStatus
                             ? `${item.fromStatus} → ${item.toStatus}`
-                            : item.toStatus}
+                            : item.toStatus || 'REPRESENTATION UPDATE'}
                         </span>
                         <span className="text-[11px] text-gray-400">
                           {new Date(item.createdAt).toLocaleString('en-IN', {
@@ -655,6 +802,45 @@ export default function CaseDetail() {
             }));
             fetchCaseDetail();
           }}
+        />
+      )}
+
+      {/* Assign Advocate Modal */}
+      {can('advocate.assign') && (
+        <AssignAdvocateModal
+          isOpen={isAssignModalOpen}
+          onClose={() => setIsAssignModalOpen(false)}
+          onSuccess={(result) => {
+            setAssignmentNotice({
+              message: result.message,
+              warning: result.warning,
+              statusChanged: result.statusChanged,
+            });
+            fetchCaseDetail();
+          }}
+          caseId={caseData.id}
+          caseNumber={caseData.caseNumber}
+          existingAdvocates={caseData.advocates || []}
+        />
+      )}
+
+      {/* Unassign Advocate Modal */}
+      {can('advocate.assign') && unassigningAdvocate && (
+        <UnassignAdvocateModal
+          isOpen={!!unassigningAdvocate}
+          onClose={() => setUnassigningAdvocate(null)}
+          onSuccess={(result) => {
+            setAssignmentNotice({
+              message: result.message,
+              statusChanged: result.statusChanged,
+            });
+            fetchCaseDetail();
+          }}
+          caseId={caseData.id}
+          caseNumber={caseData.caseNumber}
+          advocate={unassigningAdvocate}
+          isLastAdvocate={(caseData.advocates?.filter((a) => a.isActive) || []).length === 1}
+          caseStatus={caseData.status}
         />
       )}
     </div>

@@ -43,7 +43,7 @@ describe('Court CMS - Phase 4 Cases API & RBAC Suite', () => {
     // Reset CaseSequence rows back to seeded baseline
     await prisma.caseSequence.deleteMany({
       where: {
-        OR: [{ prefix: { notIn: ['CC', 'CRL'] } }, { year: { notIn: [2025, 2026] } }],
+        OR: [{ prefix: { notIn: ['CC'] } }, { year: { notIn: [2025, 2026] } }],
       },
     });
 
@@ -54,10 +54,6 @@ describe('Court CMS - Phase 4 Cases API & RBAC Suite', () => {
     await prisma.caseSequence.updateMany({
       where: { prefix: 'CC', year: 2025 },
       data: { lastNumber: 85 },
-    });
-    await prisma.caseSequence.updateMany({
-      where: { prefix: 'CRL', year: 2026 },
-      data: { lastNumber: 0 },
     });
   };
 

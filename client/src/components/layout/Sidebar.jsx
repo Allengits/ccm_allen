@@ -34,7 +34,13 @@ const allNavigationItems = [
     name: 'Advocates',
     path: '/advocates',
     icon: UsersIcon,
-    roles: ['ADMIN', 'REGISTRAR'],
+    roles: ['ADMIN', 'REGISTRAR', 'JUDGE'],
+  },
+  {
+    name: 'My Profile',
+    path: '/advocates',
+    icon: UserCheck,
+    roles: ['ADVOCATE'],
   },
   {
     name: 'Evidence',

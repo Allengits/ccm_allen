@@ -77,7 +77,7 @@ Court CMS implements a stateless, cryptographically signed JSON Web Token (JWT) 
 
 ## 2. Role-Based Access Control (RBAC) Matrix
 
-Court CMS defines 12 granular, named permissions managed centrally in [server/src/config/permissions.js](file:///c:/Users/allen/OneDrive/Desktop/ccm_allen/server/src/config/permissions.js).
+Court CMS defines 14 granular, named permissions managed centrally in [server/src/config/permissions.js](file:///c:/Users/allen/OneDrive/Desktop/ccm_allen/server/src/config/permissions.js).
 
 ### Permissions Definition
 
@@ -86,7 +86,9 @@ Court CMS defines 12 granular, named permissions managed centrally in [server/sr
 | `case.create`         | Register new judicial dockets and assign initial case numbers           |
 | `case.view`           | View court cases (subject to role visibility filters)                   |
 | `case.edit`           | Modify case details, priority status, or petitioner/respondent metadata |
-| `advocate.assign`     | Assign, reassign, or designate petitioner/respondent counsel            |
+| `advocate.view`       | View and search the advocate directory, bar roll numbers, and caseloads |
+| `advocate.manage`     | Register new advocates, modify contact details and specializations      |
+| `advocate.assign`     | Assign, reassign, or unassign legal counsel on court dockets            |
 | `hearing.schedule`    | Allocate hearing schedules, dates, and courtroom venues                 |
 | `hearing.update`      | Record hearing bench outcomes, proceedings, and daily cause notes       |
 | `evidence.submit`     | Upload and log digital evidence records and initial custody logs        |
@@ -103,6 +105,8 @@ Court CMS defines 12 granular, named permissions managed centrally in [server/sr
 | `case.create`      |    ✅    |    ✅     |      ❌       |     ❌      |
 | `case.view`        | ✅ (All) | ✅ (All)  | ✅ (Assigned) | ✅ (Client) |
 | `case.edit`        |    ✅    |    ✅     |      ❌       |     ❌      |
+| `advocate.view`    |    ✅    |    ✅     |      ✅       | ❌ (Self)*  |
+| `advocate.manage`  |    ✅    |    ✅     |      ❌       |     ❌      |
 | `advocate.assign`  |    ✅    |    ✅     |      ❌       |     ❌      |
 | `hearing.schedule` |    ✅    |    ✅     |      ❌       |     ❌      |
 | `hearing.update`   |    ✅    |    ❌     |      ✅       |     ❌      |
@@ -112,6 +116,8 @@ Court CMS defines 12 granular, named permissions managed centrally in [server/sr
 | `judgment.deliver` |    ✅    |    ❌     |      ✅       |     ❌      |
 | `user.manage`      |    ✅    |    ❌     |      ❌       |     ❌      |
 | `dashboard.view`   |    ✅    |    ✅     |      ✅       |     ❌      |
+
+_\* Note: The ADVOCATE role has scoped access to view their own profile and representations via `GET /advocates/:id`._
 
 ---
 

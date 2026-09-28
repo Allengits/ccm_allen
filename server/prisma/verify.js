@@ -49,7 +49,12 @@ async function runVerification() {
       .map(([tbl, cnt]) => `${tbl}: ${cnt}`)
       .join(', ');
 
-    if (emptyTables.length === 0 && tableCounts.cases >= 14 && tableCounts.hearings >= 15) {
+    if (
+      emptyTables.length === 0 &&
+      tableCounts.cases >= 14 &&
+      tableCounts.hearings >= 15 &&
+      tableCounts.users === 7
+    ) {
       recordResult('Table Row Counts', true, `All 12 tables populated (${countSummary})`);
     } else {
       recordResult(
@@ -57,7 +62,7 @@ async function runVerification() {
         false,
         emptyTables.length > 0
           ? `Empty tables found: ${emptyTables.map(([t]) => t).join(', ')}`
-          : `Cases (${tableCounts.cases}) or Hearings (${tableCounts.hearings}) below expected counts`
+          : `Cases (${tableCounts.cases}), Hearings (${tableCounts.hearings}) or Users (${tableCounts.users}) below expected counts`
       );
     }
 
@@ -67,7 +72,7 @@ async function runVerification() {
     console.log('[2/5] Validating case lifecycle records consistency...');
     const cases = await prisma.case.findMany({
       include: {
-        advocates: { where: { isActive: true } },
+        advocates: { include: { assignedBy: true, unassignedBy: true } },
         hearings: true,
         evidence: true,
         judgment: true,
@@ -78,25 +83,44 @@ async function runVerification() {
     let statusFailures = [];
 
     for (const c of cases) {
+      const activeAdvocates = c.advocates.filter((a) => a.isActive);
+      const inactiveAdvocates = c.advocates.filter((a) => !a.isActive);
+
+      // Audit field validation for assignments
+      for (const adv of activeAdvocates) {
+        if (!adv.assignedById) {
+          statusFailures.push(
+            `${c.caseNumber}: Active advocate assignment ${adv.id} missing assignedById`
+          );
+        }
+      }
+      for (const adv of inactiveAdvocates) {
+        if (!adv.unassignedAt || !adv.unassignedById || !adv.unassignReason) {
+          statusFailures.push(
+            `${c.caseNumber}: Inactive advocate assignment ${adv.id} missing unassigned audit fields`
+          );
+        }
+      }
+
       switch (c.status) {
         case 'REGISTERED': {
-          if (c.advocates.length !== 0 || c.hearings.length !== 0) {
+          if (activeAdvocates.length !== 0 || c.hearings.length !== 0) {
             statusFailures.push(
-              `${c.caseNumber} (REGISTERED): Expected 0 advocates and 0 hearings, found ${c.advocates.length} adv, ${c.hearings.length} hearings`
+              `${c.caseNumber} (REGISTERED): Expected 0 active advocates and 0 hearings, found ${activeAdvocates.length} adv, ${c.hearings.length} hearings`
             );
           }
           break;
         }
         case 'ADVOCATE_ASSIGNED': {
-          if (c.advocates.length === 0 || c.hearings.length !== 0) {
+          if (activeAdvocates.length === 0 || c.hearings.length !== 0) {
             statusFailures.push(
-              `${c.caseNumber} (ADVOCATE_ASSIGNED): Expected >= 1 active advocate and 0 hearings, found ${c.advocates.length} adv, ${c.hearings.length} hearings`
+              `${c.caseNumber} (ADVOCATE_ASSIGNED): Expected >= 1 active advocate and 0 hearings, found ${activeAdvocates.length} adv, ${c.hearings.length} hearings`
             );
           }
           break;
         }
         case 'HEARING_SCHEDULED': {
-          const hasAdvocate = c.advocates.length >= 1;
+          const hasAdvocate = activeAdvocates.length >= 1;
           const hasFutureHearing = c.hearings.some(
             (h) => h.status === 'SCHEDULED' && new Date(h.scheduledAt) > now
           );
@@ -108,7 +132,7 @@ async function runVerification() {
           break;
         }
         case 'UNDER_TRIAL': {
-          const hasAdvocate = c.advocates.length >= 1;
+          const hasAdvocate = activeAdvocates.length >= 1;
           const hasPastCompleted = c.hearings.some(
             (h) => h.status === 'COMPLETED' && new Date(h.scheduledAt) <= now
           );
@@ -122,17 +146,22 @@ async function runVerification() {
           break;
         }
         case 'JUDGMENT_RESERVED': {
-          if (!c.judgment || c.judgment.status !== 'RESERVED') {
+          if (activeAdvocates.length === 0 || !c.judgment || c.judgment.status !== 'RESERVED') {
             statusFailures.push(
-              `${c.caseNumber} (JUDGMENT_RESERVED): Expected Judgment record with status RESERVED`
+              `${c.caseNumber} (JUDGMENT_RESERVED): Expected >= 1 active advocate and Judgment record with status RESERVED`
             );
           }
           break;
         }
         case 'CLOSED': {
-          if (!c.judgment || c.judgment.status !== 'DELIVERED' || !c.closedAt) {
+          if (
+            activeAdvocates.length === 0 ||
+            !c.judgment ||
+            c.judgment.status !== 'DELIVERED' ||
+            !c.closedAt
+          ) {
             statusFailures.push(
-              `${c.caseNumber} (CLOSED): Expected Judgment with status DELIVERED and non-null closedAt`
+              `${c.caseNumber} (CLOSED): Expected >= 1 active advocate, Judgment with status DELIVERED, and non-null closedAt`
             );
           }
           break;
