@@ -254,6 +254,7 @@ Cancels a scheduled hearing.
 Concludes a hearing session and records daily order notes.
 
 - **Permission**: `hearing.update` (ADMIN or Presiding Judge)
+- **IST Date Restriction**: Complete is allowed **only** when the hearing's calendar date in IST is today or earlier (`hearingDayIST <= todayIST`). Future-dated hearings are rejected with **400 Bad Request** citing the formatted hearing date. Complete buttons are disabled with tooltips in the UI for future-dated hearings.
 - **Request Body**:
   ```json
   {
@@ -266,6 +267,7 @@ Concludes a hearing session and records daily order notes.
 Adjourns a hearing session with optional atomic next date booking.
 
 - **Permission**: `hearing.update` (ADMIN or Presiding Judge)
+- **IST Date Restriction**: Adjourn is allowed **only** when the hearing's calendar date in IST is today or earlier (`hearingDayIST <= todayIST`). Future-dated hearings are rejected with **400 Bad Request** citing the formatted hearing date. Adjourn buttons are disabled with tooltips in the UI for future-dated hearings.
 - **Request Body**:
   ```json
   {

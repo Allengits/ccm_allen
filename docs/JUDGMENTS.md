@@ -7,6 +7,7 @@ This document specifies the architectural design, database schemas, state machin
 ## 1. Architectural Overview & Design Goals
 
 The Judgment Tracker module enables the judiciary to conclude trials cleanly and transparently:
+
 1. **Reserve Phase**: When oral arguments and evidence hearings are concluded, a presiding judge or court admin reserves judgment, placing the case in `JUDGMENT_RESERVED` status.
 2. **Delivery Phase**: Once the judgment is authored, the presiding judge or admin pronounces the judgment, records the operative summary and outcome, sets the official judgment date, and transitions the case to `CLOSED`.
 3. **Permanent Read-Only Guarantees**: A `CLOSED` case is permanently sealed. No further modifications to case metadata, advocate assignments, or hearing schedules are permitted.
@@ -103,30 +104,35 @@ model Judgment {
 ## 3. Concurrency Control & State Machine
 
 ### 3.1 Pessimistic Row Locking (`SELECT ... FOR UPDATE`)
+
 Both reservation (`POST /cases/:id/judgment/reserve`) and delivery (`POST /cases/:id/judgment/deliver`) are wrapped in a single atomic Prisma transaction (`prisma.$transaction(async (tx) => { ... })`).
 Before checking status or writing data, the controller acquires an exclusive lock:
+
 ```sql
 SELECT id FROM cases WHERE id = $caseId FOR UPDATE;
 SELECT id FROM judgments WHERE case_id = $caseId FOR UPDATE;
 ```
+
 This guarantees:
+
 - Concurrent requests cannot reserve judgment on the same case twice.
 - Concurrent delivery attempts result in exactly 1 successful delivery and 409 Conflict responses for all other attempts.
 - No race condition can bypass the scheduled hearing check or completed hearing check.
 
 ### 3.2 State Transitions (`caseWorkflow.js`)
 
-| Source Status | Allowed Target Statuses | Guard Conditions |
-|---|---|---|
-| `UNDER_TRIAL` | `JUDGMENT_RESERVED`, `HEARING_SCHEDULED` | Reservation requires $\ge 1$ `COMPLETED` hearing and $0$ `SCHEDULED` hearings. |
-| `JUDGMENT_RESERVED` | `CLOSED` | Delivery requires valid `outcome` enum and summary text ($\ge 20$ characters). |
-| `CLOSED` | *(None — Terminal State)* | Permanently immutable. Any mutation attempt returns 400 Bad Request. |
+| Source Status       | Allowed Target Statuses                  | Guard Conditions                                                               |
+| ------------------- | ---------------------------------------- | ------------------------------------------------------------------------------ |
+| `UNDER_TRIAL`       | `JUDGMENT_RESERVED`, `HEARING_SCHEDULED` | Reservation requires $\ge 1$ `COMPLETED` hearing and $0$ `SCHEDULED` hearings. |
+| `JUDGMENT_RESERVED` | `CLOSED`                                 | Delivery requires valid `outcome` enum and summary text ($\ge 20$ characters). |
+| `CLOSED`            | _(None — Terminal State)_                | Permanently immutable. Any mutation attempt returns 400 Bad Request.           |
 
 ---
 
 ## 4. Business & Validation Rules
 
 ### 4.1 Reservation Rules
+
 1. **Case Status**: The case must currently be in `UNDER_TRIAL`. Non-UNDER_TRIAL cases are rejected with `409 Conflict`, explicitly citing current and required statuses.
 2. **Prior Hearings Completed**: The case must have at least one hearing with `COMPLETED` status.
 3. **No Pending Scheduled Hearings**: The case must have zero hearings with `SCHEDULED` status. If scheduled hearings exist, the endpoint rejects with `400 Bad Request` naming the exact count of pending hearings.
@@ -135,6 +141,7 @@ This guarantees:
 6. **Presiding Judge Boundary**: A `JUDGE` can only reserve judgment on cases assigned to them. `ADMIN` can reserve on any case.
 
 ### 4.2 Delivery Rules
+
 1. **Case Status**: Case must be in `JUDGMENT_RESERVED`. If already delivered or CLOSED, returns `409 Conflict`.
 2. **Outcome**: Must be one of `ALLOWED`, `DISMISSED`, `CONVICTED`, `ACQUITTED`, `SETTLED`, `DISPOSED`.
 3. **Summary**: Required string, minimum 20 characters, maximum 10,000 characters.
@@ -146,7 +153,9 @@ This guarantees:
 6. **Audit Trail**: Appends a `CaseStatusHistory` event documenting the judgment delivery with outcome, judge name, and date.
 
 ### 4.3 Permanent Read-Only Rules for CLOSED Cases
+
 Any of the following operations on a `CLOSED` case are blocked with `400 Bad Request`:
+
 - `PATCH /api/v1/cases/:id` (updating title, description, caseType, or judge reassignment)
 - `POST /api/v1/cases/:id/advocates` (assigning a new advocate)
 - `POST /api/v1/cases/:id/advocates/:advocateId/unassign` (unassigning an advocate)
@@ -162,20 +171,22 @@ Any of the following operations on a `CLOSED` case are blocked with `400 Bad Req
 
 ## 5. RBAC & Permissions Matrix
 
-| Endpoint | Method | Required Permission | Allowed Roles | Visibility / Scope |
-|---|---|---|---|---|
-| `/api/v1/judgments/meta` | GET | `judgment.view` | ADMIN, REGISTRAR, JUDGE, ADVOCATE | All active judges and outcome enums |
-| `/api/v1/judgments` | GET | `judgment.view` | ADMIN, REGISTRAR, JUDGE, ADVOCATE | Admin/Registrar see all; Judge sees assigned court cases; Advocate sees assigned cases |
-| `/api/v1/cases/:caseId/judgment` | GET | `judgment.view` | ADMIN, REGISTRAR, JUDGE, ADVOCATE | Must pass case visibility filter |
-| `/api/v1/cases/:caseId/judgment/reserve` | POST | `judgment.record` | ADMIN, JUDGE | Judge must be assigned judge |
-| `/api/v1/cases/:caseId/judgment/deliver` | POST | `judgment.deliver` | ADMIN, JUDGE | Judge must be assigned judge |
+| Endpoint                                 | Method | Required Permission | Allowed Roles                     | Visibility / Scope                                                                     |
+| ---------------------------------------- | ------ | ------------------- | --------------------------------- | -------------------------------------------------------------------------------------- |
+| `/api/v1/judgments/meta`                 | GET    | `judgment.view`     | ADMIN, REGISTRAR, JUDGE, ADVOCATE | All active judges and outcome enums                                                    |
+| `/api/v1/judgments`                      | GET    | `judgment.view`     | ADMIN, REGISTRAR, JUDGE, ADVOCATE | Admin/Registrar see all; Judge sees assigned court cases; Advocate sees assigned cases |
+| `/api/v1/cases/:caseId/judgment`         | GET    | `judgment.view`     | ADMIN, REGISTRAR, JUDGE, ADVOCATE | Must pass case visibility filter                                                       |
+| `/api/v1/cases/:caseId/judgment/reserve` | POST   | `judgment.record`   | ADMIN, JUDGE                      | Judge must be assigned judge                                                           |
+| `/api/v1/cases/:caseId/judgment/deliver` | POST   | `judgment.deliver`  | ADMIN, JUDGE                      | Judge must be assigned judge                                                           |
 
 ---
 
 ## 6. API Reference & Contract
 
 ### 6.1 `GET /api/v1/judgments/meta`
+
 Returns outcome choices, states, and active judges.
+
 ```json
 {
   "success": true,
@@ -184,14 +195,20 @@ Returns outcome choices, states, and active judges.
     "outcomes": ["ALLOWED", "DISMISSED", "CONVICTED", "ACQUITTED", "SETTLED", "DISPOSED"],
     "states": ["RESERVED", "DELIVERED"],
     "judges": [
-      { "id": "uuid-1", "name": "Hon. Justice D. Swaminathan", "email": "judge.swaminathan@courtcms.gov.in" }
+      {
+        "id": "uuid-1",
+        "name": "Hon. Justice D. Swaminathan",
+        "email": "judge.swaminathan@courtcms.gov.in"
+      }
     ]
   }
 }
 ```
 
 ### 6.2 `GET /api/v1/judgments`
+
 Paginated search and filter registry.
+
 - Query Parameters: `page` (default 1), `pageSize` (default 10), `q` (case number or title search), `state` (`RESERVED` | `DELIVERED`), `outcome` (`ALLOWED`, etc.), `judgeId`, `startDate`, `endDate`, `dateField` (`judgmentDate` | `reservedAt`), `sortBy` (`reservedAt` | `judgmentDate` | `createdAt`), `sortOrder` (`asc` | `desc`).
 
 ```json
@@ -231,6 +248,7 @@ Paginated search and filter registry.
 ```
 
 ### 6.3 `POST /api/v1/cases/:caseId/judgment/reserve`
+
 ```json
 // Request Body
 {
@@ -261,6 +279,7 @@ Paginated search and filter registry.
 ```
 
 ### 6.4 `POST /api/v1/cases/:caseId/judgment/deliver`
+
 ```json
 // Request Body
 {

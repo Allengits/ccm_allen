@@ -73,10 +73,7 @@ export const getJudgments = async (req, res) => {
       const searchTerm = q.trim();
       where.case = {
         ...where.case,
-        OR: [
-          { caseNumber: { contains: searchTerm } },
-          { title: { contains: searchTerm } },
-        ],
+        OR: [{ caseNumber: { contains: searchTerm } }, { title: { contains: searchTerm } }],
       };
     }
 
@@ -385,7 +382,9 @@ export const reserveJudgment = async (req, res) => {
       // 3. Must have at least one COMPLETED hearing
       const hasCompletedHearing = lockedCase.hearings.some((h) => h.status === 'COMPLETED');
       if (!hasCompletedHearing) {
-        const err = new Error('Cannot reserve judgment: Case must have at least one completed hearing');
+        const err = new Error(
+          'Cannot reserve judgment: Case must have at least one completed hearing'
+        );
         err.statusCode = 400;
         throw err;
       }
@@ -450,7 +449,8 @@ export const reserveJudgment = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    const statusCode = error.statusCode || (error instanceof WorkflowError ? error.statusCode : 500);
+    const statusCode =
+      error.statusCode || (error instanceof WorkflowError ? error.statusCode : 500);
     return res.status(statusCode).json({
       success: false,
       message: error.message || 'Failed to reserve judgment',
@@ -550,7 +550,8 @@ export const deliverJudgment = async (req, res) => {
 
       // 1. Reject duplicate delivery attempt with 409 Conflict
       if (
-        (lockedJudgment && (lockedJudgment.status === 'DELIVERED' || lockedJudgment.outcome !== null)) ||
+        (lockedJudgment &&
+          (lockedJudgment.status === 'DELIVERED' || lockedJudgment.outcome !== null)) ||
         lockedCase.status === 'CLOSED'
       ) {
         const err = new Error('Judgment has already been delivered for this case');
@@ -639,7 +640,8 @@ export const deliverJudgment = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    const statusCode = error.statusCode || (error instanceof WorkflowError ? error.statusCode : 500);
+    const statusCode =
+      error.statusCode || (error instanceof WorkflowError ? error.statusCode : 500);
     return res.status(statusCode).json({
       success: false,
       message: error.message || 'Failed to deliver judgment',

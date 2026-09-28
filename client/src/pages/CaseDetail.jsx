@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { DateTime } from 'luxon';
 import api from '../api/axios';
 import { unwrap } from '../api/unwrap';
 import { useAuth } from '../context/AuthContext';
@@ -65,7 +66,10 @@ export default function CaseDetail() {
   // Sync tab with URL if search param changes
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['overview', 'advocates', 'hearings', 'judgment', 'history'].includes(tabParam)) {
+    if (
+      tabParam &&
+      ['overview', 'advocates', 'hearings', 'judgment', 'history'].includes(tabParam)
+    ) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -147,6 +151,24 @@ export default function CaseDetail() {
   const isClosed = caseData.status === 'CLOSED';
   const canEdit = can('case.edit') && !isClosed;
 
+  const isFutureDatedIST = (scheduledAt) => {
+    if (!scheduledAt) return false;
+    const hearingDayIST = DateTime.fromISO(
+      typeof scheduledAt === 'string' ? scheduledAt : new Date(scheduledAt).toISOString(),
+      { zone: 'Asia/Kolkata' }
+    ).startOf('day');
+    const todayIST = DateTime.now().setZone('Asia/Kolkata').startOf('day');
+    return hearingDayIST > todayIST;
+  };
+
+  const formatISTDateShort = (scheduledAt) => {
+    if (!scheduledAt) return '';
+    return DateTime.fromISO(
+      typeof scheduledAt === 'string' ? scheduledAt : new Date(scheduledAt).toISOString(),
+      { zone: 'Asia/Kolkata' }
+    ).toFormat('dd LLL yyyy');
+  };
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: FileText },
     { id: 'advocates', label: `Advocates (${caseData.advocates?.length || 0})`, icon: Users },
@@ -167,8 +189,8 @@ export default function CaseDetail() {
           <span>Back to Master Docket</span>
         </Link>
 
-        {can('case.edit') && (
-          isClosed ? (
+        {can('case.edit') &&
+          (isClosed ? (
             <div className="relative group inline-block">
               <button
                 type="button"
@@ -191,8 +213,7 @@ export default function CaseDetail() {
               <Edit2 className="w-3.5 h-3.5 text-brass-600" />
               <span>Edit Case Details</span>
             </button>
-          )
-        )}
+          ))}
       </div>
 
       {/* Docket Header Card */}
@@ -282,9 +303,13 @@ export default function CaseDetail() {
         <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-lg flex items-start space-x-3 text-emerald-950 text-xs shadow-xs">
           <CheckCircle2 className="w-5 h-5 text-emerald-700 flex-shrink-0 mt-0.5" />
           <div>
-            <span className="font-bold text-sm block">Case Docket Concluded & Permanently Closed</span>
+            <span className="font-bold text-sm block">
+              Case Docket Concluded & Permanently Closed
+            </span>
             <span className="text-emerald-800">
-              Final judgment has been pronounced. This docket is permanently closed and read-only. Further pleadings, advocate assignments, and hearing schedules are barred under court rules.
+              Final judgment has been pronounced. This docket is permanently closed and read-only.
+              Further pleadings, advocate assignments, and hearing schedules are barred under court
+              rules.
             </span>
           </div>
         </div>
@@ -403,8 +428,8 @@ export default function CaseDetail() {
                 </p>
               </div>
 
-              {can('advocate.assign') && (
-                isClosed ? (
+              {can('advocate.assign') &&
+                (isClosed ? (
                   <div className="relative group inline-block">
                     <button
                       disabled
@@ -425,8 +450,7 @@ export default function CaseDetail() {
                     <UserPlus className="w-3.5 h-3.5 text-brass-400" />
                     <span>Assign Advocate</span>
                   </button>
-                )
-              )}
+                ))}
             </div>
 
             {/* Assignment Feedback Banner */}
@@ -624,8 +648,8 @@ export default function CaseDetail() {
                 </p>
               </div>
 
-              {can('hearing.schedule') && (
-                isClosed ? (
+              {can('hearing.schedule') &&
+                (isClosed ? (
                   <div className="relative group inline-block">
                     <button
                       disabled
@@ -646,8 +670,7 @@ export default function CaseDetail() {
                     <Calendar className="w-3.5 h-3.5 text-brass-400" />
                     <span>Schedule Hearing</span>
                   </button>
-                ) : null
-              )}
+                ) : null)}
             </div>
 
             {/* Lifecycle Automation Notice */}
@@ -699,18 +722,37 @@ export default function CaseDetail() {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {caseData.hearings.map((h) => {
+                      const isJudgeAssigned =
+                        user?.role === 'JUDGE' &&
+                        (h.judgeId === user.id || caseData.judgeId === user.id);
+
                       const isActionable =
                         !isClosed &&
                         h.status === 'SCHEDULED' &&
-                        (user?.role === 'ADMIN' ||
-                          user?.role === 'REGISTRAR' ||
-                          (user?.role === 'JUDGE' &&
-                            (h.judgeId === user.id || caseData.judgeId === user.id)));
+                        (user?.role === 'ADMIN' || user?.role === 'REGISTRAR' || isJudgeAssigned);
 
                       const canComplete =
-                        isActionable &&
-                        (user?.role === 'ADMIN' || user?.role === 'JUDGE') &&
-                        new Date(h.scheduledAt) <= new Date();
+                        !isClosed &&
+                        h.status === 'SCHEDULED' &&
+                        (user?.role === 'ADMIN' || isJudgeAssigned);
+
+                      const canAdjourn =
+                        !isClosed &&
+                        h.status === 'SCHEDULED' &&
+                        (user?.role === 'ADMIN' || isJudgeAssigned);
+
+                      const canReschedule =
+                        !isClosed &&
+                        h.status === 'SCHEDULED' &&
+                        (user?.role === 'ADMIN' || user?.role === 'REGISTRAR' || isJudgeAssigned);
+
+                      const canCancel =
+                        !isClosed &&
+                        h.status === 'SCHEDULED' &&
+                        (user?.role === 'ADMIN' || user?.role === 'REGISTRAR' || isJudgeAssigned);
+
+                      const isFuture = isFutureDatedIST(h.scheduledAt);
+                      const hearingDateStr = formatISTDateShort(h.scheduledAt);
 
                       return (
                         <tr key={h.id} className="hover:bg-gray-50">
@@ -770,35 +812,69 @@ export default function CaseDetail() {
                             {isActionable ? (
                               <div className="flex items-center justify-end space-x-1">
                                 {canComplete && (
+                                  <div className="relative group inline-block">
+                                    <button
+                                      type="button"
+                                      disabled={isFuture}
+                                      onClick={() => setCompletingHearing(h)}
+                                      className="px-2 py-0.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 rounded text-[11px] font-semibold transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
+                                      title={
+                                        isFuture
+                                          ? `Cannot complete a hearing scheduled for a future date (${hearingDateStr}). Allowed on or after the hearing date.`
+                                          : 'Complete hearing'
+                                      }
+                                    >
+                                      Complete
+                                    </button>
+                                    {isFuture && (
+                                      <div className="absolute right-0 bottom-full mb-1 hidden group-hover:block bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap shadow-lg z-50 pointer-events-none">
+                                        Cannot complete future hearing ({hearingDateStr})
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                {canAdjourn && (
+                                  <div className="relative group inline-block">
+                                    <button
+                                      type="button"
+                                      disabled={isFuture}
+                                      onClick={() => setAdjourningHearing(h)}
+                                      className="px-2 py-0.5 bg-navy-50 text-navy-800 hover:bg-navy-100 border border-navy-200 rounded text-[11px] font-semibold transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
+                                      title={
+                                        isFuture
+                                          ? `Cannot adjourn a hearing scheduled for a future date (${hearingDateStr}). Allowed on or after the hearing date.`
+                                          : 'Adjourn hearing'
+                                      }
+                                    >
+                                      Adjourn
+                                    </button>
+                                    {isFuture && (
+                                      <div className="absolute right-0 bottom-full mb-1 hidden group-hover:block bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap shadow-lg z-50 pointer-events-none">
+                                        Cannot adjourn future hearing ({hearingDateStr})
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                {canReschedule && (
                                   <button
-                                    onClick={() => setCompletingHearing(h)}
-                                    className="px-2 py-0.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 rounded text-[11px] font-semibold transition-colors"
-                                    title="Complete hearing"
+                                    type="button"
+                                    onClick={() => setReschedulingHearing(h)}
+                                    className="px-2 py-0.5 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 rounded text-[11px] font-semibold transition-colors"
+                                    title="Reschedule hearing"
                                   >
-                                    Complete
+                                    Reschedule
                                   </button>
                                 )}
-                                <button
-                                  onClick={() => setAdjourningHearing(h)}
-                                  className="px-2 py-0.5 bg-navy-50 text-navy-800 hover:bg-navy-100 border border-navy-200 rounded text-[11px] font-semibold transition-colors"
-                                  title="Adjourn hearing"
-                                >
-                                  Adjourn
-                                </button>
-                                <button
-                                  onClick={() => setReschedulingHearing(h)}
-                                  className="px-2 py-0.5 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 rounded text-[11px] font-semibold transition-colors"
-                                  title="Reschedule hearing"
-                                >
-                                  Reschedule
-                                </button>
-                                <button
-                                  onClick={() => setCancellingHearing(h)}
-                                  className="px-2 py-0.5 bg-red-50 text-red-800 hover:bg-red-100 border border-red-200 rounded text-[11px] font-semibold transition-colors"
-                                  title="Cancel hearing"
-                                >
-                                  Cancel
-                                </button>
+                                {canCancel && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setCancellingHearing(h)}
+                                    className="px-2 py-0.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded text-[11px] font-semibold transition-colors"
+                                    title="Cancel hearing"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
                               </div>
                             ) : (
                               <span className="text-gray-400 text-xs italic">—</span>
@@ -815,300 +891,317 @@ export default function CaseDetail() {
         )}
 
         {/* JUDGMENT TAB */}
-        {activeTab === 'judgment' && (() => {
-          const isUnderTrial = caseData.status === 'UNDER_TRIAL';
-          const completedHearings = caseData.hearings?.filter((h) => h.status === 'COMPLETED') || [];
-          const hasCompletedHearing = completedHearings.length > 0;
-          const scheduledHearings = caseData.hearings?.filter((h) => h.status === 'SCHEDULED') || [];
-          const scheduledCount = scheduledHearings.length;
-          const hasNoScheduled = scheduledCount === 0;
+        {activeTab === 'judgment' &&
+          (() => {
+            const isUnderTrial = caseData.status === 'UNDER_TRIAL';
+            const completedHearings =
+              caseData.hearings?.filter((h) => h.status === 'COMPLETED') || [];
+            const hasCompletedHearing = completedHearings.length > 0;
+            const scheduledHearings =
+              caseData.hearings?.filter((h) => h.status === 'SCHEDULED') || [];
+            const scheduledCount = scheduledHearings.length;
+            const hasNoScheduled = scheduledCount === 0;
 
-          const isCaseJudge = user?.id === caseData.judgeId;
-          const isAdmin = user?.role === 'ADMIN';
-          const canActOnJudgment = isAdmin || isCaseJudge;
-          const canRecord = can('judgment.record');
-          const canDeliver = can('judgment.deliver');
+            const isCaseJudge = user?.id === caseData.judgeId;
+            const isAdmin = user?.role === 'ADMIN';
+            const canActOnJudgment = isAdmin || isCaseJudge;
+            const canRecord = can('judgment.record');
+            const canDeliver = can('judgment.deliver');
 
-          const isEligibleToReserve = isUnderTrial && hasCompletedHearing && hasNoScheduled;
+            const isEligibleToReserve = isUnderTrial && hasCompletedHearing && hasNoScheduled;
 
-          let reserveBlockReason = '';
-          if (!canActOnJudgment) {
-            reserveBlockReason = `Only the presiding judge (${caseData.judge?.name || 'Assigned Judge'}) or an Administrator may reserve judgment.`;
-          } else if (!isUnderTrial) {
-            reserveBlockReason = `Case must be UNDER_TRIAL (current status: ${caseData.status})`;
-          } else if (!hasCompletedHearing) {
-            reserveBlockReason = 'Case must have at least one completed trial hearing';
-          } else if (!hasNoScheduled) {
-            reserveBlockReason = `Case has ${scheduledCount} scheduled hearing(s). All scheduled hearings must be completed, adjourned, or cancelled first.`;
-          }
+            let reserveBlockReason = '';
+            if (!canActOnJudgment) {
+              reserveBlockReason = `Only the presiding judge (${caseData.judge?.name || 'Assigned Judge'}) or an Administrator may reserve judgment.`;
+            } else if (!isUnderTrial) {
+              reserveBlockReason = `Case must be UNDER_TRIAL (current status: ${caseData.status})`;
+            } else if (!hasCompletedHearing) {
+              reserveBlockReason = 'Case must have at least one completed trial hearing';
+            } else if (!hasNoScheduled) {
+              reserveBlockReason = `Case has ${scheduledCount} scheduled hearing(s). All scheduled hearings must be completed, adjourned, or cancelled first.`;
+            }
 
-          const judgment = caseData.judgment;
+            const judgment = caseData.judgment;
 
-          return (
-            <div className="registry-card rounded-lg p-6 space-y-6">
-              {/* Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
-                <div>
-                  <h3 className="text-base font-serif font-bold text-navy-900">
-                    Judicial Decrees & Final Orders
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Pronouncement of judgments, operative decree summaries, and formal closure of proceedings.
-                  </p>
-                </div>
-
-                {/* Top Action for State A or State B */}
-                {!judgment && canRecord && (
-                  <div className="relative group inline-block">
-                    <button
-                      type="button"
-                      disabled={!isEligibleToReserve || !canActOnJudgment}
-                      onClick={() => setIsReserveModalOpen(true)}
-                      className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-navy-900 text-white rounded-lg text-xs font-semibold hover:bg-navy-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors shadow-xs"
-                    >
-                      <Gavel className="w-3.5 h-3.5 text-brass-400" />
-                      <span>Reserve Judgment</span>
-                    </button>
-                    {reserveBlockReason && (
-                      <div className="absolute right-0 top-full mt-1 hidden group-hover:block bg-gray-900 text-white text-[11px] rounded px-2.5 py-1 whitespace-nowrap shadow-lg z-50 max-w-xs text-center">
-                        {reserveBlockReason}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {judgment && judgment.status === 'RESERVED' && canDeliver && (
-                  <div className="relative group inline-block">
-                    <button
-                      type="button"
-                      disabled={!canActOnJudgment}
-                      onClick={() => setIsDeliverModalOpen(true)}
-                      className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-navy-900 text-white rounded-lg text-xs font-semibold hover:bg-navy-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors shadow-xs"
-                    >
-                      <Scale className="w-3.5 h-3.5 text-brass-400" />
-                      <span>Deliver Judgment</span>
-                    </button>
-                    {!canActOnJudgment && (
-                      <div className="absolute right-0 top-full mt-1 hidden group-hover:block bg-gray-900 text-white text-[11px] rounded px-2.5 py-1 whitespace-nowrap shadow-lg z-50">
-                        Only the presiding judge ({caseData.judge?.name || 'Assigned Judge'}) or an Administrator may deliver judgment.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* STATE A: NO JUDGMENT YET */}
-              {!judgment && (
-                <div className="space-y-5">
-                  <div className="p-4 bg-navy-50/50 rounded-lg border border-navy-100 text-xs text-gray-700 space-y-3">
-                    <div className="font-semibold text-navy-950 font-serif text-sm">
-                      Judgment Reservation Eligibility Prerequisites
-                    </div>
-                    <p className="text-gray-600">
-                      Under high court civil and criminal procedure, a presiding judge may reserve judgment only after trial arguments are fully concluded:
+            return (
+              <div className="registry-card rounded-lg p-6 space-y-6">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
+                  <div>
+                    <h3 className="text-base font-serif font-bold text-navy-900">
+                      Judicial Decrees & Final Orders
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Pronouncement of judgments, operative decree summaries, and formal closure of
+                      proceedings.
                     </p>
-                    <ul className="space-y-2 text-xs">
-                      <li className="flex items-center space-x-2">
-                        <span
-                          className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                            isUnderTrial ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {isUnderTrial ? '✓' : '✗'}
-                        </span>
-                        <span>
-                          <strong>Docket Status:</strong> Case must be in{' '}
-                          <code className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200 text-navy-900">
-                            UNDER_TRIAL
-                          </code>{' '}
-                          (Current: <code className="font-mono">{caseData.status}</code>)
-                        </span>
-                      </li>
-                      <li className="flex items-center space-x-2">
-                        <span
-                          className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                            hasCompletedHearing ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {hasCompletedHearing ? '✓' : '✗'}
-                        </span>
-                        <span>
-                          <strong>Trial Hearing Record:</strong> At least one hearing must be marked{' '}
-                          <code className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200 text-navy-900">
-                            COMPLETED
-                          </code>{' '}
-                          ({completedHearings.length} completed)
-                        </span>
-                      </li>
-                      <li className="flex items-center space-x-2">
-                        <span
-                          className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                            hasNoScheduled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {hasNoScheduled ? '✓' : '✗'}
-                        </span>
-                        <span>
-                          <strong>Clear Cause List:</strong> Zero pending scheduled hearings on the calendar{' '}
-                          ({scheduledCount} scheduled remaining)
-                        </span>
-                      </li>
-                    </ul>
                   </div>
 
-                  {!canRecord && (
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-md text-xs text-gray-500 italic">
-                      Registry officers and appearing advocates have read-only access to judgment records. Reserving or pronouncing judgments is restricted to the presiding bench and Administrative Chambers.
+                  {/* Top Action for State A or State B */}
+                  {!judgment && canRecord && (
+                    <div className="relative group inline-block">
+                      <button
+                        type="button"
+                        disabled={!isEligibleToReserve || !canActOnJudgment}
+                        onClick={() => setIsReserveModalOpen(true)}
+                        className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-navy-900 text-white rounded-lg text-xs font-semibold hover:bg-navy-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors shadow-xs"
+                      >
+                        <Gavel className="w-3.5 h-3.5 text-brass-400" />
+                        <span>Reserve Judgment</span>
+                      </button>
+                      {reserveBlockReason && (
+                        <div className="absolute right-0 top-full mt-1 hidden group-hover:block bg-gray-900 text-white text-[11px] rounded px-2.5 py-1 whitespace-nowrap shadow-lg z-50 max-w-xs text-center">
+                          {reserveBlockReason}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {judgment && judgment.status === 'RESERVED' && canDeliver && (
+                    <div className="relative group inline-block">
+                      <button
+                        type="button"
+                        disabled={!canActOnJudgment}
+                        onClick={() => setIsDeliverModalOpen(true)}
+                        className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-navy-900 text-white rounded-lg text-xs font-semibold hover:bg-navy-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors shadow-xs"
+                      >
+                        <Scale className="w-3.5 h-3.5 text-brass-400" />
+                        <span>Deliver Judgment</span>
+                      </button>
+                      {!canActOnJudgment && (
+                        <div className="absolute right-0 top-full mt-1 hidden group-hover:block bg-gray-900 text-white text-[11px] rounded px-2.5 py-1 whitespace-nowrap shadow-lg z-50">
+                          Only the presiding judge ({caseData.judge?.name || 'Assigned Judge'}) or
+                          an Administrator may deliver judgment.
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
 
-              {/* STATE B: JUDGMENT RESERVED */}
-              {judgment && judgment.status === 'RESERVED' && (
-                <div className="space-y-4">
-                  <div className="p-5 bg-amber-50/70 border border-amber-300 rounded-lg space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 pb-3">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-serif font-bold text-navy-950 text-base">
-                          Judicial Status
-                        </span>
-                        <span className="bg-amber-100 text-amber-900 border border-amber-400 font-mono uppercase text-xs px-2.5 py-0.5 rounded-xs font-bold">
-                          JUDGMENT RESERVED
-                        </span>
+                {/* STATE A: NO JUDGMENT YET */}
+                {!judgment && (
+                  <div className="space-y-5">
+                    <div className="p-4 bg-navy-50/50 rounded-lg border border-navy-100 text-xs text-gray-700 space-y-3">
+                      <div className="font-semibold text-navy-950 font-serif text-sm">
+                        Judgment Reservation Eligibility Prerequisites
                       </div>
-                      <span className="text-xs text-amber-800 font-medium">
-                        Matter pending formal pronouncement of decree
-                      </span>
+                      <p className="text-gray-600">
+                        Under high court civil and criminal procedure, a presiding judge may reserve
+                        judgment only after trial arguments are fully concluded:
+                      </p>
+                      <ul className="space-y-2 text-xs">
+                        <li className="flex items-center space-x-2">
+                          <span
+                            className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                              isUnderTrial
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {isUnderTrial ? '✓' : '✗'}
+                          </span>
+                          <span>
+                            <strong>Docket Status:</strong> Case must be in{' '}
+                            <code className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200 text-navy-900">
+                              UNDER_TRIAL
+                            </code>{' '}
+                            (Current: <code className="font-mono">{caseData.status}</code>)
+                          </span>
+                        </li>
+                        <li className="flex items-center space-x-2">
+                          <span
+                            className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                              hasCompletedHearing
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {hasCompletedHearing ? '✓' : '✗'}
+                          </span>
+                          <span>
+                            <strong>Trial Hearing Record:</strong> At least one hearing must be
+                            marked{' '}
+                            <code className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200 text-navy-900">
+                              COMPLETED
+                            </code>{' '}
+                            ({completedHearings.length} completed)
+                          </span>
+                        </li>
+                        <li className="flex items-center space-x-2">
+                          <span
+                            className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                              hasNoScheduled
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {hasNoScheduled ? '✓' : '✗'}
+                          </span>
+                          <span>
+                            <strong>Clear Cause List:</strong> Zero pending scheduled hearings on
+                            the calendar ({scheduledCount} scheduled remaining)
+                          </span>
+                        </li>
+                      </ul>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
-                      <div>
-                        <span className="text-gray-500 uppercase block font-semibold text-[10px]">
-                          Reserved By
-                        </span>
-                        <span className="font-semibold text-navy-950">
-                          {judgment.reservedByName || caseData.judge?.name || 'Presiding Judge'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 uppercase block font-semibold text-[10px]">
-                          Date & Time Reserved (IST)
-                        </span>
-                        <span className="font-mono text-navy-900">
-                          {judgment.reservedAt
-                            ? new Date(judgment.reservedAt).toLocaleString('en-IN', {
-                                dateStyle: 'medium',
-                                timeStyle: 'short',
-                              })
-                            : '—'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 uppercase block font-semibold text-[10px]">
-                          Presiding Bench
-                        </span>
-                        <span className="text-navy-950 font-medium">
-                          {caseData.judge?.name || 'Unassigned'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {judgment.reserveNote && (
-                      <div className="pt-2 border-t border-amber-200">
-                        <span className="text-[10px] text-gray-500 uppercase font-semibold block mb-1">
-                          Bench Memorandum / Note
-                        </span>
-                        <p className="text-xs text-navy-950 bg-white p-3 rounded border border-amber-200 font-serif italic">
-                          "{judgment.reserveNote}"
-                        </p>
+                    {!canRecord && (
+                      <div className="p-3 bg-gray-50 border border-gray-200 rounded-md text-xs text-gray-500 italic">
+                        Registry officers and appearing advocates have read-only access to judgment
+                        records. Reserving or pronouncing judgments is restricted to the presiding
+                        bench and Administrative Chambers.
                       </div>
                     )}
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* STATE C: JUDGMENT DELIVERED (CASE CLOSED) */}
-              {judgment && judgment.status === 'DELIVERED' && (
-                <div className="space-y-4">
-                  <div className="p-6 bg-emerald-50/50 border border-emerald-300 rounded-lg space-y-5">
-                    {/* Top status bar */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 pb-3">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-serif font-bold text-navy-950 text-base">
-                          Final Judicial Decree
-                        </span>
-                        <span className="bg-emerald-100 text-emerald-900 border border-emerald-400 font-mono uppercase text-xs px-2.5 py-0.5 rounded-xs font-bold">
-                          DELIVERED & CLOSED
+                {/* STATE B: JUDGMENT RESERVED */}
+                {judgment && judgment.status === 'RESERVED' && (
+                  <div className="space-y-4">
+                    <div className="p-5 bg-amber-50/70 border border-amber-300 rounded-lg space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 pb-3">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-serif font-bold text-navy-950 text-base">
+                            Judicial Status
+                          </span>
+                          <span className="bg-amber-100 text-amber-900 border border-amber-400 font-mono uppercase text-xs px-2.5 py-0.5 rounded-xs font-bold">
+                            JUDGMENT RESERVED
+                          </span>
+                        </div>
+                        <span className="text-xs text-amber-800 font-medium">
+                          Matter pending formal pronouncement of decree
                         </span>
                       </div>
 
-                      {judgment.outcome && (
-                        <span className="bg-navy-900 text-brass-300 px-3.5 py-1 rounded text-xs font-bold font-mono tracking-wider border border-navy-800 uppercase shadow-xs">
-                          OUTCOME: {judgment.outcome}
-                        </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+                        <div>
+                          <span className="text-gray-500 uppercase block font-semibold text-[10px]">
+                            Reserved By
+                          </span>
+                          <span className="font-semibold text-navy-950">
+                            {judgment.reservedByName || caseData.judge?.name || 'Presiding Judge'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 uppercase block font-semibold text-[10px]">
+                            Date & Time Reserved (IST)
+                          </span>
+                          <span className="font-mono text-navy-900">
+                            {judgment.reservedAt
+                              ? new Date(judgment.reservedAt).toLocaleString('en-IN', {
+                                  dateStyle: 'medium',
+                                  timeStyle: 'short',
+                                })
+                              : '—'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 uppercase block font-semibold text-[10px]">
+                            Presiding Bench
+                          </span>
+                          <span className="text-navy-950 font-medium">
+                            {caseData.judge?.name || 'Unassigned'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {judgment.reserveNote && (
+                        <div className="pt-2 border-t border-amber-200">
+                          <span className="text-[10px] text-gray-500 uppercase font-semibold block mb-1">
+                            Bench Memorandum / Note
+                          </span>
+                          <p className="text-xs text-navy-950 bg-white p-3 rounded border border-amber-200 font-serif italic">
+                            "{judgment.reserveNote}"
+                          </p>
+                        </div>
                       )}
                     </div>
+                  </div>
+                )}
 
-                    {/* Metadata Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                      <div>
-                        <span className="text-gray-500 uppercase block font-semibold text-[10px]">
-                          Pronounced By
-                        </span>
-                        <span className="font-semibold text-navy-950">
-                          {judgment.deliveredByName || judgment.judgeName || caseData.judge?.name}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 uppercase block font-semibold text-[10px]">
-                          Date of Pronouncement (IST)
-                        </span>
-                        <span className="font-mono text-navy-950 font-semibold">
-                          {judgment.judgmentDate
-                            ? new Date(judgment.judgmentDate).toLocaleDateString('en-IN', {
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric',
-                              })
-                            : new Date(judgment.deliveredAt).toLocaleDateString('en-IN')}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 uppercase block font-semibold text-[10px]">
-                          Reservation Date
-                        </span>
-                        <span className="text-gray-700 font-mono">
-                          {judgment.reservedAt
-                            ? new Date(judgment.reservedAt).toLocaleDateString('en-IN')
-                            : '—'}
-                        </span>
-                      </div>
-                    </div>
+                {/* STATE C: JUDGMENT DELIVERED (CASE CLOSED) */}
+                {judgment && judgment.status === 'DELIVERED' && (
+                  <div className="space-y-4">
+                    <div className="p-6 bg-emerald-50/50 border border-emerald-300 rounded-lg space-y-5">
+                      {/* Top status bar */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 pb-3">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-serif font-bold text-navy-950 text-base">
+                            Final Judicial Decree
+                          </span>
+                          <span className="bg-emerald-100 text-emerald-900 border border-emerald-400 font-mono uppercase text-xs px-2.5 py-0.5 rounded-xs font-bold">
+                            DELIVERED & CLOSED
+                          </span>
+                        </div>
 
-                    {/* Operative Summary */}
-                    <div>
-                      <span className="text-[11px] text-gray-500 uppercase font-bold block mb-1.5 tracking-wider">
-                        Operative Judgment Summary & Reasoning
-                      </span>
-                      <div className="p-4 bg-white rounded-md border border-gray-200 text-sm text-navy-950 font-serif leading-relaxed shadow-2xs whitespace-pre-wrap">
-                        {judgment.summary}
+                        {judgment.outcome && (
+                          <span className="bg-navy-900 text-brass-300 px-3.5 py-1 rounded text-xs font-bold font-mono tracking-wider border border-navy-800 uppercase shadow-xs">
+                            OUTCOME: {judgment.outcome}
+                          </span>
+                        )}
                       </div>
-                    </div>
 
-                    {/* Case Closed Final Notice */}
-                    <div className="p-3 bg-white/80 border border-emerald-200 rounded text-xs text-emerald-950 flex items-center space-x-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                      <span>
-                        <strong>Case Closed:</strong> Final judgment has been entered into the high court archives. This docket is permanently closed and sealed against further modification.
-                      </span>
+                      {/* Metadata Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                        <div>
+                          <span className="text-gray-500 uppercase block font-semibold text-[10px]">
+                            Pronounced By
+                          </span>
+                          <span className="font-semibold text-navy-950">
+                            {judgment.deliveredByName || judgment.judgeName || caseData.judge?.name}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 uppercase block font-semibold text-[10px]">
+                            Date of Pronouncement (IST)
+                          </span>
+                          <span className="font-mono text-navy-950 font-semibold">
+                            {judgment.judgmentDate
+                              ? new Date(judgment.judgmentDate).toLocaleDateString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'long',
+                                  year: 'numeric',
+                                })
+                              : new Date(judgment.deliveredAt).toLocaleDateString('en-IN')}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 uppercase block font-semibold text-[10px]">
+                            Reservation Date
+                          </span>
+                          <span className="text-gray-700 font-mono">
+                            {judgment.reservedAt
+                              ? new Date(judgment.reservedAt).toLocaleDateString('en-IN')
+                              : '—'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Operative Summary */}
+                      <div>
+                        <span className="text-[11px] text-gray-500 uppercase font-bold block mb-1.5 tracking-wider">
+                          Operative Judgment Summary & Reasoning
+                        </span>
+                        <div className="p-4 bg-white rounded-md border border-gray-200 text-sm text-navy-950 font-serif leading-relaxed shadow-2xs whitespace-pre-wrap">
+                          {judgment.summary}
+                        </div>
+                      </div>
+
+                      {/* Case Closed Final Notice */}
+                      <div className="p-3 bg-white/80 border border-emerald-200 rounded text-xs text-emerald-950 flex items-center space-x-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <span>
+                          <strong>Case Closed:</strong> Final judgment has been entered into the
+                          high court archives. This docket is permanently closed and sealed against
+                          further modification.
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          );
-        })()}
+                )}
+              </div>
+            );
+          })()}
 
         {/* HISTORY TAB */}
         {activeTab === 'history' && (

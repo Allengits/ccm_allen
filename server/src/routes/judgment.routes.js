@@ -1,10 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.js';
 import { requirePermission, PERMISSIONS } from '../config/permissions.js';
-import {
-  getJudgmentsMeta,
-  getJudgments,
-} from '../controllers/judgment.controller.js';
+import { getJudgmentsMeta, getJudgments } from '../controllers/judgment.controller.js';
 
 const router = Router();
 

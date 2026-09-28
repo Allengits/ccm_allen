@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { DateTime } from 'luxon';
 import api from '../api/axios';
 import { unwrap } from '../api/unwrap';
 import { useAuth } from '../context/AuthContext';
@@ -190,8 +191,26 @@ export default function Hearings() {
     }
   };
 
-  // Permission helpers for hearing action buttons
+  // Permission and eligibility helpers for hearing action buttons
   const canSchedule = can('hearing.schedule');
+
+  const isFutureDatedIST = (scheduledAt) => {
+    if (!scheduledAt) return false;
+    const hearingDayIST = DateTime.fromISO(
+      typeof scheduledAt === 'string' ? scheduledAt : new Date(scheduledAt).toISOString(),
+      { zone: 'Asia/Kolkata' }
+    ).startOf('day');
+    const todayIST = DateTime.now().setZone('Asia/Kolkata').startOf('day');
+    return hearingDayIST > todayIST;
+  };
+
+  const formatISTDateShort = (scheduledAt) => {
+    if (!scheduledAt) return '';
+    return DateTime.fromISO(
+      typeof scheduledAt === 'string' ? scheduledAt : new Date(scheduledAt).toISOString(),
+      { zone: 'Asia/Kolkata' }
+    ).toFormat('dd LLL yyyy');
+  };
 
   const canActionHearing = (hearing) => {
     if (!hearing || hearing.status !== 'SCHEDULED') return false;
@@ -204,10 +223,34 @@ export default function Hearings() {
 
   const canCompleteHearing = (hearing) => {
     if (!hearing || hearing.status !== 'SCHEDULED') return false;
-    // Cannot complete future hearing
-    const isPast = new Date(hearing.scheduledAt) <= new Date();
-    if (!isPast) return false;
     if (user?.role === 'ADMIN') return true;
+    if (user?.role === 'JUDGE' && (hearing.judgeId === user.id || hearing.judge?.id === user.id)) {
+      return true;
+    }
+    return false;
+  };
+
+  const canAdjournHearing = (hearing) => {
+    if (!hearing || hearing.status !== 'SCHEDULED') return false;
+    if (user?.role === 'ADMIN') return true;
+    if (user?.role === 'JUDGE' && (hearing.judgeId === user.id || hearing.judge?.id === user.id)) {
+      return true;
+    }
+    return false;
+  };
+
+  const canRescheduleHearing = (hearing) => {
+    if (!hearing || hearing.status !== 'SCHEDULED') return false;
+    if (user?.role === 'ADMIN' || user?.role === 'REGISTRAR') return true;
+    if (user?.role === 'JUDGE' && (hearing.judgeId === user.id || hearing.judge?.id === user.id)) {
+      return true;
+    }
+    return false;
+  };
+
+  const canCancelHearing = (hearing) => {
+    if (!hearing || hearing.status !== 'SCHEDULED') return false;
+    if (user?.role === 'ADMIN' || user?.role === 'REGISTRAR') return true;
     if (user?.role === 'JUDGE' && (hearing.judgeId === user.id || hearing.judge?.id === user.id)) {
       return true;
     }
@@ -440,6 +483,11 @@ export default function Hearings() {
                         {crGroup.hearings.map((h) => {
                           const isActionable = canActionHearing(h);
                           const isCompletable = canCompleteHearing(h);
+                          const isAdjournable = canAdjournHearing(h);
+                          const isReschedulable = canRescheduleHearing(h);
+                          const isCancellable = canCancelHearing(h);
+                          const isFuture = isFutureDatedIST(h.scheduledAt);
+                          const hearingDateStr = formatISTDateShort(h.scheduledAt);
 
                           return (
                             <tr key={h.id} className="hover:bg-gray-50/80 transition-colors">
@@ -448,7 +496,7 @@ export default function Hearings() {
                               </td>
 
                               <td className="py-3 px-4 whitespace-nowrap">
-                                <span className="font-mono font-bold text-navy-950 block">
+                                <span className="font-mono font-bold text-navy-955 block">
                                   {formatISTTime(h.scheduledAt)}
                                 </span>
                                 <span className="text-[10px] text-gray-400 font-mono">
@@ -525,38 +573,72 @@ export default function Hearings() {
                                 {isActionable ? (
                                   <div className="flex items-center justify-end space-x-1">
                                     {isCompletable && (
+                                      <div className="relative group inline-block">
+                                        <button
+                                          type="button"
+                                          disabled={isFuture}
+                                          onClick={() => setCompletingHearing(h)}
+                                          className="px-2 py-1 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 rounded text-[11px] font-semibold transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
+                                          title={
+                                            isFuture
+                                              ? `Cannot complete a hearing scheduled for a future date (${hearingDateStr}). Allowed on or after the hearing date.`
+                                              : 'Conclude hearing proceedings'
+                                          }
+                                        >
+                                          Complete
+                                        </button>
+                                        {isFuture && (
+                                          <div className="absolute right-0 bottom-full mb-1 hidden group-hover:block bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap shadow-lg z-50 pointer-events-none">
+                                            Cannot complete future hearing ({hearingDateStr})
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {isAdjournable && (
+                                      <div className="relative group inline-block">
+                                        <button
+                                          type="button"
+                                          disabled={isFuture}
+                                          onClick={() => setAdjourningHearing(h)}
+                                          className="px-2 py-1 bg-navy-50 text-navy-800 hover:bg-navy-100 border border-navy-200 rounded text-[11px] font-semibold transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
+                                          title={
+                                            isFuture
+                                              ? `Cannot adjourn a hearing scheduled for a future date (${hearingDateStr}). Allowed on or after the hearing date.`
+                                              : 'Adjourn matter'
+                                          }
+                                        >
+                                          Adjourn
+                                        </button>
+                                        {isFuture && (
+                                          <div className="absolute right-0 bottom-full mb-1 hidden group-hover:block bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap shadow-lg z-50 pointer-events-none">
+                                            Cannot adjourn future hearing ({hearingDateStr})
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {isReschedulable && (
                                       <button
-                                        onClick={() => setCompletingHearing(h)}
-                                        className="px-2 py-1 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 rounded text-[11px] font-semibold transition-colors"
-                                        title="Conclude hearing proceedings"
+                                        type="button"
+                                        onClick={() => setReschedulingHearing(h)}
+                                        className="px-2 py-1 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 rounded text-[11px] font-semibold transition-colors"
+                                        title="Reschedule to new date/time"
                                       >
-                                        Complete
+                                        Reschedule
                                       </button>
                                     )}
 
-                                    <button
-                                      onClick={() => setAdjourningHearing(h)}
-                                      className="px-2 py-1 bg-navy-50 text-navy-800 hover:bg-navy-100 border border-navy-200 rounded text-[11px] font-semibold transition-colors"
-                                      title="Adjourn matter"
-                                    >
-                                      Adjourn
-                                    </button>
-
-                                    <button
-                                      onClick={() => setReschedulingHearing(h)}
-                                      className="px-2 py-1 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 rounded text-[11px] font-semibold transition-colors"
-                                      title="Reschedule to new date/time"
-                                    >
-                                      Reschedule
-                                    </button>
-
-                                    <button
-                                      onClick={() => setCancellingHearing(h)}
-                                      className="px-2 py-1 bg-red-50 text-red-800 hover:bg-red-100 border border-red-200 rounded text-[11px] font-semibold transition-colors"
-                                      title="Cancel hearing"
-                                    >
-                                      Cancel
-                                    </button>
+                                    {isCancellable && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setCancellingHearing(h)}
+                                        className="px-2 py-1 bg-red-50 text-red-800 hover:bg-red-100 border border-red-200 rounded text-[11px] font-semibold transition-colors"
+                                        title="Cancel hearing"
+                                      >
+                                        Cancel
+                                      </button>
+                                    )}
                                   </div>
                                 ) : (
                                   <span className="text-gray-400 text-xs italic">—</span>
@@ -663,6 +745,11 @@ export default function Hearings() {
                     hearings.map((h) => {
                       const isActionable = canActionHearing(h);
                       const isCompletable = canCompleteHearing(h);
+                      const isAdjournable = canAdjournHearing(h);
+                      const isReschedulable = canRescheduleHearing(h);
+                      const isCancellable = canCancelHearing(h);
+                      const isFuture = isFutureDatedIST(h.scheduledAt);
+                      const hearingDateStr = formatISTDateShort(h.scheduledAt);
 
                       return (
                         <tr key={h.id} className="hover:bg-gray-50">
@@ -711,31 +798,72 @@ export default function Hearings() {
                             {isActionable ? (
                               <div className="flex items-center justify-end space-x-1">
                                 {isCompletable && (
+                                  <div className="relative group inline-block">
+                                    <button
+                                      type="button"
+                                      disabled={isFuture}
+                                      onClick={() => setCompletingHearing(h)}
+                                      className="px-2 py-1 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 rounded text-[11px] font-semibold transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
+                                      title={
+                                        isFuture
+                                          ? `Cannot complete a hearing scheduled for a future date (${hearingDateStr}). Allowed on or after the hearing date.`
+                                          : 'Conclude hearing proceedings'
+                                      }
+                                    >
+                                      Complete
+                                    </button>
+                                    {isFuture && (
+                                      <div className="absolute right-0 bottom-full mb-1 hidden group-hover:block bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap shadow-lg z-50 pointer-events-none">
+                                        Cannot complete future hearing ({hearingDateStr})
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {isAdjournable && (
+                                  <div className="relative group inline-block">
+                                    <button
+                                      type="button"
+                                      disabled={isFuture}
+                                      onClick={() => setAdjourningHearing(h)}
+                                      className="px-2 py-1 bg-navy-50 text-navy-800 hover:bg-navy-100 border border-navy-200 rounded text-[11px] font-semibold transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
+                                      title={
+                                        isFuture
+                                          ? `Cannot adjourn a hearing scheduled for a future date (${hearingDateStr}). Allowed on or after the hearing date.`
+                                          : 'Adjourn matter'
+                                      }
+                                    >
+                                      Adjourn
+                                    </button>
+                                    {isFuture && (
+                                      <div className="absolute right-0 bottom-full mb-1 hidden group-hover:block bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap shadow-lg z-50 pointer-events-none">
+                                        Cannot adjourn future hearing ({hearingDateStr})
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {isReschedulable && (
                                   <button
-                                    onClick={() => setCompletingHearing(h)}
-                                    className="px-2 py-1 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 rounded text-[11px] font-semibold"
+                                    type="button"
+                                    onClick={() => setReschedulingHearing(h)}
+                                    className="px-2 py-1 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 rounded text-[11px] font-semibold transition-colors"
+                                    title="Reschedule to new date/time"
                                   >
-                                    Complete
+                                    Reschedule
                                   </button>
                                 )}
-                                <button
-                                  onClick={() => setAdjourningHearing(h)}
-                                  className="px-2 py-1 bg-navy-50 text-navy-800 hover:bg-navy-100 border border-navy-200 rounded text-[11px] font-semibold"
-                                >
-                                  Adjourn
-                                </button>
-                                <button
-                                  onClick={() => setReschedulingHearing(h)}
-                                  className="px-2 py-1 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 rounded text-[11px] font-semibold"
-                                >
-                                  Reschedule
-                                </button>
-                                <button
-                                  onClick={() => setCancellingHearing(h)}
-                                  className="px-2 py-1 bg-red-50 text-red-800 hover:bg-red-100 border border-red-200 rounded text-[11px] font-semibold"
-                                >
-                                  Cancel
-                                </button>
+
+                                {isCancellable && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setCancellingHearing(h)}
+                                    className="px-2 py-1 bg-red-50 text-red-800 hover:bg-red-100 border border-red-200 rounded text-[11px] font-semibold transition-colors"
+                                    title="Cancel hearing"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
                               </div>
                             ) : (
                               <span className="text-gray-400 text-xs italic">—</span>

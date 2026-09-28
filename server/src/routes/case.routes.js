@@ -40,8 +40,16 @@ router.get('/:id/history', requirePermission(PERMISSIONS.CASE_VIEW), getCaseHist
 
 // Case judgment endpoints
 router.get('/:id/judgment', requirePermission(PERMISSIONS.JUDGMENT_VIEW), getCaseJudgment);
-router.post('/:id/judgment/reserve', requirePermission(PERMISSIONS.JUDGMENT_RECORD), reserveJudgment);
-router.post('/:id/judgment/deliver', requirePermission(PERMISSIONS.JUDGMENT_DELIVER), deliverJudgment);
+router.post(
+  '/:id/judgment/reserve',
+  requirePermission(PERMISSIONS.JUDGMENT_RECORD),
+  reserveJudgment
+);
+router.post(
+  '/:id/judgment/deliver',
+  requirePermission(PERMISSIONS.JUDGMENT_DELIVER),
+  deliverJudgment
+);
 
 // Case detail (returns 404 if out of scope)
 router.get('/:id', requirePermission(PERMISSIONS.CASE_VIEW), getCaseById);

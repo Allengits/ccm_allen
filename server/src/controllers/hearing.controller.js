@@ -1349,13 +1349,20 @@ export const completeHearing = async (req, res) => {
       });
     }
 
-    // Future check: cannot complete a future hearing
-    const now = new Date();
-    if (new Date(hearing.scheduledAt) > now) {
+    // Validate IST calendar date: cannot complete a future-dated hearing
+    const settings = await getCourtSettings();
+    const hearingDtIST = DateTime.fromJSDate(new Date(hearing.scheduledAt), {
+      zone: settings.timezone,
+    });
+    const todayIST = DateTime.now().setZone(settings.timezone).startOf('day');
+    const hearingDayIST = hearingDtIST.startOf('day');
+
+    if (hearingDayIST > todayIST) {
+      const hearingDateStr = hearingDtIST.toFormat('dd LLL yyyy');
       return res.status(400).json({
         success: false,
-        message: 'Cannot complete a hearing that has not yet occurred (future hearing)',
-        errors: ['Cannot complete a future hearing'],
+        message: `Cannot complete a hearing scheduled for a future date (${hearingDateStr}) (future hearing)`,
+        errors: [`Cannot complete a hearing scheduled for a future date (${hearingDateStr})`],
       });
     }
 
@@ -1487,6 +1494,22 @@ export const adjournHearing = async (req, res) => {
     }
 
     const settings = await getCourtSettings();
+
+    // Validate IST calendar date: cannot adjourn a future-dated hearing
+    const hearingDtIST = DateTime.fromJSDate(new Date(hearing.scheduledAt), {
+      zone: settings.timezone,
+    });
+    const todayIST = DateTime.now().setZone(settings.timezone).startOf('day');
+    const hearingDayIST = hearingDtIST.startOf('day');
+
+    if (hearingDayIST > todayIST) {
+      const hearingDateStr = hearingDtIST.toFormat('dd LLL yyyy');
+      return res.status(400).json({
+        success: false,
+        message: `Cannot adjourn a hearing scheduled for a future date (${hearingDateStr}) (future hearing)`,
+        errors: [`Cannot adjourn a hearing scheduled for a future date (${hearingDateStr})`],
+      });
+    }
 
     // If nextHearing provided, validate its slot
     let nextStartDt, nextEndDt, nextCourtroomId, nextDurationMins;

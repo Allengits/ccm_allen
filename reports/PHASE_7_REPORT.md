@@ -3,6 +3,7 @@
 ## 1. Objective
 
 The objective of Phase 7 was threefold:
+
 1. **Verify Phase 6 and Address Carry-Over Cleanups**:
    - Execute scripted end-to-end verification of all 8 Phase 6 hearing scheduling and lifecycle automation scenarios.
    - Implement `GET /api/v1/cases/:id/history` endpoint and improve 409 conflict error messages with blocking case numbers.
@@ -25,22 +26,23 @@ The objective of Phase 7 was threefold:
 
 Before implementing Phase 7 features, Phase 6 capabilities were verified end-to-end via scripted integration testing ([server/scripts/verify_phase6.js](file:///c:/Users/allen/OneDrive/Desktop/ccm_allen/server/scripts/verify_phase6.js)):
 
-| Check # | Item Verified | Method | Result | Details |
-| :---: | :--- | :--- | :---: | :--- |
-| **1** | IST Timezone & Court Operating Hours | `POST /api/v1/hearings` | PASS | Successfully rejected weekend slot (Saturday) with 400 Bad Request; rejected out-of-hours slot (08:00 IST); rejected lunch break slot (13:15 IST); rejected non-15m boundary (10:07 IST). |
-| **2** | Dynamic Slot Availability Engine | `GET /api/v1/hearings/availability` | PASS | Generated clean 15-minute slot intervals between 10:00 and 17:00 IST; correctly excluded lunch recess (13:00–14:00) and booked hearings; returned `isWorkingDay: false` on weekends. |
-| **3** | Daily Cause List & Bench/Advocate Scoping | `GET /api/v1/hearings/cause-list` | PASS | Returned cause list grouped by courtroom with sequential serial numbers (1..N); Judge Banerjee saw Courtroom 2; Advocate Mehta saw only represented matters; Admin saw all courtrooms. |
-| **4** | Pessimistic Locking & 409 Double-Booking | `POST /api/v1/hearings` | PASS | Dispatched 2 concurrent identical scheduling requests; exactly 1 succeeded (201 Created) and 1 failed with 409 Conflict. |
-| **5** | Lifecycle Automation: Advocate Assigned $\rightarrow$ Scheduled | `POST /api/v1/hearings` | PASS | Scheduling first hearing on `CC/2026/00101` automatically transitioned case from `ADVOCATE_ASSIGNED` to `HEARING_SCHEDULED` with audit log. |
-| **6** | Lifecycle Automation: Completion $\rightarrow$ Under Trial | `POST /api/v1/hearings/:id/complete` | PASS | Completing hearing in past time transitioned case from `HEARING_SCHEDULED` to `UNDER_TRIAL`; future hearing completion rejected. |
-| **7** | Lifecycle Automation: Cancellation & Adjournment Reversion | `POST /api/v1/hearings/:id/cancel` | PASS | Cancelling the sole scheduled hearing safely reverted case back to `ADVOCATE_ASSIGNED`; adjournment without next date similarly reverted case. |
-| **8** | Cross-Module Judge Reassignment Protection & Timeline | `PATCH /api/v1/cases/:id` | PASS | Blocked judge reassignment on case with active scheduled hearings (400 Bad Request); merged `HearingEvent` entries into case timeline. |
+| Check # | Item Verified                                                   | Method                               | Result | Details                                                                                                                                                                                   |
+| :-----: | :-------------------------------------------------------------- | :----------------------------------- | :----: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|  **1**  | IST Timezone & Court Operating Hours                            | `POST /api/v1/hearings`              |  PASS  | Successfully rejected weekend slot (Saturday) with 400 Bad Request; rejected out-of-hours slot (08:00 IST); rejected lunch break slot (13:15 IST); rejected non-15m boundary (10:07 IST). |
+|  **2**  | Dynamic Slot Availability Engine                                | `GET /api/v1/hearings/availability`  |  PASS  | Generated clean 15-minute slot intervals between 10:00 and 17:00 IST; correctly excluded lunch recess (13:00–14:00) and booked hearings; returned `isWorkingDay: false` on weekends.      |
+|  **3**  | Daily Cause List & Bench/Advocate Scoping                       | `GET /api/v1/hearings/cause-list`    |  PASS  | Returned cause list grouped by courtroom with sequential serial numbers (1..N); Judge Banerjee saw Courtroom 2; Advocate Mehta saw only represented matters; Admin saw all courtrooms.    |
+|  **4**  | Pessimistic Locking & 409 Double-Booking                        | `POST /api/v1/hearings`              |  PASS  | Dispatched 2 concurrent identical scheduling requests; exactly 1 succeeded (201 Created) and 1 failed with 409 Conflict.                                                                  |
+|  **5**  | Lifecycle Automation: Advocate Assigned $\rightarrow$ Scheduled | `POST /api/v1/hearings`              |  PASS  | Scheduling first hearing on `CC/2026/00101` automatically transitioned case from `ADVOCATE_ASSIGNED` to `HEARING_SCHEDULED` with audit log.                                               |
+|  **6**  | Lifecycle Automation: Completion $\rightarrow$ Under Trial      | `POST /api/v1/hearings/:id/complete` |  PASS  | Completing hearing in past time transitioned case from `HEARING_SCHEDULED` to `UNDER_TRIAL`; future hearing completion rejected.                                                          |
+|  **7**  | Lifecycle Automation: Cancellation & Adjournment Reversion      | `POST /api/v1/hearings/:id/cancel`   |  PASS  | Cancelling the sole scheduled hearing safely reverted case back to `ADVOCATE_ASSIGNED`; adjournment without next date similarly reverted case.                                            |
+|  **8**  | Cross-Module Judge Reassignment Protection & Timeline           | `PATCH /api/v1/cases/:id`            |  PASS  | Blocked judge reassignment on case with active scheduled hearings (400 Bad Request); merged `HearingEvent` entries into case timeline.                                                    |
 
 ---
 
 ## 3. What Was Built in Phase 7
 
 ### 3.1 Step 0 Carry-Over Cleanups
+
 - **Case History Endpoint**: Implemented `GET /api/v1/cases/:id/history` returning chronologically merged status changes, advocate assignments/unassignments, and hearing events.
 - **Enhanced 409 Conflict Messages**: Added blocking case numbers to hearing double-booking conflict error responses.
 - **Centralized Client Unwrapper**: Created `client/src/api/unwrap.js` supporting standard `{ success, message, data }` envelopes, direct arrays/objects, and throwing clean `Error` instances on failures. Replaced all dual-shape parsing (`res?.data?.data?.items || res?.data?.data || []`) across `Advocates.jsx`, `Cases.jsx`, `Hearings.jsx`, `CaseDetail.jsx`, `Dashboard.jsx`, and modal components.
@@ -55,6 +57,7 @@ Before implementing Phase 7 features, Phase 6 capabilities were verified end-to-
   - `AdjournHearingModal.jsx` (reason $\ge 5$ chars)
 
 ### 3.2 Step 1: Database Schema & Demo Seed Data
+
 - **Additive Migration (`20260928141529_judgment_tracking`)**:
   - Activated `judgments` table with columns: `id`, `caseId` (unique), `judgeId`, `status`, `outcome`, `summary`, `reserveNote`, `reservedAt`, `reservedById`, `judgmentDate`, `deliveredAt`, `deliveredById`, `createdAt`, `updatedAt`.
   - Added `closedAt` timestamp to `cases` table.
@@ -69,18 +72,21 @@ Before implementing Phase 7 features, Phase 6 capabilities were verified end-to-
   - Total judgments: 4; total hearings: 16 (exactly 2 scheduled today IST); total database rows strictly conforming to baseline.
 
 ### 3.3 Step 2: RBAC & Permissions Matrix
+
 - Added `judgment.view` permission (all 4 roles).
 - `judgment.record` permitted for `ADMIN` and `JUDGE`.
 - `judgment.deliver` permitted for `ADMIN` and `JUDGE`.
 - Client and server permission configurations synchronized with automated parity test.
 
 ### 3.4 Step 3: Case Workflow State Machine
+
 - Extended [server/src/services/caseWorkflow.js](file:///c:/Users/allen/OneDrive/Desktop/ccm_allen/server/src/services/caseWorkflow.js):
   - Allowed transitions: `UNDER_TRIAL -> JUDGMENT_RESERVED` and `JUDGMENT_RESERVED -> CLOSED`.
   - Stamped `cases.closedAt` upon transition to `CLOSED`.
   - Blocked any transitions originating from `CLOSED`.
 
 ### 3.5 Step 4: Backend Controllers & REST APIs
+
 - Created [server/src/controllers/judgment.controller.js](file:///c:/Users/allen/OneDrive/Desktop/ccm_allen/server/src/controllers/judgment.controller.js):
   - `GET /api/v1/judgments/meta`: Metadata choices (outcomes enum, states, judges list).
   - `GET /api/v1/judgments`: Paginated search and filtering with `summaryPreview`.
@@ -91,6 +97,7 @@ Before implementing Phase 7 features, Phase 6 capabilities were verified end-to-
 - Implemented closed case guards across `case.controller.js`, `caseAdvocate.controller.js`, and `hearing.controller.js` returning HTTP 400 Bad Request on mutation attempts.
 
 ### 3.6 Step 5: Database Verification Script
+
 - Extended [server/prisma/verify.js](file:///c:/Users/allen/OneDrive/Desktop/ccm_allen/server/prisma/verify.js):
   - Check 1: Table row counts across all 11 tables.
   - Check 2: Case lifecycle records consistency.
@@ -100,6 +107,7 @@ Before implementing Phase 7 features, Phase 6 capabilities were verified end-to-
   - Ran `npm run db:verify` $\rightarrow$ Code 0, all 5 checks PASS.
 
 ### 3.7 Step 6: Frontend UI Components
+
 - **Judgment Modals**:
   - `client/src/components/judgments/ReserveJudgmentModal.jsx`: Precondition validation, reserve note input with live character counter (`X/5 minimum`), disabled button tooltips.
   - `client/src/components/judgments/DeliverJudgmentModal.jsx`: Outcome dropdown, judgment date picker (restricted to $\le$ today in IST), operative summary textarea with live character counter (`X/20 minimum`), confirmation warnings.
@@ -120,6 +128,7 @@ Before implementing Phase 7 features, Phase 6 capabilities were verified end-to-
   - Clean client production build via `npm run build` (Code 0).
 
 ### 3.8 Step 7: Automated Tests
+
 - Created [server/tests/judgments.test.js](file:///c:/Users/allen/OneDrive/Desktop/ccm_allen/server/tests/judgments.test.js) with 42 unit and integration tests.
 - Full test suite passes: 177 tests passing across all 5 test files (`auth.test.js`: 37, `cases.test.js`: 28, `advocates.test.js`: 36, `hearings.test.js`: 34, `judgments.test.js`: 42).
 - Cross-timezone test runner `npm run test:tz` succeeds across both `UTC` and `Asia/Kolkata`.
@@ -129,6 +138,7 @@ Before implementing Phase 7 features, Phase 6 capabilities were verified end-to-
 ## 4. Files and Folders Changed
 
 ### 4.1 Created Files
+
 - `client/src/api/unwrap.js` — Centralized API response envelope unwrapper.
 - `client/src/components/judgments/ReserveJudgmentModal.jsx` — Reserve judgment modal dialog.
 - `client/src/components/judgments/DeliverJudgmentModal.jsx` — Deliver judgment modal dialog.
@@ -143,6 +153,7 @@ Before implementing Phase 7 features, Phase 6 capabilities were verified end-to-
 - `reports/PHASE_7_REPORT.md` — Phase 7 completion milestone report.
 
 ### 4.2 Modified Files
+
 - `client/src/App.jsx` — Registered `/judgments` route.
 - `client/src/components/layout/Sidebar.jsx` — Added Judgments navigation link with Gavel icon.
 - `client/src/constants/permissions.js` — Added `judgment.view`, exported `isValidPermission`, added dev warning.
@@ -183,7 +194,9 @@ Before implementing Phase 7 features, Phase 6 capabilities were verified end-to-
 ## 5. How to Run and Verify
 
 ### 5.1 Prerequisites
+
 Ensure MySQL is running on port `3307`:
+
 ```powershell
 # Verify MySQL connection and seed baseline
 cd c:\Users\allen\OneDrive\Desktop\ccm_allen\server
@@ -191,6 +204,7 @@ npm run db:verify
 ```
 
 ### 5.2 Running Automated Tests
+
 ```powershell
 cd c:\Users\allen\OneDrive\Desktop\ccm_allen\server
 
@@ -205,6 +219,7 @@ npm run test:tz
 ```
 
 ### 5.3 Building Client
+
 ```powershell
 cd c:\Users\allen\OneDrive\Desktop\ccm_allen\client
 npm run build
@@ -215,9 +230,10 @@ npm run build
 ## 6. Test Evidence
 
 ### 6.1 Database Verification (`npm run db:verify`)
+
 ```
 ===============================================================
-       COURT CASE MANAGEMENT SYSTEM - DATABASE VERIFICATION    
+       COURT CASE MANAGEMENT SYSTEM - DATABASE VERIFICATION
 ===============================================================
 
 [1/5] Checking table row counts...
@@ -227,7 +243,7 @@ npm run build
 [5/5] Checking backlog threshold cases...
 
 ===============================================================
-                   VERIFICATION RESULTS TABLE                   
+                   VERIFICATION RESULTS TABLE
 ===============================================================
 ┌─────────┬────────────────────────────────────────┬────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ (index) │ Check                                  │ Status │ Details                                                                                                                                                                                                                              │
@@ -242,6 +258,7 @@ npm run build
 ```
 
 ### 6.2 Full Test Suite Run (`npm test`)
+
 ```
  Test Files  5 passed (5)
       Tests  177 passed (177)
@@ -250,6 +267,7 @@ npm run build
 ```
 
 ### 6.3 Cross-Timezone Test Run (`npm run test:tz`)
+
 ```
 ✔ All tests passed under TZ=UTC (177/177)
 ✔ All tests passed under TZ=Asia/Kolkata (177/177)
@@ -260,6 +278,7 @@ npm run build
 ```
 
 ### 6.4 Client Production Build (`npm run build`)
+
 ```
 vite v6.4.3 building for production...
 transforming...

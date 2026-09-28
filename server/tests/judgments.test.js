@@ -488,7 +488,8 @@ describe('Court CMS - Phase 7 Judgment Tracker, State Machine & Permissions Suit
         .set('Cookie', judge1Cookie)
         .send({
           outcome: 'ALLOWED',
-          summary: 'Operative decree summary granting declaration of title and perpetual injunction.',
+          summary:
+            'Operative decree summary granting declaration of title and perpetual injunction.',
         });
       expect(res1.status).toBe(200);
 
@@ -508,7 +509,8 @@ describe('Court CMS - Phase 7 Judgment Tracker, State Machine & Permissions Suit
     it('handles 5 simultaneous deliveries producing exactly one delivered judgment and 409s for others', async () => {
       const payload = {
         outcome: 'SETTLED',
-        summary: 'Compromise deed entered into between all litigating parties. Matter decreed as settled.',
+        summary:
+          'Compromise deed entered into between all litigating parties. Matter decreed as settled.',
       };
 
       const results = await Promise.all(
@@ -602,16 +604,13 @@ describe('Court CMS - Phase 7 Judgment Tracker, State Machine & Permissions Suit
 
     it('rejects scheduling a hearing on a CLOSED case', async () => {
       const cr = await prisma.courtroom.findFirst();
-      const res = await request(app)
-        .post('/api/v1/hearings')
-        .set('Cookie', registrarCookie)
-        .send({
-          caseId: closedCase13.id,
-          courtroomId: cr.id,
-          scheduledAt: '2026-10-15T10:30:00+05:30',
-          durationMins: 30,
-          purpose: 'Hearing on closed case',
-        });
+      const res = await request(app).post('/api/v1/hearings').set('Cookie', registrarCookie).send({
+        caseId: closedCase13.id,
+        courtroomId: cr.id,
+        scheduledAt: '2026-10-15T10:30:00+05:30',
+        durationMins: 30,
+        purpose: 'Hearing on closed case',
+      });
 
       expect(res.status).toBe(400);
       expect(res.body.message).toMatch(/closed/i);
@@ -776,39 +775,43 @@ describe('Court CMS - Phase 7 Judgment Tracker, State Machine & Permissions Suit
   // =========================================================================
   describe('caseWorkflow State Machine & Transition Rules', () => {
     it('accepts UNDER_TRIAL -> JUDGMENT_RESERVED transition', async () => {
-      await prisma.$transaction(async (tx) => {
-        const c = await transitionCaseStatus({
-          tx,
-          caseId: underTrialCase10.id,
-          toStatus: 'JUDGMENT_RESERVED',
-          reason: 'Unit test transition',
-          userId: judge2User.id,
+      await prisma
+        .$transaction(async (tx) => {
+          const c = await transitionCaseStatus({
+            tx,
+            caseId: underTrialCase10.id,
+            toStatus: 'JUDGMENT_RESERVED',
+            reason: 'Unit test transition',
+            userId: judge2User.id,
+          });
+          expect(c.status).toBe('JUDGMENT_RESERVED');
+          // Rollback transaction to maintain baseline
+          throw new Error('ROLLBACK_INTENTIONAL');
+        })
+        .catch((err) => {
+          if (err.message !== 'ROLLBACK_INTENTIONAL') throw err;
         });
-        expect(c.status).toBe('JUDGMENT_RESERVED');
-        // Rollback transaction to maintain baseline
-        throw new Error('ROLLBACK_INTENTIONAL');
-      }).catch((err) => {
-        if (err.message !== 'ROLLBACK_INTENTIONAL') throw err;
-      });
     });
 
     it('accepts JUDGMENT_RESERVED -> CLOSED transition and sets closedAt', async () => {
       const now = new Date();
-      await prisma.$transaction(async (tx) => {
-        const c = await transitionCaseStatus({
-          tx,
-          caseId: reservedCase11.id,
-          toStatus: 'CLOSED',
-          reason: 'Unit test delivery closure',
-          userId: judge1User.id,
-          closedAt: now,
+      await prisma
+        .$transaction(async (tx) => {
+          const c = await transitionCaseStatus({
+            tx,
+            caseId: reservedCase11.id,
+            toStatus: 'CLOSED',
+            reason: 'Unit test delivery closure',
+            userId: judge1User.id,
+            closedAt: now,
+          });
+          expect(c.status).toBe('CLOSED');
+          expect(c.closedAt).toEqual(now);
+          throw new Error('ROLLBACK_INTENTIONAL');
+        })
+        .catch((err) => {
+          if (err.message !== 'ROLLBACK_INTENTIONAL') throw err;
         });
-        expect(c.status).toBe('CLOSED');
-        expect(c.closedAt).toEqual(now);
-        throw new Error('ROLLBACK_INTENTIONAL');
-      }).catch((err) => {
-        if (err.message !== 'ROLLBACK_INTENTIONAL') throw err;
-      });
     });
 
     it('rejects illegal transitions like REGISTERED -> CLOSED or JUDGMENT_RESERVED -> HEARING_SCHEDULED', async () => {

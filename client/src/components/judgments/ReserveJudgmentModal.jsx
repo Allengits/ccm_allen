@@ -11,7 +11,8 @@ export default function ReserveJudgmentModal({ isOpen, onClose, courtCase, onRes
   if (!isOpen || !courtCase) return null;
 
   const trimmedNote = note.trim();
-  const isNoteValid = trimmedNote.length === 0 || (trimmedNote.length >= 5 && trimmedNote.length <= 500);
+  const isNoteValid =
+    trimmedNote.length === 0 || (trimmedNote.length >= 5 && trimmedNote.length <= 500);
 
   let disabledReason = '';
   if (!isNoteValid) {
@@ -40,7 +41,9 @@ export default function ReserveJudgmentModal({ isOpen, onClose, courtCase, onRes
 
       onClose();
       if (onReserved) {
-        onReserved('Judgment reserved successfully. Case status has advanced to JUDGMENT_RESERVED.');
+        onReserved(
+          'Judgment reserved successfully. Case status has advanced to JUDGMENT_RESERVED.'
+        );
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to reserve judgment');
@@ -81,8 +84,8 @@ export default function ReserveJudgmentModal({ isOpen, onClose, courtCase, onRes
             <div className="font-mono text-navy-950 font-bold">{courtCase.caseNumber}</div>
             <div className="font-serif text-gray-800 font-semibold">{courtCase.title}</div>
             <div className="text-gray-500 pt-1">
-              Trial hearings concluded. Reserving judgment will automatically advance case status from{' '}
-              <span className="font-mono font-bold text-navy-900">UNDER_TRIAL</span> to{' '}
+              Trial hearings concluded. Reserving judgment will automatically advance case status
+              from <span className="font-mono font-bold text-navy-900">UNDER_TRIAL</span> to{' '}
               <span className="font-mono font-bold text-amber-700">JUDGMENT_RESERVED</span>.
             </div>
           </div>
@@ -98,8 +101,8 @@ export default function ReserveJudgmentModal({ isOpen, onClose, courtCase, onRes
                   trimmedNote.length > 0 && trimmedNote.length < 5
                     ? 'text-amber-600 font-semibold'
                     : trimmedNote.length > 500
-                    ? 'text-red-600 font-bold'
-                    : 'text-gray-500'
+                      ? 'text-red-600 font-bold'
+                      : 'text-gray-500'
                 }`}
               >
                 {trimmedNote.length > 0 ? `${trimmedNote.length}/5 min` : '0/500'}
@@ -115,7 +118,8 @@ export default function ReserveJudgmentModal({ isOpen, onClose, courtCase, onRes
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brass-500 focus:border-brass-500"
             />
             <p className="text-[11px] text-gray-500">
-              Optional bench memorandum or scheduling context for reserving judgment. Minimum 5 characters if entered.
+              Optional bench memorandum or scheduling context for reserving judgment. Minimum 5
+              characters if entered.
             </p>
           </div>
 

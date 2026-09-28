@@ -124,7 +124,19 @@ export default function Judgments() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, q, state, outcome, judgeId, startDate, endDate, dateField, sortBy, sortOrder]);
+  }, [
+    page,
+    pageSize,
+    q,
+    state,
+    outcome,
+    judgeId,
+    startDate,
+    endDate,
+    dateField,
+    sortBy,
+    sortOrder,
+  ]);
 
   useEffect(() => {
     fetchJudgments();
@@ -141,7 +153,14 @@ export default function Judgments() {
   };
 
   const hasActiveFilters = Boolean(
-    q || state || outcome || judgeId || startDate || endDate || sortBy !== 'reservedAt' || sortOrder !== 'desc'
+    q ||
+    state ||
+    outcome ||
+    judgeId ||
+    startDate ||
+    endDate ||
+    sortBy !== 'reservedAt' ||
+    sortOrder !== 'desc'
   );
 
   return (
@@ -158,7 +177,8 @@ export default function Judgments() {
             </h1>
           </div>
           <p className="text-sm text-gray-600 mt-1 max-w-2xl">
-            Repository of reserved matters, delivered decrees, and public operative rulings across the registry.
+            Repository of reserved matters, delivered decrees, and public operative rulings across
+            the registry.
           </p>
         </div>
 
@@ -201,7 +221,10 @@ export default function Judgments() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-1 text-xs">
           {/* State Filter */}
           <div>
-            <label htmlFor="filter-state" className="block text-[11px] font-semibold text-gray-600 mb-1">
+            <label
+              htmlFor="filter-state"
+              className="block text-[11px] font-semibold text-gray-600 mb-1"
+            >
               Judgment State
             </label>
             <select
@@ -218,7 +241,10 @@ export default function Judgments() {
 
           {/* Outcome Filter */}
           <div>
-            <label htmlFor="filter-outcome" className="block text-[11px] font-semibold text-gray-600 mb-1">
+            <label
+              htmlFor="filter-outcome"
+              className="block text-[11px] font-semibold text-gray-600 mb-1"
+            >
               Operative Outcome
             </label>
             <select
@@ -238,7 +264,10 @@ export default function Judgments() {
 
           {/* Judge Filter */}
           <div>
-            <label htmlFor="filter-judge" className="block text-[11px] font-semibold text-gray-600 mb-1">
+            <label
+              htmlFor="filter-judge"
+              className="block text-[11px] font-semibold text-gray-600 mb-1"
+            >
               Presiding / Authoring Judge
             </label>
             <select
@@ -258,7 +287,10 @@ export default function Judgments() {
 
           {/* Date Range Start */}
           <div>
-            <label htmlFor="filter-start-date" className="block text-[11px] font-semibold text-gray-600 mb-1">
+            <label
+              htmlFor="filter-start-date"
+              className="block text-[11px] font-semibold text-gray-600 mb-1"
+            >
               From Date (IST)
             </label>
             <input
@@ -272,7 +304,10 @@ export default function Judgments() {
 
           {/* Date Range End */}
           <div>
-            <label htmlFor="filter-end-date" className="block text-[11px] font-semibold text-gray-600 mb-1">
+            <label
+              htmlFor="filter-end-date"
+              className="block text-[11px] font-semibold text-gray-600 mb-1"
+            >
               To Date (IST)
             </label>
             <input
@@ -406,7 +441,9 @@ export default function Judgments() {
 
                       {/* Presiding Judge */}
                       <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="font-medium text-navy-950 font-sans">{item.judgeName}</span>
+                        <span className="font-medium text-navy-950 font-sans">
+                          {item.judgeName}
+                        </span>
                       </td>
 
                       {/* Relevant Dates */}
@@ -448,7 +485,8 @@ export default function Judgments() {
                           item.summaryPreview
                         ) : (
                           <span className="text-gray-400 italic font-sans text-xs">
-                            Matter reserved; final operative decree summary will appear upon formal pronouncement.
+                            Matter reserved; final operative decree summary will appear upon formal
+                            pronouncement.
                           </span>
                         )}
                       </td>
@@ -475,11 +513,16 @@ export default function Judgments() {
         {!loading && items.length > 0 && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-t border-gray-200 bg-gray-50/70 text-xs text-gray-600">
             <div>
-              Showing <span className="font-semibold text-navy-950 font-mono">{(page - 1) * pageSize + 1}</span> to{' '}
+              Showing{' '}
+              <span className="font-semibold text-navy-950 font-mono">
+                {(page - 1) * pageSize + 1}
+              </span>{' '}
+              to{' '}
               <span className="font-semibold text-navy-950 font-mono">
                 {Math.min(page * pageSize, pagination.total)}
               </span>{' '}
-              of <span className="font-semibold text-navy-950 font-mono">{pagination.total}</span> registered judgments
+              of <span className="font-semibold text-navy-950 font-mono">{pagination.total}</span>{' '}
+              registered judgments
             </div>
 
             <div className="flex items-center space-x-2">

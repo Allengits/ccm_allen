@@ -44,7 +44,10 @@ export default function DeliverJudgmentModal({ isOpen, onClose, courtCase, onDel
   // Validation rules
   const isOutcomeValid = Boolean(outcome);
   const isSummaryValid = trimmedSummary.length >= 20 && trimmedSummary.length <= 4000;
-  const isDateValid = judgmentDate && judgmentDate <= todayIST && (!reservedAtDateStr || judgmentDate >= reservedAtDateStr);
+  const isDateValid =
+    judgmentDate &&
+    judgmentDate <= todayIST &&
+    (!reservedAtDateStr || judgmentDate >= reservedAtDateStr);
 
   const canSubmit = isOutcomeValid && isSummaryValid && isDateValid;
 
@@ -80,7 +83,9 @@ export default function DeliverJudgmentModal({ isOpen, onClose, courtCase, onDel
 
       onClose();
       if (onDelivered) {
-        onDelivered(`Judgment delivered successfully with outcome "${outcome}". Case status has advanced to CLOSED.`);
+        onDelivered(
+          `Judgment delivered successfully with outcome "${outcome}". Case status has advanced to CLOSED.`
+        );
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to deliver judgment');
@@ -96,7 +101,9 @@ export default function DeliverJudgmentModal({ isOpen, onClose, courtCase, onDel
         <div className="bg-navy-900 px-6 py-4 flex items-center justify-between text-white">
           <div className="flex items-center space-x-2">
             <Scale className="w-5 h-5 text-brass-400" />
-            <h2 className="font-serif text-lg font-bold tracking-wide">Pronounce & Deliver Judgment</h2>
+            <h2 className="font-serif text-lg font-bold tracking-wide">
+              Pronounce & Deliver Judgment
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -121,9 +128,11 @@ export default function DeliverJudgmentModal({ isOpen, onClose, courtCase, onDel
             <div className="font-mono text-navy-950 font-bold">{courtCase.caseNumber}</div>
             <div className="font-serif text-gray-800 font-semibold">{courtCase.title}</div>
             <div className="text-gray-500 pt-1">
-              Delivering judgment is permanent and irreversible. Upon submission, this case will advance from{' '}
+              Delivering judgment is permanent and irreversible. Upon submission, this case will
+              advance from{' '}
               <span className="font-mono font-bold text-amber-700">JUDGMENT_RESERVED</span> to{' '}
-              <span className="font-mono font-bold text-emerald-700">CLOSED</span>, and all docket records become permanently read-only.
+              <span className="font-mono font-bold text-emerald-700">CLOSED</span>, and all docket
+              records become permanently read-only.
             </div>
           </div>
 
@@ -150,9 +159,14 @@ export default function DeliverJudgmentModal({ isOpen, onClose, courtCase, onDel
           {/* Judgment Date */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
-              <label htmlFor="judgment-date" className="font-semibold text-gray-700 flex items-center space-x-1">
+              <label
+                htmlFor="judgment-date"
+                className="font-semibold text-gray-700 flex items-center space-x-1"
+              >
                 <Calendar className="w-3.5 h-3.5 text-navy-700" />
-                <span>Date of Pronouncement (IST) <span className="text-red-500">*</span></span>
+                <span>
+                  Date of Pronouncement (IST) <span className="text-red-500">*</span>
+                </span>
               </label>
               <span className="text-gray-400 text-[11px]">Cannot be future date</span>
             </div>
@@ -177,8 +191,8 @@ export default function DeliverJudgmentModal({ isOpen, onClose, courtCase, onDel
                   trimmedSummary.length < 20
                     ? 'text-amber-600 font-semibold'
                     : trimmedSummary.length > 4000
-                    ? 'text-red-600 font-bold'
-                    : 'text-gray-500'
+                      ? 'text-red-600 font-bold'
+                      : 'text-gray-500'
                 }`}
               >
                 {trimmedSummary.length}/20 minimum (max 4000)
@@ -193,7 +207,8 @@ export default function DeliverJudgmentModal({ isOpen, onClose, courtCase, onDel
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brass-500 focus:border-brass-500 font-serif leading-relaxed"
             />
             <p className="text-[11px] text-gray-500">
-              Minimum 20 characters required. The summary becomes part of the permanent judicial public record.
+              Minimum 20 characters required. The summary becomes part of the permanent judicial
+              public record.
             </p>
           </div>
 

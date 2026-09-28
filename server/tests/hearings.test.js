@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 import request from 'supertest';
 import { DateTime } from 'luxon';
 import app from '../src/app.js';
@@ -838,7 +838,224 @@ describe('Court CMS - Phase 6 Hearing Scheduling, Cause Lists & Automation Suite
   });
 
   // =========================================================================
-  // 10. Cross-Module Judge Reassignment Block (PATCH /api/v1/cases/:id)
+  // 10. Future-Dated Hearing Complete & Adjourn IST Regression Suite
+  // =========================================================================
+  describe('Future-Dated Hearing Complete & Adjourn IST Regression Suite', () => {
+    let futureHearing;
+    let expectedFutureDateStr;
+    let todayHearingCase5;
+
+    beforeEach(() => {
+      const todayIST = DateTime.now().setZone('Asia/Kolkata').startOf('day');
+      futureHearing = seededHearings.find((h) => {
+        const hDay = DateTime.fromJSDate(new Date(h.scheduledAt), { zone: 'Asia/Kolkata' }).startOf(
+          'day'
+        );
+        return h.status === 'SCHEDULED' && h.judgeId === judge1User.id && hDay > todayIST;
+      });
+      expect(futureHearing).toBeDefined();
+      expectedFutureDateStr = DateTime.fromJSDate(new Date(futureHearing.scheduledAt), {
+        zone: 'Asia/Kolkata',
+      }).toFormat('dd LLL yyyy');
+
+      todayHearingCase5 = seededHearings.find(
+        (h) => h.caseId === hearingScheduledCase5.id && h.status === 'SCHEDULED'
+      );
+    });
+
+    it('rejects adjournment of a future-dated hearing for JUDGE and ADMIN with clear message containing date', async () => {
+      // 1. JUDGE (judge.swaminathan, assigned) attempts to adjourn future hearing
+      const judgeRes = await request(app)
+        .post(`/api/v1/hearings/${futureHearing.id}/adjourn`)
+        .set('Cookie', judge1Cookie)
+        .send({
+          reason: 'Adjournment requested before hearing date',
+        });
+
+      expect(judgeRes.status).toBe(400);
+      expect(judgeRes.body.message).toContain('future date');
+      expect(judgeRes.body.message).toContain(expectedFutureDateStr);
+
+      // 2. ADMIN attempts to adjourn future hearing
+      const adminRes = await request(app)
+        .post(`/api/v1/hearings/${futureHearing.id}/adjourn`)
+        .set('Cookie', adminCookie)
+        .send({
+          reason: 'Admin adjournment requested before hearing date',
+        });
+
+      expect(adminRes.status).toBe(400);
+      expect(adminRes.body.message).toContain('future date');
+      expect(adminRes.body.message).toContain(expectedFutureDateStr);
+    });
+
+    it('rejects completion of a future-dated hearing for JUDGE and ADMIN with clear message containing date', async () => {
+      // 1. JUDGE attempts to complete future hearing
+      const judgeRes = await request(app)
+        .post(`/api/v1/hearings/${futureHearing.id}/complete`)
+        .set('Cookie', judge1Cookie)
+        .send({
+          outcomeNotes: 'Attempting to complete future hearing',
+        });
+
+      expect(judgeRes.status).toBe(400);
+      expect(judgeRes.body.message).toContain('future date');
+      expect(judgeRes.body.message).toContain(expectedFutureDateStr);
+
+      // 2. ADMIN attempts to complete future hearing
+      const adminRes = await request(app)
+        .post(`/api/v1/hearings/${futureHearing.id}/complete`)
+        .set('Cookie', adminCookie)
+        .send({
+          outcomeNotes: 'Admin attempting to complete future hearing',
+        });
+
+      expect(adminRes.status).toBe(400);
+      expect(adminRes.body.message).toContain('future date');
+      expect(adminRes.body.message).toContain(expectedFutureDateStr);
+    });
+
+    it('allows completion on a hearing dated today (IST) for JUDGE and ADMIN', async () => {
+      // Presiding Judge completes hearing scheduled today
+      const judgeRes = await request(app)
+        .post(`/api/v1/hearings/${todayHearingCase5.id}/complete`)
+        .set('Cookie', judge1Cookie)
+        .send({
+          outcomeNotes: 'Hearing proceedings concluded on today date',
+        });
+
+      expect(judgeRes.status).toBe(200);
+      expect(judgeRes.body.data.hearing.status).toBe('COMPLETED');
+    });
+
+    it('allows adjournment on a hearing dated today (IST) for JUDGE and ADMIN', async () => {
+      // Admin adjourns hearing scheduled today
+      const adminRes = await request(app)
+        .post(`/api/v1/hearings/${todayHearingCase5.id}/adjourn`)
+        .set('Cookie', adminCookie)
+        .send({
+          reason: 'Parties requested short adjournment on today date',
+        });
+
+      expect(adminRes.status).toBe(200);
+      expect(adminRes.body.data.adjournedHearing.status).toBe('ADJOURNED');
+    });
+
+    it('allows completion and adjournment on a hearing scheduled earlier today (IST)', async () => {
+      // Set hearing to earlier today (e.g., 09:30 IST today)
+      const earlierToday = DateTime.now()
+        .setZone('Asia/Kolkata')
+        .startOf('day')
+        .plus({ hours: 9, minutes: 30 })
+        .toJSDate();
+
+      await prisma.hearing.update({
+        where: { id: todayHearingCase5.id },
+        data: { scheduledAt: earlierToday },
+      });
+
+      // Complete hearing earlier today
+      const compRes = await request(app)
+        .post(`/api/v1/hearings/${todayHearingCase5.id}/complete`)
+        .set('Cookie', judge1Cookie)
+        .send({
+          outcomeNotes: 'Concluded morning hearing session',
+        });
+
+      expect(compRes.status).toBe(200);
+      expect(compRes.body.data.hearing.status).toBe('COMPLETED');
+    });
+
+    it('handles UTC date boundary correctly for a hearing at 00:30 IST today (UTC yesterday 19:00)', async () => {
+      // 00:30 IST today is 19:00 UTC yesterday
+      const boundaryMorningIST = DateTime.now()
+        .setZone('Asia/Kolkata')
+        .startOf('day')
+        .plus({ minutes: 30 })
+        .toJSDate();
+
+      await prisma.hearing.update({
+        where: { id: todayHearingCase5.id },
+        data: { scheduledAt: boundaryMorningIST },
+      });
+
+      // Completing a 00:30 IST today hearing must be accepted
+      const compRes = await request(app)
+        .post(`/api/v1/hearings/${todayHearingCase5.id}/complete`)
+        .set('Cookie', judge1Cookie)
+        .send({
+          outcomeNotes: 'Concluded midnight-boundary hearing',
+        });
+
+      expect(compRes.status).toBe(200);
+      expect(compRes.body.data.hearing.status).toBe('COMPLETED');
+    });
+
+    it('handles UTC date boundary correctly for a hearing at 23:30 IST today (UTC today 18:00)', async () => {
+      // 23:30 IST today is 18:00 UTC today
+      const boundaryNightIST = DateTime.now()
+        .setZone('Asia/Kolkata')
+        .startOf('day')
+        .plus({ hours: 23, minutes: 30 })
+        .toJSDate();
+
+      await prisma.hearing.update({
+        where: { id: todayHearingCase5.id },
+        data: { scheduledAt: boundaryNightIST },
+      });
+
+      // Adjourning a 23:30 IST today hearing must be accepted
+      const adjRes = await request(app)
+        .post(`/api/v1/hearings/${todayHearingCase5.id}/adjourn`)
+        .set('Cookie', judge1Cookie)
+        .send({
+          reason: 'Late evening session adjourned',
+        });
+
+      expect(adjRes.status).toBe(200);
+      expect(adjRes.body.data.adjournedHearing.status).toBe('ADJOURNED');
+    });
+
+    it('rejects a hearing at 00:30 IST tomorrow even when UTC time is still today (19:00 UTC today)', async () => {
+      // 00:30 IST tomorrow is 19:00 UTC today
+      const tomorrowEarlyIST = DateTime.now()
+        .setZone('Asia/Kolkata')
+        .startOf('day')
+        .plus({ days: 1, minutes: 30 });
+
+      await prisma.hearing.update({
+        where: { id: todayHearingCase5.id },
+        data: { scheduledAt: tomorrowEarlyIST.toJSDate() },
+      });
+
+      // Complete must be rejected
+      const compRes = await request(app)
+        .post(`/api/v1/hearings/${todayHearingCase5.id}/complete`)
+        .set('Cookie', judge1Cookie)
+        .send({
+          outcomeNotes: 'Invalid attempt to complete tomorrow early hearing',
+        });
+
+      expect(compRes.status).toBe(400);
+      expect(compRes.body.message).toContain('future date');
+      expect(compRes.body.message).toContain(tomorrowEarlyIST.toFormat('dd LLL yyyy'));
+
+      // Adjourn must be rejected
+      const adjRes = await request(app)
+        .post(`/api/v1/hearings/${todayHearingCase5.id}/adjourn`)
+        .set('Cookie', judge1Cookie)
+        .send({
+          reason: 'Invalid attempt to adjourn tomorrow early hearing',
+        });
+
+      expect(adjRes.status).toBe(400);
+      expect(adjRes.body.message).toContain('future date');
+      expect(adjRes.body.message).toContain(tomorrowEarlyIST.toFormat('dd LLL yyyy'));
+    });
+  });
+
+  // =========================================================================
+  // 11. Cross-Module Judge Reassignment Block (PATCH /api/v1/cases/:id)
   // =========================================================================
   describe('Cross-Module Judge Reassignment Rule', () => {
     it('rejects changing case judge when scheduled hearings exist', async () => {
