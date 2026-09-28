@@ -61,3 +61,24 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
 - CaseSequence (prefix, year, lastNumber for consecutive case number generation)
 - SystemSetting (key/value, e.g. backlog_threshold_days = 90)
   Detailed ER diagram and data dictionary documented in docs/DATABASE.md.
+
+## Auth and Access Control (Phase 3)
+
+- **Session Architecture**: Stateless signed JWT stored in an `httpOnly` cookie (`court_cms_token`, SameSite=Lax, Secure in production, 8h expiration). Never returned in response bodies or stored in localStorage.
+- **Immediate Invalidation**: `authenticate` middleware re-reads user from MySQL on every request to instantly enforce deactivations and role modifications.
+- **Timing Leak Defense**: Unified generic error message (`Invalid email or password`) with dummy bcrypt comparison for unknown emails to eliminate response-timing side channels.
+- **Brute-Force Protection**: Express rate limiting on `/login` (10 attempts per 15 min per IP, returning HTTP 429).
+- **Central Permissions Matrix (`server/src/config/permissions.js`)**:
+  - `ADMIN`: Full authority (`*`), including user management, registration, hearings, judgments, and registry audit.
+  - `REGISTRAR`: Case docket registration, advocate assignment, hearing scheduling, digital evidence logging, and dashboard viewing. Cannot record/deliver judgments or manage users.
+  - `JUDGE`: View assigned cases, record hearing outcomes, admit/reject digital evidence, and draft/deliver judgments. Cannot register cases, assign counsel, or manage users.
+  - `ADVOCATE`: View assigned client cases and submit evidence for those cases. Read-only otherwise.
+- **Case Visibility Scoping (`caseVisibilityFilter(user)`)**:
+  - `ADMIN` & `REGISTRAR`: Unrestricted access to all cases (`{}`).
+  - `JUDGE`: Scoped to cases allocated to their judicial bench (`{ judgeId: user.id }`).
+  - `ADVOCATE`: Scoped to cases where user's linked advocate is active counsel (`{ advocates: { some: { advocateId, isActive: true } } }`).
+- **User Management Safety Rules**:
+  - Admins cannot deactivate or demote their own account.
+  - The system must never be left without at least one active ADMIN.
+  - Unique emails strictly enforced; passwords must meet complexity rules (>= 8 chars with letter and number).
+    Detailed API contract and security decisions documented in docs/AUTH.md.

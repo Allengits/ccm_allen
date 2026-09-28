@@ -1,11 +1,13 @@
 # Phase 2 Report: Database Schema, Migrations & Seed Data
 
 ## 1. Objective
+
 Model the comprehensive judicial domain in Prisma ORM, generate and execute schema migrations against MySQL (server version 26.7.0 on port 3307), establish safe and idempotent demo data seeding with relative dates, implement automated domain integrity verification, and document the data architecture.
 
 ---
 
 ## 2. What Was Built
+
 1. **Prisma Domain Schema (`server/prisma/schema.prisma`)**:
    - Modeled 12 core judicial entities mapped to snake_case tables with `@@map`.
    - Defined 11 UPPER_SNAKE enums covering roles, case types, lifecycle statuses, priorities, sides, hearing statuses, evidence types, custody actions, judgment statuses, and outcomes.
@@ -108,6 +110,7 @@ Invoke-RestMethod -Uri http://localhost:5000/api/v1/health | ConvertTo-Json -Dep
 ## 5. Test Evidence (Commands Run and Results)
 
 ### Test 1: Migration Execution (`npx prisma migrate dev --name init`)
+
 ```
 Datasource "db": MySQL database "court_cms" at "localhost:3307"
 
@@ -125,6 +128,7 @@ Your database is now in sync with your schema.
 ```
 
 ### Test 2: Database Seed Execution (`npm run db:seed`)
+
 ```
 > court-case-management-system@1.0.0 db:seed
 > npm run db:seed --prefix server
@@ -148,7 +152,7 @@ Seeding judgments...
 Seeding case status history audit trails...
 
 ======================================================
-           SEEDING COMPLETE - SUMMARY TABLE           
+           SEEDING COMPLETE - SUMMARY TABLE
 ======================================================
 ┌─────────┬───────────────────────┬──────────────┐
 │ (index) │ Model                 │ Record Count │
@@ -175,9 +179,10 @@ Advocates: adv.mehta@courtcms.gov.in, adv.iyer@courtcms.gov.in, adv.khan@courtcm
 ```
 
 ### Test 3: Automated Database Verification Suite (`npm run db:verify`)
+
 ```
 ===============================================================
-       COURT CASE MANAGEMENT SYSTEM - DATABASE VERIFICATION    
+       COURT CASE MANAGEMENT SYSTEM - DATABASE VERIFICATION
 ===============================================================
 
 [1/5] Checking table row counts...
@@ -187,7 +192,7 @@ Advocates: adv.mehta@courtcms.gov.in, adv.iyer@courtcms.gov.in, adv.khan@courtcm
 [5/5] Checking backlog threshold cases...
 
 ===============================================================
-                   VERIFICATION RESULTS TABLE                   
+                   VERIFICATION RESULTS TABLE
 ===============================================================
 ┌─────────┬───────────────────────────┬────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ (index) │ Check                     │ Status │ Details                                                                                                                                                                                                                              │
@@ -202,6 +207,7 @@ Advocates: adv.mehta@courtcms.gov.in, adv.iyer@courtcms.gov.in, adv.khan@courtcm
 ```
 
 ### Test 4: Database Reset & Auto-Reseed (`npm run db:reset`)
+
 ```
 > court-case-management-system@1.0.0 db:reset
 > npm run db:reset --prefix server
@@ -220,10 +226,13 @@ Seeding complete (Code 0).
 ```
 
 ### Test 5: ESLint & Prettier Verification
+
 ```powershell
 npm run format:check; npm run lint
 ```
+
 **Output:**
+
 ```
 > court-case-management-system@1.0.0 format:check
 > prettier --check .
@@ -237,6 +246,7 @@ All matched files use Prettier code style!
 ```
 
 ### Test 6: Health Endpoint Status Verification (`GET /api/v1/health`)
+
 ```json
 {
   "success": true,
@@ -252,6 +262,7 @@ All matched files use Prettier code style!
 ---
 
 ## 6. Decisions and Assumptions
+
 1. **Primary Keys**: Used UUID strings (`@default(uuid())`) across all models (except `SystemSetting` which uses natural string key `key`) to guarantee globally unique identifiers and avoid autoincrement ID enumeration vulnerabilities.
 2. **Referential Integrity**: Implemented `onDelete: Restrict` for legal entities (`Case`, `Hearing`, `Judgment`, `CaseAdvocate`, `Evidence`) to prevent inadvertent data loss in a judicial record system. Only `EvidenceCustodyLog` cascades with its parent `Evidence` record.
 3. **Relative Date Seeding**: All filing dates, hearing dates, and judgment dates are derived dynamically from `new Date()` at seed execution time, guaranteeing that the backlog monitor and cause list schedules always render realistic, active data without becoming stale.
@@ -260,17 +271,20 @@ All matched files use Prettier code style!
 ---
 
 ## 7. Issues and Limitations
+
 1. **Static File Attachments**: Evidence records contain simulated file metadata (file name, path, mime type, and SHA-256 hash); physical binary storage and upload endpoints will be implemented in subsequent phases.
 2. **No Authentication Endpoints**: Demo users have hashed passwords in the database, but login/JWT generation was intentionally deferred to Phase 3 per prompt instructions.
 
 ---
 
 ## 8. Deviations from the Prompt
+
 None. All instructions for Phase 2 were completed exactly as specified.
 
 ---
 
 ## 9. Ready-for-Next-Phase Checklist
+
 - [x] Prisma schema modeled with all 12 models, 11 enums, indexes, and referential constraints.
 - [x] Initial migration `20260928055230_init` created and successfully applied to MySQL.
 - [x] Prisma Client generated and functional.

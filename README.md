@@ -77,6 +77,9 @@ PORT=5000
 NODE_ENV=development
 DATABASE_URL="mysql://court_user:CourtCms2026@localhost:3307/court_cms"
 CORS_ORIGIN=http://localhost:5173
+JWT_SECRET=your_super_secret_jwt_key_at_least_32_chars_long
+JWT_EXPIRES_IN=8h
+COOKIE_NAME=court_cms_token
 ```
 
 > **Note**: `server/.env` contains credentials and must **never** be committed to version control.
@@ -86,8 +89,22 @@ CORS_ORIGIN=http://localhost:5173
 Create `client/.env` based on `client/.env.example`:
 
 ```env
-VITE_API_URL=http://localhost:5000/api/v1
+# Using the Vite dev proxy for same-origin cookies:
+VITE_API_URL=/api/v1
 ```
+
+---
+
+## 👥 Demo Logins for Development
+
+When running in development mode (`npm run dev`), the `/login` page displays one-click quick-fill buttons for the seeded accounts. All seeded users share the default password `Password123`:
+
+| Role          | Name                   | Email                        | Password      |
+| :------------ | :--------------------- | :--------------------------- | :------------ |
+| **ADMIN**     | Suresh Ramanathan      | `admin@courtcms.gov.in`      | `Password123` |
+| **REGISTRAR** | Anita Desai            | `registrar@courtcms.gov.in`  | `Password123` |
+| **JUDGE**     | Justice Dhananjaya Rao | `judge.rao@courtcms.gov.in`  | `Password123` |
+| **ADVOCATE**  | Adv. Rajesh Sharma     | `rajesh.sharma@delhibar.org` | `Password123` |
 
 ---
 
@@ -194,7 +211,9 @@ Designed with a formal, accessible judicial registry aesthetic:
 
 ---
 
-## 🧪 Code Quality & Formatting
+## 🧪 Code Quality, Formatting & Testing
+
+### Linting & Formatting
 
 ```powershell
 # Run ESLint across entire repository
@@ -207,13 +226,25 @@ npm run format
 npm run format:check
 ```
 
+### Automated Testing (Vitest & Supertest)
+
+Court CMS includes full backend unit and integration test coverage for authentication, RBAC, password policies, rate limiting, and case visibility scoping:
+
+```powershell
+# Run all server tests (from root or server/)
+npm test
+
+# Run authentication and RBAC test suite specifically
+npm run test:auth
+```
+
 ---
 
 ## 📋 Phase Implementation Roadmap
 
 - [x] **Phase 1: Project Setup, Architecture & App Shell**
 - [x] **Phase 2: Database Schema, Migrations & Seed Data**
-- [ ] **Phase 3: Authentication, RBAC & User Management**
+- [x] **Phase 3: Authentication, RBAC & User Management**
 - [ ] **Phase 4: Case Filing & Master Docket Registry**
 - [ ] **Phase 5: Advocate Assignment & Bar Directory**
 - [ ] **Phase 6: Hearing Scheduling, Bench Allocation & Cause Lists**
