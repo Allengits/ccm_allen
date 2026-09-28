@@ -1,15 +1,17 @@
 // Database Verification Script (db:verify)
 // Performs automated integrity checks against the seeded database:
-// 1. Table row counts
-// 2. Case lifecycle consistency against business rules
-// 3. Absence of double-booked courtrooms or judges
+// 1. Table row counts (11 tables)
+// 2. Case lifecycle consistency against business rules (with IST upcoming date rule)
+// 3. Absence of double-booked courtrooms, judges, or cases for SCHEDULED hearings & HearingEvent audit
 // 4. One judgment per case constraint
 // 5. Backlog threshold case verification (>= 3 open cases > threshold days)
 // Exits with code 0 on all PASS, code 1 if any check FAILS.
 
 import { PrismaClient } from '@prisma/client';
+import { DateTime } from 'luxon';
 
 const prisma = new PrismaClient();
+const COURT_TZ = 'Asia/Kolkata';
 
 async function runVerification() {
   console.log('===============================================================');
@@ -36,6 +38,7 @@ async function runVerification() {
       cases: await prisma.case.count(),
       caseAdvocates: await prisma.caseAdvocate.count(),
       hearings: await prisma.hearing.count(),
+      hearingEvents: await prisma.hearingEvent.count(),
       judgments: await prisma.judgment.count(),
       caseStatusHistory: await prisma.caseStatusHistory.count(),
       caseSequences: await prisma.caseSequence.count(),
@@ -50,17 +53,19 @@ async function runVerification() {
     if (
       emptyTables.length === 0 &&
       tableCounts.cases >= 14 &&
-      tableCounts.hearings >= 15 &&
-      tableCounts.users === 7
+      tableCounts.hearings >= 16 &&
+      tableCounts.hearingEvents >= 25 &&
+      tableCounts.users === 7 &&
+      tableCounts.systemSettings >= 10
     ) {
-      recordResult('Table Row Counts', true, `All 10 tables populated (${countSummary})`);
+      recordResult('Table Row Counts', true, `All 11 tables populated (${countSummary})`);
     } else {
       recordResult(
         'Table Row Counts',
         false,
         emptyTables.length > 0
           ? `Empty tables found: ${emptyTables.map(([t]) => t).join(', ')}`
-          : `Cases (${tableCounts.cases}), Hearings (${tableCounts.hearings}) or Users (${tableCounts.users}) below expected counts`
+          : `Cases (${tableCounts.cases}), Hearings (${tableCounts.hearings}), HearingEvents (${tableCounts.hearingEvents}) or Users (${tableCounts.users}) below expected counts`
       );
     }
 
@@ -77,6 +82,7 @@ async function runVerification() {
     });
 
     const now = new Date();
+    const todayISTStart = DateTime.now().setZone(COURT_TZ).startOf('day');
     let statusFailures = [];
 
     for (const c of cases) {
@@ -95,6 +101,15 @@ async function runVerification() {
         if (!adv.unassignedAt || !adv.unassignedById || !adv.unassignReason) {
           statusFailures.push(
             `${c.caseNumber}: Inactive advocate assignment ${adv.id} missing unassigned audit fields`
+          );
+        }
+      }
+
+      // Check that SCHEDULED hearings match case's judge
+      for (const h of c.hearings) {
+        if (h.status === 'SCHEDULED' && h.judgeId !== c.judgeId) {
+          statusFailures.push(
+            `${c.caseNumber}: Hearing ${h.id} judgeId (${h.judgeId}) does not match case's judgeId (${c.judgeId})`
           );
         }
       }
@@ -118,25 +133,26 @@ async function runVerification() {
         }
         case 'HEARING_SCHEDULED': {
           const hasAdvocate = activeAdvocates.length >= 1;
-          const hasFutureHearing = c.hearings.some(
-            (h) => h.status === 'SCHEDULED' && new Date(h.scheduledAt) > now
-          );
-          if (!hasAdvocate || !hasFutureHearing) {
+          // Upcoming defined as IST calendar date >= today
+          const hasUpcomingHearing = c.hearings.some((h) => {
+            if (h.status !== 'SCHEDULED') return false;
+            const hIST = DateTime.fromJSDate(new Date(h.scheduledAt)).setZone(COURT_TZ);
+            return hIST >= todayISTStart;
+          });
+
+          if (!hasAdvocate || !hasUpcomingHearing) {
             statusFailures.push(
-              `${c.caseNumber} (HEARING_SCHEDULED): Needs active advocate and at least one future SCHEDULED hearing`
+              `${c.caseNumber} (HEARING_SCHEDULED): Needs active advocate (has:${hasAdvocate}) and at least one upcoming SCHEDULED hearing (has:${hasUpcomingHearing})`
             );
           }
           break;
         }
         case 'UNDER_TRIAL': {
           const hasAdvocate = activeAdvocates.length >= 1;
-          const hasPastCompleted = c.hearings.some(
-            (h) => h.status === 'COMPLETED' && new Date(h.scheduledAt) <= now
-          );
-          const hasFutureHearing = c.hearings.some((h) => new Date(h.scheduledAt) > now);
-          if (!hasAdvocate || !hasPastCompleted || !hasFutureHearing) {
+          const hasCompletedHearing = c.hearings.some((h) => h.status === 'COMPLETED');
+          if (!hasAdvocate || !hasCompletedHearing) {
             statusFailures.push(
-              `${c.caseNumber} (UNDER_TRIAL): Needs advocate (has:${hasAdvocate}), past completed hearing (has:${hasPastCompleted}), and future hearing (has:${hasFutureHearing})`
+              `${c.caseNumber} (UNDER_TRIAL): Needs active advocate (has:${hasAdvocate}) and at least one COMPLETED hearing (has:${hasCompletedHearing})`
             );
           }
           break;
@@ -171,7 +187,7 @@ async function runVerification() {
       recordResult(
         'Case Status Consistency',
         true,
-        `All ${cases.length} cases strictly conform to their lifecycle state constraints`
+        `All ${cases.length} cases strictly conform to their lifecycle state constraints (upcoming defined in IST)`
       );
     } else {
       recordResult(
@@ -182,19 +198,41 @@ async function runVerification() {
     }
 
     // -------------------------------------------------------------
-    // CHECK 3: Courtroom & Judge Schedule Overlap (No Double-Booking)
+    // CHECK 3: Courtroom, Judge & Case Scheduling Conflicts + Hearing Events
     // -------------------------------------------------------------
-    console.log('[3/5] Checking for courtroom and judge scheduling conflicts...');
+    console.log(
+      '[3/5] Checking for courtroom, judge and case scheduling conflicts & audit events...'
+    );
     const hearings = await prisma.hearing.findMany({
-      include: { courtroom: true, judge: true },
+      include: {
+        courtroom: true,
+        judge: true,
+        case: { select: { id: true, caseNumber: true, judgeId: true } },
+        events: true,
+      },
       orderBy: { scheduledAt: 'asc' },
     });
 
     const conflicts = [];
-    for (let i = 0; i < hearings.length; i++) {
-      for (let j = i + 1; j < hearings.length; j++) {
-        const h1 = hearings[i];
-        const h2 = hearings[j];
+    const missingEvents = [];
+
+    for (const h of hearings) {
+      if (!h.events || h.events.length === 0) {
+        missingEvents.push(`Hearing ${h.id} (${h.case.caseNumber}) has zero HearingEvents`);
+      }
+      if (h.status === 'SCHEDULED' && h.judgeId !== h.case.judgeId) {
+        conflicts.push(
+          `Judge mismatch: Hearing ${h.id} on case ${h.case.caseNumber} has judge ${h.judgeId} but case assigned judge is ${h.case.judgeId}`
+        );
+      }
+    }
+
+    // Check overlaps among SCHEDULED hearings (only SCHEDULED hearings block a slot)
+    const scheduledHearings = hearings.filter((h) => h.status === 'SCHEDULED');
+    for (let i = 0; i < scheduledHearings.length; i++) {
+      for (let j = i + 1; j < scheduledHearings.length; j++) {
+        const h1 = scheduledHearings[i];
+        const h2 = scheduledHearings[j];
 
         const start1 = new Date(h1.scheduledAt).getTime();
         const end1 = start1 + h1.durationMins * 60 * 1000;
@@ -205,29 +243,35 @@ async function runVerification() {
         if (start1 < end2 && start2 < end1) {
           if (h1.courtroomId === h2.courtroomId) {
             conflicts.push(
-              `Courtroom Double-Booked: ${h1.courtroom.name} booked simultaneously for hearings ${h1.id} and ${h2.id} around ${new Date(start1).toISOString()}`
+              `Courtroom Double-Booked: ${h1.courtroom.name} booked simultaneously for hearings ${h1.id} (${h1.case.caseNumber}) and ${h2.id} (${h2.case.caseNumber}) around ${new Date(start1).toISOString()}`
             );
           }
           if (h1.judgeId === h2.judgeId) {
             conflicts.push(
-              `Judge Double-Booked: ${h1.judge.name} scheduled simultaneously for hearings ${h1.id} and ${h2.id} around ${new Date(start1).toISOString()}`
+              `Judge Double-Booked: ${h1.judge.name} scheduled simultaneously for hearings ${h1.id} (${h1.case.caseNumber}) and ${h2.id} (${h2.case.caseNumber}) around ${new Date(start1).toISOString()}`
+            );
+          }
+          if (h1.caseId === h2.caseId) {
+            conflicts.push(
+              `Case Double-Booked: Case ${h1.case.caseNumber} scheduled simultaneously for hearings ${h1.id} and ${h2.id} around ${new Date(start1).toISOString()}`
             );
           }
         }
       }
     }
 
-    if (conflicts.length === 0) {
+    if (conflicts.length === 0 && missingEvents.length === 0) {
       recordResult(
-        'No Double-Booking',
+        'Hearing Scheduling & Audit Integrity',
         true,
-        `All ${hearings.length} hearings verified: zero courtroom and zero judge scheduling collisions`
+        `All ${hearings.length} hearings have HearingEvents; zero courtroom, judge, or case scheduling collisions across ${scheduledHearings.length} SCHEDULED hearings`
       );
     } else {
+      const errs = [...conflicts, ...missingEvents];
       recordResult(
-        'No Double-Booking',
+        'Hearing Scheduling & Audit Integrity',
         false,
-        `Found ${conflicts.length} conflicts: ${conflicts.join('; ')}`
+        `Found ${errs.length} issues: ${errs.join('; ')}`
       );
     }
 

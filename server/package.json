@@ -9,6 +9,8 @@
     "test:auth": "vitest run tests/auth.test.js",
     "test:cases": "vitest run tests/cases.test.js",
     "test:advocates": "vitest run tests/advocates.test.js",
+    "test:hearings": "vitest run tests/hearings.test.js",
+    "test:tz": "node scripts/run_test_tz.js",
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node prisma/seed.js",
@@ -29,6 +31,7 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "luxon": "^3.7.2",
     "morgan": "^1.10.0",
     "zod": "^3.24.2"
   },

@@ -77,7 +77,7 @@ Court CMS implements a stateless, cryptographically signed JSON Web Token (JWT) 
 
 ## 2. Role-Based Access Control (RBAC) Matrix
 
-Court CMS defines 12 granular, named permissions managed centrally in [server/src/config/permissions.js](file:///c:/Users/allen/OneDrive/Desktop/ccm_allen/server/src/config/permissions.js).
+Court CMS defines 13 granular, named permissions managed centrally in [server/src/config/permissions.js](file:///c:/Users/allen/OneDrive/Desktop/ccm_allen/server/src/config/permissions.js).
 
 ### Permissions Definition
 
@@ -89,6 +89,7 @@ Court CMS defines 12 granular, named permissions managed centrally in [server/sr
 | `advocate.view`       | View and search the advocate directory, bar roll numbers, and caseloads |
 | `advocate.manage`     | Register new advocates, modify contact details and specializations      |
 | `advocate.assign`     | Assign, reassign, or unassign legal counsel on court dockets            |
+| `hearing.view`        | View daily cause lists, hearing calendar, and scheduled proceedings     |
 | `hearing.schedule`    | Allocate hearing schedules, dates, and courtroom venues                 |
 | `hearing.update`      | Record hearing bench outcomes, proceedings, and daily cause notes       |
 | `judgment.record`     | Draft, record, and transition judgments to RESERVED state               |
@@ -98,20 +99,21 @@ Court CMS defines 12 granular, named permissions managed centrally in [server/sr
 
 ### Role Permissions Matrix
 
-| Permission         |  ADMIN   | REGISTRAR |     JUDGE     |  ADVOCATE   |
-| :----------------- | :------: | :-------: | :-----------: | :---------: |
-| `case.create`      |    ✅    |    ✅     |      ❌       |     ❌      |
-| `case.view`        | ✅ (All) | ✅ (All)  | ✅ (Assigned) | ✅ (Client) |
-| `case.edit`        |    ✅    |    ✅     |      ❌       |     ❌      |
-| `advocate.view`    |    ✅    |    ✅     |      ✅       | ❌ (Self)*  |
-| `advocate.manage`  |    ✅    |    ✅     |      ❌       |     ❌      |
-| `advocate.assign`  |    ✅    |    ✅     |      ❌       |     ❌      |
-| `hearing.schedule` |    ✅    |    ✅     |      ❌       |     ❌      |
-| `hearing.update`   |    ✅    |    ❌     |      ✅       |     ❌      |
-| `judgment.record`  |    ✅    |    ❌     |      ✅       |     ❌      |
-| `judgment.deliver` |    ✅    |    ❌     |      ✅       |     ❌      |
-| `user.manage`      |    ✅    |    ❌     |      ❌       |     ❌      |
-| `dashboard.view`   |    ✅    |    ✅     |      ✅       |     ❌      |
+| Permission         |  ADMIN   | REGISTRAR |     JUDGE      |  ADVOCATE   |
+| :----------------- | :------: | :-------: | :------------: | :---------: |
+| `case.create`      |    ✅    |    ✅     |       ❌       |     ❌      |
+| `case.view`        | ✅ (All) | ✅ (All)  | ✅ (Assigned)  | ✅ (Client) |
+| `case.edit`        |    ✅    |    ✅     |       ❌       |     ❌      |
+| `advocate.view`    |    ✅    |    ✅     |       ✅       | ❌ (Self)*  |
+| `advocate.manage`  |    ✅    |    ✅     |       ❌       |     ❌      |
+| `advocate.assign`  |    ✅    |    ✅     |       ❌       |     ❌      |
+| `hearing.view`     | ✅ (All) | ✅ (All)  | ✅ (Presiding) | ✅ (Client) |
+| `hearing.schedule` |    ✅    |    ✅     |       ❌       |     ❌      |
+| `hearing.update`   |    ✅    |    ❌     |       ✅       |     ❌      |
+| `judgment.record`  |    ✅    |    ❌     |       ✅       |     ❌      |
+| `judgment.deliver` |    ✅    |    ❌     |       ✅       |     ❌      |
+| `user.manage`      |    ✅    |    ❌     |       ❌       |     ❌      |
+| `dashboard.view`   |    ✅    |    ✅     |       ✅       |     ❌      |
 
 _\* Note: The ADVOCATE role has scoped access to view their own profile and representations via `GET /advocates/:id`._
 

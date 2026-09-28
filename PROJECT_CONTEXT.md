@@ -46,20 +46,21 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
 1. Objective 2. What was built 3. Files and folders changed 4. How to run and verify (exact commands) 5. Test evidence (commands run and results) 6. Decisions and assumptions 7. Issues and limitations 8. Deviations from the prompt 9. Ready-for-next-phase checklist
    Also give me a short summary in chat.
 
-## Data Model (Phase 2 & Phase 6B Scope Change)
+## Data Model (Phase 2, Phase 6B Scope Change, Phase 6)
 
-10 core entities implemented in Prisma MySQL:
+11 core entities implemented in Prisma MySQL:
 
 - User (ADMIN, REGISTRAR, JUDGE, ADVOCATE)
 - Advocate (Bar Council ID, specialization, optional User link)
 - Courtroom (court complex halls, location, availability)
 - Case (caseNumber, CaseType, Priority, CaseStatus, petitioner, respondent, judge, registeredBy)
 - CaseAdvocate (join table linking cases and counsel on PETITIONER/RESPONDENT side)
-- Hearing (case, courtroom, judge, scheduledAt, duration, HearingStatus, outcomeNotes)
+- Hearing (case, courtroom, judge, scheduledById, scheduledAt, durationMins, HearingStatus, outcomeNotes)
+- HearingEvent (append-only audit log tracking SCHEDULED, RESCHEDULED, CANCELLED, COMPLETED, ADJOURNED actions with timestamp, user, reason, metadata)
 - Judgment (caseId [1:1], authoring judge, JudgmentStatus, JudgmentOutcome, summary, reserved/delivered dates)
 - CaseStatusHistory (immutable audit log tracking transitions across the 6-state lifecycle)
 - CaseSequence (prefix, year, lastNumber for consecutive case number generation)
-- SystemSetting (key/value, e.g. backlog_threshold_days = 90)
+- SystemSetting (key/value, 10 settings: operating hours, lunch break, slot duration, advance scheduling windows, advocate workload threshold, backlog threshold, court jurisdiction)
   Detailed ER diagram and data dictionary documented in docs/DATABASE.md.
 
 ## Auth and Access Control (Phase 3)
@@ -129,6 +130,33 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
   - Case History timeline merges `CaseStatusHistory` records and `CaseAdvocate` assignment/unassignment events sorted chronologically without requiring auxiliary audit tables.
     Detailed endpoint specifications and workflow contracts documented in docs/ADVOCATES.md.
 
+## Hearing Scheduling, Cause Lists & Automation (Phase 6)
+
+- **IST Timezone & Court Hours Standard (`Asia/Kolkata`)**:
+  - Centralized in `server/src/utils/courtTime.js` powered by Luxon.
+  - Court operating hours strictly enforced: 10:00 to 17:00 IST on working days (Monday–Friday).
+  - Daily lunch recess strictly protected: 13:00 to 14:00 IST (no hearings may begin or overlap this recess).
+  - Slot alignment: all hearings must start on clean 15-minute clock boundaries (`:00`, `:15`, `:30`, `:45`).
+- **Dynamic Slot Availability Engine (`GET /hearings/availability`)**:
+  - Calculates free, non-overlapping candidate slots for any active courtroom and date.
+  - Automatically filters out weekends, lunch break, past time intervals, and existing booked hearings.
+- **Daily Cause List & Scoping (`GET /hearings/cause-list`)**:
+  - Daily judicial listings grouped by courtroom, ordered chronologically, and sequentially serial numbered (1..N).
+  - Role-scoped: Judges see only their courtroom bench; advocates see only cases where they actively represent counsel; registry and admins see all courts.
+- **Transactional Scheduling & Concurrency Safety**:
+  - Handled in atomic Prisma transactions with pessimistic current-reads (`SELECT ... FOR UPDATE`) to prevent double-booking.
+  - Concurrent identical slot reservations return deterministic `409 Conflict`.
+  - Advocate workload soft-warning emitted when counsel has concurrent commitments or excessive active listings.
+- **Lifecycle Automation & Status Transitions**:
+  - First scheduled hearing automatically advances `ADVOCATE_ASSIGNED` $\rightarrow$ `HEARING_SCHEDULED`.
+  - Completing a hearing advances `HEARING_SCHEDULED` $\rightarrow$ `UNDER_TRIAL`.
+  - Cancelling or adjourning without a next date reverts `HEARING_SCHEDULED` $\rightarrow$ `ADVOCATE_ASSIGNED` if no other scheduled hearing remains.
+  - Cross-module judge protection: updating `judgeId` on a case via `PATCH /cases/:id` is blocked if scheduled hearings exist.
+- **Comprehensive Audit Trail**:
+  - Every action writes an immutable `HearingEvent` (`SCHEDULED`, `RESCHEDULED`, `CANCELLED`, `COMPLETED`, `ADJOURNED`) with actor, timestamp, and mandatory reason.
+  - Case detail timeline seamlessly merges status transitions and hearing events.
+    Detailed endpoint specifications, rules, and workflows documented in docs/HEARINGS.md.
+
 ## Implementation Roadmap
 
 - **Phase 1**: Project Setup, Architecture & App Shell (Completed)
@@ -136,7 +164,7 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
 - **Phase 3**: Authentication, RBAC & User Management (Completed)
 - **Phase 4**: Case Filing & Master Docket Registry (Completed)
 - **Phase 5**: Advocate Assignment & Bar Directory (Completed)
-- **Phase 6**: Hearing Scheduling, Bench Allocation & Cause Lists
+- **Phase 6**: Hearing Scheduling, Cause Lists & Case-Status Automation (Completed)
 - **Phase 7**: Judgment tracker
 - **Phase 8**: Automation engine and registry dashboard
 - **Phase 9**: Testing, polish and final documentation

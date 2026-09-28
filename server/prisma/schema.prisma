@@ -57,6 +57,14 @@ enum HearingStatus {
   CANCELLED
 }
 
+enum HearingAction {
+  SCHEDULED
+  RESCHEDULED
+  CANCELLED
+  COMPLETED
+  ADJOURNED
+}
+
 enum JudgmentStatus {
   RESERVED
   DELIVERED
@@ -87,12 +95,14 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relationships
-  advocateProfile       Advocate?            @relation("UserAdvocate")
-  assignedCases         Case[]               @relation("JudgeCases")
-  registeredCases       Case[]               @relation("RegisteredByCases")
-  hearings              Hearing[]            @relation("JudgeHearings")
-  deliveredJudgments    Judgment[]           @relation("JudgeJudgments")
-  caseStatusChanges     CaseStatusHistory[]  @relation("StatusChanger")
+  advocateProfile         Advocate?            @relation("UserAdvocate")
+  assignedCases           Case[]               @relation("JudgeCases")
+  registeredCases         Case[]               @relation("RegisteredByCases")
+  hearings                Hearing[]            @relation("JudgeHearings")
+  scheduledHearings       Hearing[]            @relation("HearingScheduledBy")
+  hearingEvents           HearingEvent[]       @relation("HearingEventPerformedBy")
+  deliveredJudgments      Judgment[]           @relation("JudgeJudgments")
+  caseStatusChanges       CaseStatusHistory[]  @relation("StatusChanger")
   assignedCaseAdvocates   CaseAdvocate[]       @relation("AdvocateAssignedBy")
   unassignedCaseAdvocates CaseAdvocate[]       @relation("AdvocateUnassignedBy")
 
@@ -167,12 +177,12 @@ model Case {
 
 /// Join table linking an advocate to a case with side representation
 model CaseAdvocate {
-  id         String       @id @default(uuid())
-  caseId     String       @map("case_id")
-  case       Case         @relation(fields: [caseId], references: [id], onDelete: Restrict)
-  advocateId String       @map("advocate_id")
-  advocate   Advocate     @relation(fields: [advocateId], references: [id], onDelete: Restrict)
-  side       AdvocateSide // Representation side: PETITIONER or RESPONDENT
+  id             String       @id @default(uuid())
+  caseId         String       @map("case_id")
+  case           Case         @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  advocateId     String       @map("advocate_id")
+  advocate       Advocate     @relation(fields: [advocateId], references: [id], onDelete: Restrict)
+  side           AdvocateSide // Representation side: PETITIONER or RESPONDENT
   assignedAt     DateTime     @default(now()) @map("assigned_at")
   assignedById   String?      @map("assigned_by_id")
   assignedBy     User?        @relation("AdvocateAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
@@ -190,25 +200,49 @@ model CaseAdvocate {
 
 /// Scheduled court proceedings session for a specific case
 model Hearing {
-  id           String        @id @default(uuid())
-  caseId       String        @map("case_id")
-  case         Case          @relation(fields: [caseId], references: [id], onDelete: Restrict)
-  courtroomId  String        @map("courtroom_id")
-  courtroom    Courtroom     @relation(fields: [courtroomId], references: [id], onDelete: Restrict)
-  judgeId      String        @map("judge_id")
-  judge        User          @relation("JudgeHearings", fields: [judgeId], references: [id], onDelete: Restrict)
-  scheduledAt  DateTime      @map("scheduled_at")
-  durationMins Int           @default(30) @map("duration_mins")
-  purpose      String        // e.g. "Framing of Charges", "Cross-Examination"
-  status       HearingStatus @default(SCHEDULED)
-  outcomeNotes String?       @db.Text @map("outcome_notes") // Daily order summary / remarks
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
+  id            String         @id @default(uuid())
+  caseId        String         @map("case_id")
+  case          Case           @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  courtroomId   String         @map("courtroom_id")
+  courtroom     Courtroom      @relation(fields: [courtroomId], references: [id], onDelete: Restrict)
+  judgeId       String         @map("judge_id")
+  judge         User           @relation("JudgeHearings", fields: [judgeId], references: [id], onDelete: Restrict)
+  scheduledAt   DateTime       @map("scheduled_at")
+  durationMins  Int            @default(30) @map("duration_mins")
+  purpose       String         // e.g. "Framing of Charges", "Cross-Examination"
+  status        HearingStatus  @default(SCHEDULED)
+  outcomeNotes  String?        @db.Text @map("outcome_notes") // Daily order summary / remarks
+  scheduledById String?        @map("scheduled_by_id")
+  scheduledBy   User?          @relation("HearingScheduledBy", fields: [scheduledById], references: [id], onDelete: Restrict)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  // Relationships
+  events        HearingEvent[]
 
   @@index([scheduledAt])
   @@index([courtroomId, scheduledAt])
   @@index([judgeId, scheduledAt])
   @@map("hearings")
+}
+
+/// Audit event tracking hearing lifecycle changes (scheduling, rescheduling, adjournment, outcome)
+model HearingEvent {
+  id              String        @id @default(uuid())
+  hearingId       String        @map("hearing_id")
+  hearing         Hearing       @relation(fields: [hearingId], references: [id], onDelete: Restrict)
+  action          HearingAction
+  fromScheduledAt DateTime?     @map("from_scheduled_at")
+  toScheduledAt   DateTime?     @map("to_scheduled_at")
+  fromCourtroomId String?       @map("from_courtroom_id")
+  toCourtroomId   String?       @map("to_courtroom_id")
+  note            String?       @db.VarChar(500)
+  performedById   String        @map("performed_by_id")
+  performedBy     User          @relation("HearingEventPerformedBy", fields: [performedById], references: [id], onDelete: Restrict)
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  @@index([hearingId, createdAt])
+  @@map("hearing_events")
 }
 
 /// Final decree, reserved order, or delivered judgment for a case

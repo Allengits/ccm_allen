@@ -27,7 +27,7 @@ const allNavigationItems = [
     name: 'Hearings',
     path: '/hearings',
     icon: Calendar,
-    roles: ['ADMIN', 'REGISTRAR', 'JUDGE'],
+    roles: ['ADMIN', 'REGISTRAR', 'JUDGE', 'ADVOCATE'],
   },
   {
     name: 'Advocates',

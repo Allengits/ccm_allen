@@ -26,6 +26,10 @@ export default function Dashboard() {
   const [statsData, setStatsData] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
+  // Real hearing statistics from Phase 6 API
+  const [hearingsCount, setHearingsCount] = useState(null);
+  const [hearingsLoading, setHearingsLoading] = useState(true);
+
   const fetchHealth = useCallback(async () => {
     setHealthLoading(true);
     setHealthError(null);
@@ -56,14 +60,30 @@ export default function Dashboard() {
     }
   }, []);
 
+  const fetchHearingsStats = useCallback(async () => {
+    setHearingsLoading(true);
+    try {
+      const res = await api.get('/hearings/cause-list');
+      if (res.data?.success) {
+        setHearingsCount(res.data.data.totalHearings ?? 0);
+      }
+    } catch {
+      // Silently fail or keep null
+    } finally {
+      setHearingsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchHealth();
     fetchStats();
-  }, [fetchHealth, fetchStats]);
+    fetchHearingsStats();
+  }, [fetchHealth, fetchStats, fetchHearingsStats]);
 
   const handleRefreshAll = () => {
     fetchHealth();
     fetchStats();
+    fetchHearingsStats();
   };
 
   const isApiOk = healthData?.api === 'ok';
@@ -165,8 +185,8 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Card 3: Hearings Preview */}
-          <div className="registry-card rounded-lg p-5 flex flex-col justify-between opacity-85">
+          {/* Card 3: Real Hearings Today */}
+          <div className="registry-card rounded-lg p-5 legal-border flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between text-navy-700">
                 <span className="text-xs font-semibold uppercase text-gray-500">
@@ -175,12 +195,22 @@ export default function Dashboard() {
                 <Calendar className="w-5 h-5 text-navy-800" />
               </div>
               <div className="mt-3">
-                <div className="text-2xl font-serif font-bold text-gray-400">--</div>
-                <p className="text-xs text-gray-500 font-medium mt-1">Daily Cause List (Phase 6)</p>
+                <div className="text-3xl font-serif font-bold text-navy-950 font-mono">
+                  {hearingsLoading ? '--' : (hearingsCount ?? 0)}
+                </div>
+                <p className="text-xs text-navy-700 font-medium mt-1">
+                  Active cause list proceedings today
+                </p>
               </div>
             </div>
-            <div className="mt-4 pt-3 border-t border-gray-100 text-[11px] text-gray-400 italic">
-              Module arrives in Phase 6
+            <div className="mt-4 pt-3 border-t border-gray-100">
+              <Link
+                to="/hearings"
+                className="inline-flex items-center space-x-1 text-xs font-semibold text-brass-700 hover:text-brass-900 transition-colors"
+              >
+                <span>View Daily Cause List</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
           </div>
 

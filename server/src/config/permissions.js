@@ -11,6 +11,7 @@ export const PERMISSIONS = {
   ADVOCATE_VIEW: 'advocate.view',
   ADVOCATE_MANAGE: 'advocate.manage',
   ADVOCATE_ASSIGN: 'advocate.assign',
+  HEARING_VIEW: 'hearing.view',
   HEARING_SCHEDULE: 'hearing.schedule',
   HEARING_UPDATE: 'hearing.update',
   JUDGMENT_RECORD: 'judgment.record',
@@ -27,6 +28,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.ADVOCATE_VIEW,
     PERMISSIONS.ADVOCATE_MANAGE,
     PERMISSIONS.ADVOCATE_ASSIGN,
+    PERMISSIONS.HEARING_VIEW,
     PERMISSIONS.HEARING_SCHEDULE,
     PERMISSIONS.HEARING_UPDATE,
     PERMISSIONS.JUDGMENT_RECORD,
@@ -41,18 +43,20 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.ADVOCATE_VIEW,
     PERMISSIONS.ADVOCATE_MANAGE,
     PERMISSIONS.ADVOCATE_ASSIGN,
+    PERMISSIONS.HEARING_VIEW,
     PERMISSIONS.HEARING_SCHEDULE,
     PERMISSIONS.DASHBOARD_VIEW,
   ],
   JUDGE: [
     PERMISSIONS.CASE_VIEW,
     PERMISSIONS.ADVOCATE_VIEW,
+    PERMISSIONS.HEARING_VIEW,
     PERMISSIONS.HEARING_UPDATE,
     PERMISSIONS.JUDGMENT_RECORD,
     PERMISSIONS.JUDGMENT_DELIVER,
     PERMISSIONS.DASHBOARD_VIEW,
   ],
-  ADVOCATE: [PERMISSIONS.CASE_VIEW, PERMISSIONS.DASHBOARD_VIEW],
+  ADVOCATE: [PERMISSIONS.CASE_VIEW, PERMISSIONS.HEARING_VIEW, PERMISSIONS.DASHBOARD_VIEW],
 };
 
 /**
@@ -86,6 +90,33 @@ export const requirePermission = (permission) => {
         success: false,
         message: 'Forbidden - Insufficient permissions',
         errors: [`Role '${req.user.role}' lacks required permission '${permission}'`],
+      });
+    }
+
+    next();
+  };
+};
+
+/**
+ * Express middleware to enforce at least one of multiple permissions on a route.
+ * @param {string[]} permissions - Array of permission strings
+ */
+export const requireAnyPermission = (permissions) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized - Authentication required',
+        errors: ['Authentication required'],
+      });
+    }
+
+    const hasAny = permissions.some((p) => hasPermission(req.user.role, p));
+    if (!hasAny) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden - Insufficient permissions',
+        errors: [`Role '${req.user.role}' lacks required permissions: ${permissions.join(', ')}`],
       });
     }
 

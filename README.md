@@ -96,14 +96,14 @@ VITE_API_URL=/api/v1
 
 ## 👥 Demo Logins for Development
 
-When running in development mode (`npm run dev`), the `/login` page displays one-click quick-fill buttons for the seeded accounts. All seeded users share the default password `Password123`:
+When running in development mode (`npm run dev`), the `/login` page displays one-click quick-fill buttons for the seeded accounts. All seeded users share the demo password `Demo@1234`:
 
-| Role          | Name                   | Email                        | Password      |
-| :------------ | :--------------------- | :--------------------------- | :------------ |
-| **ADMIN**     | Suresh Ramanathan      | `admin@courtcms.gov.in`      | `Password123` |
-| **REGISTRAR** | Anita Desai            | `registrar@courtcms.gov.in`  | `Password123` |
-| **JUDGE**     | Justice Dhananjaya Rao | `judge.rao@courtcms.gov.in`  | `Password123` |
-| **ADVOCATE**  | Adv. Rajesh Sharma     | `rajesh.sharma@delhibar.org` | `Password123` |
+| Role          | Name                           | Email                               | Password    |
+| :------------ | :----------------------------- | :---------------------------------- | :---------- |
+| **ADMIN**     | Rajesh Varma                   | `admin@courtcms.gov.in`             | `Demo@1234` |
+| **REGISTRAR** | Sunita Sharma                  | `registrar@courtcms.gov.in`         | `Demo@1234` |
+| **JUDGE**     | Hon. Justice D. Y. Swaminathan | `judge.swaminathan@courtcms.gov.in` | `Demo@1234` |
+| **ADVOCATE**  | Harish Mehta                   | `adv.mehta@courtcms.gov.in`         | `Demo@1234` |
 
 ---
 
@@ -227,7 +227,7 @@ npm run format:check
 
 ### Automated Testing (Vitest & Supertest)
 
-Court CMS includes full backend unit and integration test coverage for authentication, RBAC, password policies, rate limiting, and case visibility scoping:
+Court CMS includes full backend unit and integration test coverage for authentication, RBAC, password policies, rate limiting, case visibility scoping, advocate assignment, hearing scheduling, and cause lists:
 
 ```powershell
 # Run all server tests (from root or server/)
@@ -241,6 +241,12 @@ npm run test:cases
 
 # Run advocate management and assignment test suite specifically
 npm run test:advocates
+
+# Run hearing scheduling and cause list test suite specifically
+npm run test:hearings
+
+# Run test suites across both UTC and Asia/Kolkata timezones
+npm run test:tz
 ```
 
 All test suites enforce global teardown verification, guaranteeing that the MySQL database row counts and case sequences strictly match the seeded baseline upon test completion.
@@ -251,6 +257,7 @@ For comprehensive API and architectural documentation:
 - [docs/AUTH.md](docs/AUTH.md) - Authentication, sessions & RBAC permission matrix
 - [docs/CASES.md](docs/CASES.md) - Case registration, number generation & docket querying
 - [docs/ADVOCATES.md](docs/ADVOCATES.md) - Advocate directory, assignment rules & workflow state automation
+- [docs/HEARINGS.md](docs/HEARINGS.md) - Hearing scheduling, cause lists, slot availability & audit events
 
 ---
 
@@ -261,7 +268,7 @@ For comprehensive API and architectural documentation:
 - [x] **Phase 3: Authentication, RBAC & User Management**
 - [x] **Phase 4: Case Filing & Master Docket Registry**
 - [x] **Phase 5: Advocate Assignment & Bar Directory**
-- [ ] **Phase 6: Hearing Scheduling, Bench Allocation & Cause Lists**
+- [x] **Phase 6: Hearing Scheduling, Cause Lists & Case-Status Automation**
 - [ ] **Phase 7: Judgment tracker**
 - [ ] **Phase 8: Automation engine and registry dashboard**
 - [ ] **Phase 9: Testing, polish and final documentation**

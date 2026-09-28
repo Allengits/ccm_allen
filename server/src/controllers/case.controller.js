@@ -550,6 +550,14 @@ export const getCaseById = async (req, res) => {
             judge: {
               select: { id: true, name: true },
             },
+            events: {
+              include: {
+                performedBy: {
+                  select: { id: true, name: true, role: true },
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+            },
           },
           orderBy: { scheduledAt: 'asc' },
         },
@@ -609,7 +617,14 @@ export const getCaseById = async (req, res) => {
       advocate: a.advocate,
     }));
 
-    // Merge advocate assignment/unassignment events into timeline if not already represented by a status change
+    // Format hearings with computed endsAt and durationMinutes
+    const formattedHearings = c.hearings.map((h) => ({
+      ...h,
+      durationMinutes: h.durationMins,
+      endsAt: new Date(new Date(h.scheduledAt).getTime() + (h.durationMins || 30) * 60 * 1000),
+    }));
+
+    // Merge advocate assignment/unassignment & hearing events into timeline
     const timeline = [...c.statusHistory];
     const existingReasons = new Set(c.statusHistory.map((h) => h.reason));
 
@@ -648,6 +663,23 @@ export const getCaseById = async (req, res) => {
       }
     }
 
+    // Merge hearing events into history timeline
+    for (const h of c.hearings) {
+      for (const he of h.events || []) {
+        timeline.push({
+          id: `hearing-event-${he.id}`,
+          fromStatus: null,
+          toStatus: null,
+          reason: `Hearing [${he.action}]: ${he.note || he.action}`,
+          changedById: he.performedById,
+          changedBy: he.performedBy
+            ? { id: he.performedBy.id, name: he.performedBy.name, role: he.performedBy.role }
+            : null,
+          createdAt: he.createdAt,
+        });
+      }
+    }
+
     // Sort timeline chronologically descending
     timeline.sort((x, y) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime());
 
@@ -658,6 +690,7 @@ export const getCaseById = async (req, res) => {
         case: {
           ...c,
           advocates: formattedAdvocates,
+          hearings: formattedHearings,
           statusHistory: timeline,
           ageDays,
           isBacklog,
@@ -740,6 +773,27 @@ export const updateCase = async (req, res) => {
           message: 'Assigned judge must be an active user with role JUDGE',
           errors: ['Assigned judge must be an active user with role JUDGE'],
         });
+      }
+
+      // Cross-module rule: reject changing case's judge if upcoming SCHEDULED hearings exist
+      if (judgeId !== existingCase.judgeId) {
+        const scheduledHearingsCount = await prisma.hearing.count({
+          where: {
+            caseId: existingCase.id,
+            status: 'SCHEDULED',
+          },
+        });
+
+        if (scheduledHearingsCount > 0) {
+          return res.status(400).json({
+            success: false,
+            message:
+              'Cannot reassign presiding judge while scheduled hearings exist for this case. Cancel or reschedule existing hearings first.',
+            errors: [
+              'Cannot reassign presiding judge while scheduled hearings exist for this case',
+            ],
+          });
+        }
       }
     }
 

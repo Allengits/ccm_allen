@@ -99,7 +99,7 @@ describe('Court CMS - Phase 5 Advocate Management & Case Assignment Suite', () =
 
     registeredCase1 = seededCases.find((c) => c.status === 'REGISTERED');
     advocateAssignedCase3 = seededCases.find((c) => c.status === 'ADVOCATE_ASSIGNED');
-    underTrialCase7 = seededCases.find((c) => c.status === 'UNDER_TRIAL');
+    underTrialCase7 = seededCases.find((c) => c.caseNumber === 'CC/2025/00045');
     closedCase13 = seededCases.find((c) => c.status === 'CLOSED');
 
     // Authenticate sessions for all roles
@@ -838,7 +838,7 @@ describe('Court CMS - Phase 5 Advocate Management & Case Assignment Suite', () =
       expect(inactiveAdv).toBeDefined();
       expect(inactiveAdv.unassignedAt).not.toBeNull();
       expect(inactiveAdv.unassignedByName).not.toBeNull();
-      expect(inactiveAdv.unassignReason).toContain('substitution of legal counsel');
+      expect(inactiveAdv.unassignReason).toContain('scheduling conflict');
 
       const activeAdv = advs.find((a) => a.isActive);
       expect(activeAdv).toBeDefined();

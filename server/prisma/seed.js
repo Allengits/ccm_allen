@@ -4,21 +4,31 @@
 
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { DateTime } from 'luxon';
 
 const prisma = new PrismaClient();
+const COURT_TZ = 'Asia/Kolkata';
 
 // Helper to generate dates relative to current execution time
 const now = new Date();
 const daysAgo = (days) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-const daysAhead = (days, hour = 10, minute = 0) => {
-  const d = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-  d.setHours(hour, minute, 0, 0);
-  return d;
+
+// IST Working Day date helpers for hearings
+const getISTWorkingDate = (offsetDays, hour = 10, minute = 0) => {
+  let dt = DateTime.now().setZone(COURT_TZ).plus({ days: offsetDays });
+  if (dt.weekday === 6) {
+    dt = offsetDays >= 0 ? dt.plus({ days: 2 }) : dt.minus({ days: 1 });
+  } else if (dt.weekday === 7) {
+    dt = offsetDays >= 0 ? dt.plus({ days: 1 }) : dt.minus({ days: 2 });
+  }
+  return dt.set({ hour, minute, second: 0, millisecond: 0 }).toJSDate();
 };
-const setTime = (date, hour, minute) => {
-  const d = new Date(date);
-  d.setHours(hour, minute, 0, 0);
-  return d;
+
+const getTodayIST = (hour = 10, minute = 0) => {
+  return DateTime.now()
+    .setZone(COURT_TZ)
+    .set({ hour, minute, second: 0, millisecond: 0 })
+    .toJSDate();
 };
 
 async function main() {
@@ -28,6 +38,7 @@ async function main() {
   // 1. CLEAN EXISTING DATA (Safe Re-run)
   // ==========================================
   console.log('Clearing existing records in reverse dependency order...');
+  await prisma.hearingEvent.deleteMany({});
   await prisma.hearing.deleteMany({});
   await prisma.judgment.deleteMany({});
   await prisma.caseStatusHistory.deleteMany({});
@@ -62,6 +73,41 @@ async function main() {
         value: '15',
         description:
           'Active open cases threshold beyond which a soft workload warning is flagged during advocate assignment',
+      },
+      {
+        key: 'court_timezone',
+        value: 'Asia/Kolkata',
+        description: 'Primary legal and operational timezone for judicial hearings',
+      },
+      {
+        key: 'court_start_time',
+        value: '10:00',
+        description: 'Daily court commencement time in 24h format',
+      },
+      {
+        key: 'court_end_time',
+        value: '17:00',
+        description: 'Daily court concluding time in 24h format',
+      },
+      {
+        key: 'lunch_start',
+        value: '13:00',
+        description: 'Judicial lunch recess start time',
+      },
+      {
+        key: 'lunch_end',
+        value: '14:00',
+        description: 'Judicial lunch recess end time',
+      },
+      {
+        key: 'court_working_days',
+        value: 'MON,TUE,WED,THU,FRI',
+        description: 'Comma-separated operational court days of the week',
+      },
+      {
+        key: 'slot_minutes',
+        value: '15',
+        description: 'Granular duration increment for hearing scheduling slots in minutes',
       },
     ],
   });
@@ -755,173 +801,246 @@ async function main() {
   // 9. HEARINGS (16 total: Past & Future, No Double-Booking)
   // ==========================================
   console.log('Seeding hearings (ensuring no courtroom/judge double booking)...');
-  await prisma.hearing.createMany({
-    data: [
-      // Past Hearings (Completed & Adjourned)
-      {
-        caseId: case13.id,
-        courtroomId: cr1.id,
-        judgeId: judge1.id,
-        scheduledAt: setTime(daysAgo(40), 10, 0),
-        durationMins: 45,
-        purpose: 'Final Arguments on Compensation Assessment',
-        status: 'COMPLETED',
-        outcomeNotes: 'Final oral arguments concluded by both senior counsels.',
-      },
-      {
-        caseId: case14.id,
-        courtroomId: cr3.id,
-        judgeId: judge2.id,
-        scheduledAt: setTime(daysAgo(40), 11, 30),
-        durationMins: 30,
-        purpose: 'Recording Statement under Section 313 CrPC',
-        status: 'COMPLETED',
-        outcomeNotes: 'Accused statement recorded. Matter posted for final judgment.',
-      },
-      {
-        caseId: case11.id,
-        courtroomId: cr1.id,
-        judgeId: judge1.id,
-        scheduledAt: setTime(daysAgo(30), 10, 0),
-        durationMins: 60,
-        purpose: 'Concluding Arguments & Case Summary',
-        status: 'COMPLETED',
-        outcomeNotes: 'Both sides completed arguments. Judgment reserved.',
-      },
-      {
-        caseId: case12.id,
-        courtroomId: cr2.id,
-        judgeId: judge2.id,
-        scheduledAt: setTime(daysAgo(30), 11, 30),
-        durationMins: 45,
-        purpose: 'Final Submissions on Commercial Lease Repudiation',
-        status: 'COMPLETED',
-        outcomeNotes: 'Submissions placed on record. Judgment reserved.',
-      },
-      {
-        caseId: case7.id,
-        courtroomId: cr3.id,
-        judgeId: judge1.id,
-        scheduledAt: setTime(daysAgo(20), 10, 0),
-        durationMins: 45,
-        purpose: 'Cross-Examination of Prosecution Witness PW-1',
-        status: 'COMPLETED',
-        outcomeNotes: 'PW-1 cross-examination completed. Deposition records marked.',
-      },
-      {
-        caseId: case8.id,
-        courtroomId: cr2.id,
-        judgeId: judge2.id,
-        scheduledAt: setTime(daysAgo(20), 14, 0),
-        durationMins: 30,
-        purpose: 'Admission of Electronic Data Logs',
-        status: 'ADJOURNED',
-        outcomeNotes: 'Respondent requested adjournment due to unavailability of counsel.',
-      },
-      {
-        caseId: case8.id,
-        courtroomId: cr2.id,
-        judgeId: judge2.id,
-        scheduledAt: setTime(daysAgo(15), 10, 0),
-        durationMins: 45,
-        purpose: 'Resumed Hearing: Admission of Electronic Records',
-        status: 'COMPLETED',
-        outcomeNotes: 'Electronic escrow certificates admitted under Section 65B.',
-      },
-      {
-        caseId: case9.id,
-        courtroomId: cr4.id,
-        judgeId: judge1.id,
-        scheduledAt: setTime(daysAgo(10), 10, 0),
-        durationMins: 30,
-        purpose: 'Settlement of Issues on Ancestral Partition',
-        status: 'COMPLETED',
-        outcomeNotes: 'Issues framed. Local commissioner report submitted.',
-      },
-      {
-        caseId: case10.id,
-        courtroomId: cr1.id,
-        judgeId: judge2.id,
-        scheduledAt: setTime(daysAgo(5), 10, 0),
-        durationMins: 30,
-        purpose: 'Preliminary Objections on Employment Termination',
-        status: 'COMPLETED',
-        outcomeNotes: 'Preliminary objections dismissed. Plaintiff trial examination commenced.',
-      },
+  const seededHearingsData = [
+    // --- Past Hearings (9 total: 8 Completed, 1 Adjourned) ---
+    {
+      caseId: case13.id,
+      courtroomId: cr1.id,
+      judgeId: judge1.id,
+      scheduledAt: getISTWorkingDate(-40, 10, 0),
+      durationMins: 45,
+      purpose: 'Final Arguments on Compensation Assessment',
+      status: 'COMPLETED',
+      outcomeNotes: 'Final oral arguments concluded by both senior counsels.',
+      scheduledById: registrarUser.id,
+    },
+    {
+      caseId: case14.id,
+      courtroomId: cr3.id,
+      judgeId: judge2.id,
+      scheduledAt: getISTWorkingDate(-40, 11, 30),
+      durationMins: 30,
+      purpose: 'Recording Statement under Section 313 CrPC',
+      status: 'COMPLETED',
+      outcomeNotes: 'Accused statement recorded. Matter posted for final judgment.',
+      scheduledById: registrarUser.id,
+    },
+    {
+      caseId: case11.id,
+      courtroomId: cr1.id,
+      judgeId: judge1.id,
+      scheduledAt: getISTWorkingDate(-30, 10, 0),
+      durationMins: 60,
+      purpose: 'Concluding Arguments & Case Summary',
+      status: 'COMPLETED',
+      outcomeNotes: 'Both sides completed arguments. Judgment reserved.',
+      scheduledById: registrarUser.id,
+    },
+    {
+      caseId: case12.id,
+      courtroomId: cr2.id,
+      judgeId: judge2.id,
+      scheduledAt: getISTWorkingDate(-30, 11, 30),
+      durationMins: 45,
+      purpose: 'Final Submissions on Commercial Lease Repudiation',
+      status: 'COMPLETED',
+      outcomeNotes: 'Submissions placed on record. Judgment reserved.',
+      scheduledById: registrarUser.id,
+    },
+    {
+      caseId: case7.id,
+      courtroomId: cr3.id,
+      judgeId: judge1.id,
+      scheduledAt: getISTWorkingDate(-20, 10, 0),
+      durationMins: 45,
+      purpose: 'Cross-Examination of Prosecution Witness PW-1',
+      status: 'COMPLETED',
+      outcomeNotes: 'PW-1 cross-examination completed. Deposition records marked.',
+      scheduledById: registrarUser.id,
+    },
+    {
+      caseId: case8.id,
+      courtroomId: cr2.id,
+      judgeId: judge2.id,
+      scheduledAt: getISTWorkingDate(-20, 14, 0),
+      durationMins: 30,
+      purpose: 'Admission of Electronic Data Logs',
+      status: 'ADJOURNED',
+      outcomeNotes: 'Respondent requested adjournment due to unavailability of counsel.',
+      scheduledById: registrarUser.id,
+    },
+    {
+      caseId: case8.id,
+      courtroomId: cr2.id,
+      judgeId: judge2.id,
+      scheduledAt: getISTWorkingDate(-15, 10, 0),
+      durationMins: 45,
+      purpose: 'Resumed Hearing: Admission of Electronic Records',
+      status: 'COMPLETED',
+      outcomeNotes: 'Electronic escrow certificates admitted under Section 65B.',
+      scheduledById: registrarUser.id,
+    },
+    {
+      caseId: case9.id,
+      courtroomId: cr4.id,
+      judgeId: judge1.id,
+      scheduledAt: getISTWorkingDate(-10, 10, 0),
+      durationMins: 30,
+      purpose: 'Settlement of Issues on Ancestral Partition',
+      status: 'COMPLETED',
+      outcomeNotes: 'Issues framed. Local commissioner report submitted.',
+      scheduledById: registrarUser.id,
+    },
+    {
+      caseId: case10.id,
+      courtroomId: cr1.id,
+      judgeId: judge2.id,
+      scheduledAt: getISTWorkingDate(-5, 10, 0),
+      durationMins: 30,
+      purpose: 'Preliminary Objections on Employment Termination',
+      status: 'COMPLETED',
+      outcomeNotes: 'Preliminary objections dismissed. Plaintiff trial examination commenced.',
+      scheduledById: registrarUser.id,
+    },
 
-      // Future Hearings (Scheduled)
-      {
-        caseId: case5.id,
-        courtroomId: cr4.id,
-        judgeId: judge1.id,
-        scheduledAt: daysAhead(2, 10, 0),
-        durationMins: 30,
-        purpose: 'First Appearance & Mediation Exploration',
-        status: 'SCHEDULED',
-        outcomeNotes: null,
-      },
-      {
-        caseId: case6.id,
-        courtroomId: cr1.id,
-        judgeId: judge2.id,
-        scheduledAt: daysAhead(2, 11, 30),
-        durationMins: 45,
-        purpose: 'Preliminary Hearing on Interim Stay Application',
-        status: 'SCHEDULED',
-        outcomeNotes: null,
-      },
-      {
-        caseId: case7.id,
-        courtroomId: cr3.id,
-        judgeId: judge1.id,
-        scheduledAt: daysAhead(5, 10, 0),
-        durationMins: 60,
-        purpose: 'Cross-Examination of Forensic Expert PW-2',
-        status: 'SCHEDULED',
-        outcomeNotes: null,
-      },
-      {
-        caseId: case8.id,
-        courtroomId: cr2.id,
-        judgeId: judge2.id,
-        scheduledAt: daysAhead(5, 11, 30),
-        durationMins: 45,
-        purpose: 'Defendant Witness Examination',
-        status: 'SCHEDULED',
-        outcomeNotes: null,
-      },
-      {
-        caseId: case9.id,
-        courtroomId: cr4.id,
-        judgeId: judge1.id,
-        scheduledAt: daysAhead(7, 10, 0),
-        durationMins: 30,
-        purpose: 'Cross-Examination of Revenue Surveyor',
-        status: 'SCHEDULED',
-        outcomeNotes: null,
-      },
-      {
-        caseId: case10.id,
-        courtroomId: cr1.id,
-        judgeId: judge2.id,
-        scheduledAt: daysAhead(7, 11, 30),
-        durationMins: 45,
-        purpose: 'Cross-Examination of Complainant Dr. Joshi',
-        status: 'SCHEDULED',
-        outcomeNotes: null,
-      },
-      {
-        caseId: case6.id,
-        courtroomId: cr2.id,
-        judgeId: judge1.id,
-        scheduledAt: daysAhead(10, 14, 0),
-        durationMins: 60,
-        purpose: 'Substantive Arguments on Constitutional Bench Referral',
-        status: 'SCHEDULED',
-        outcomeNotes: null,
-      },
-    ],
-  });
+    // --- Exactly 2 Scheduled Hearings Dated TODAY (IST) ---
+    // Hearing on Case 5 (HEARING_SCHEDULED, judge: judge1, courtroom: cr1)
+    {
+      caseId: case5.id,
+      courtroomId: cr1.id,
+      judgeId: judge1.id,
+      scheduledAt: getTodayIST(10, 30),
+      durationMins: 30,
+      purpose: 'First Appearance & Framing of Issues',
+      status: 'SCHEDULED',
+      outcomeNotes: null,
+      scheduledById: registrarUser.id,
+    },
+    // Hearing on Case 6 (HEARING_SCHEDULED, judge: judge2, courtroom: cr2)
+    {
+      caseId: case6.id,
+      courtroomId: cr2.id,
+      judgeId: judge2.id,
+      scheduledAt: getTodayIST(11, 30),
+      durationMins: 45,
+      purpose: 'Preliminary Hearing on Interim Relief Application',
+      status: 'SCHEDULED',
+      outcomeNotes: null,
+      scheduledById: registrarUser.id,
+    },
+
+    // --- Future Scheduled Hearings (5 total on weekdays) ---
+    {
+      caseId: case7.id,
+      courtroomId: cr3.id,
+      judgeId: judge1.id,
+      scheduledAt: getISTWorkingDate(2, 10, 0),
+      durationMins: 45,
+      purpose: 'Cross-Examination of Forensic Expert PW-2',
+      status: 'SCHEDULED',
+      outcomeNotes: null,
+      scheduledById: registrarUser.id,
+    },
+    {
+      caseId: case8.id,
+      courtroomId: cr2.id,
+      judgeId: judge2.id,
+      scheduledAt: getISTWorkingDate(2, 14, 0),
+      durationMins: 45,
+      purpose: 'Defendant Witness Examination',
+      status: 'SCHEDULED',
+      outcomeNotes: null,
+      scheduledById: registrarUser.id,
+    },
+    {
+      caseId: case9.id,
+      courtroomId: cr4.id,
+      judgeId: judge1.id,
+      scheduledAt: getISTWorkingDate(4, 10, 0),
+      durationMins: 30,
+      purpose: 'Cross-Examination of Revenue Surveyor',
+      status: 'SCHEDULED',
+      outcomeNotes: null,
+      scheduledById: registrarUser.id,
+    },
+    {
+      caseId: case10.id,
+      courtroomId: cr1.id,
+      judgeId: judge2.id,
+      scheduledAt: getISTWorkingDate(4, 11, 30),
+      durationMins: 45,
+      purpose: 'Cross-Examination of Complainant Dr. Joshi',
+      status: 'SCHEDULED',
+      outcomeNotes: null,
+      scheduledById: registrarUser.id,
+    },
+    {
+      caseId: case6.id,
+      courtroomId: cr3.id,
+      judgeId: judge2.id,
+      scheduledAt: getISTWorkingDate(7, 14, 0),
+      durationMins: 60,
+      purpose: 'Substantive Arguments on Constitutional Bench Referral',
+      status: 'SCHEDULED',
+      outcomeNotes: null,
+      scheduledById: registrarUser.id,
+    },
+  ];
+
+  const createdHearings = [];
+  for (const hData of seededHearingsData) {
+    const h = await prisma.hearing.create({ data: hData });
+    createdHearings.push(h);
+  }
+
+  // ==========================================
+  // 9B. HEARING EVENTS (Audit Trails)
+  // ==========================================
+  console.log('Seeding hearing events audit trails...');
+  const hearingEventsData = [];
+  for (const h of createdHearings) {
+    // 1. Initial SCHEDULED event for every hearing
+    hearingEventsData.push({
+      hearingId: h.id,
+      action: 'SCHEDULED',
+      fromScheduledAt: null,
+      toScheduledAt: h.scheduledAt,
+      fromCourtroomId: null,
+      toCourtroomId: h.courtroomId,
+      note: `Hearing scheduled for ${h.purpose}`,
+      performedById: registrarUser.id,
+      createdAt: h.createdAt,
+    });
+
+    // 2. Additional event if COMPLETED or ADJOURNED
+    if (h.status === 'COMPLETED') {
+      hearingEventsData.push({
+        hearingId: h.id,
+        action: 'COMPLETED',
+        fromScheduledAt: null,
+        toScheduledAt: null,
+        fromCourtroomId: null,
+        toCourtroomId: null,
+        note: h.outcomeNotes,
+        performedById: h.judgeId,
+        createdAt: new Date(new Date(h.scheduledAt).getTime() + h.durationMins * 60 * 1000),
+      });
+    } else if (h.status === 'ADJOURNED') {
+      hearingEventsData.push({
+        hearingId: h.id,
+        action: 'ADJOURNED',
+        fromScheduledAt: null,
+        toScheduledAt: null,
+        fromCourtroomId: null,
+        toCourtroomId: null,
+        note: h.outcomeNotes,
+        performedById: h.judgeId,
+        createdAt: new Date(new Date(h.scheduledAt).getTime() + h.durationMins * 60 * 1000),
+      });
+    }
+  }
+
+  await prisma.hearingEvent.createMany({ data: hearingEventsData });
 
   // ==========================================
   // 10. JUDGMENTS (4 total: 2 Reserved, 2 Delivered)
@@ -1430,6 +1549,7 @@ async function main() {
     cases: await prisma.case.count(),
     caseAdvocates: await prisma.caseAdvocate.count(),
     hearings: await prisma.hearing.count(),
+    hearingEvents: await prisma.hearingEvent.count(),
     judgments: await prisma.judgment.count(),
     caseStatusHistory: await prisma.caseStatusHistory.count(),
     caseSequences: await prisma.caseSequence.count(),

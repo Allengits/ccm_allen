@@ -12,6 +12,8 @@
     "test:auth": "npm run test:auth --prefix server",
     "test:cases": "npm run test:cases --prefix server",
     "test:advocates": "npm run test:advocates --prefix server",
+    "test:hearings": "npm run test:hearings --prefix server",
+    "test:tz": "npm run test:tz --prefix server",
     "install:all": "npm install && npm install --prefix server && npm install --prefix client",
     "db:migrate": "npm run db:migrate --prefix server",
     "db:seed": "npm run db:seed --prefix server",

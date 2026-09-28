@@ -8,10 +8,11 @@ export const SEEDED_BASELINE = {
   cases: 14,
   caseAdvocates: 26,
   hearings: 16,
+  hearingEvents: 25,
   judgments: 4,
   caseStatusHistory: 50,
   caseSequences: 2,
-  systemSettings: 3,
+  systemSettings: 10,
 };
 
 export const SEEDED_SEQUENCES = [
@@ -27,6 +28,7 @@ export async function verifyDatabaseBaseline() {
     cases: await prisma.case.count(),
     caseAdvocates: await prisma.caseAdvocate.count(),
     hearings: await prisma.hearing.count(),
+    hearingEvents: await prisma.hearingEvent.count(),
     judgments: await prisma.judgment.count(),
     caseStatusHistory: await prisma.caseStatusHistory.count(),
     caseSequences: await prisma.caseSequence.count(),

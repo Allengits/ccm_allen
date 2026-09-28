@@ -12,6 +12,8 @@ erDiagram
     User ||--o{ Case : "presides as judge"
     User ||--o{ Case : "registers as clerk"
     User ||--o{ Hearing : "presides hearing"
+    User ||--o{ Hearing : "schedules hearing"
+    User ||--o{ HearingEvent : "authorizes event"
     User ||--o{ Judgment : "delivers judgment"
     User ||--o{ CaseStatusHistory : "authorizes status change"
     User ||--o{ CaseAdvocate : "assigns advocate"
@@ -22,6 +24,7 @@ erDiagram
 
     Courtroom ||--o{ Hearing : "hosts"
     Case ||--o{ Hearing : "scheduled hearing"
+    Hearing ||--o{ HearingEvent : "tracks lifecycle events"
 
     Case ||--o| Judgment : "has final decree"
     Case ||--o{ CaseStatusHistory : "lifecycle audit history"
@@ -96,6 +99,7 @@ erDiagram
         string caseId FK
         string courtroomId FK
         string judgeId FK
+        string scheduledById FK
         datetime scheduledAt
         int durationMins
         string purpose
@@ -103,6 +107,17 @@ erDiagram
         text outcomeNotes
         datetime createdAt
         datetime updatedAt
+    }
+
+    HearingEvent {
+        string id PK
+        string hearingId FK
+        HearingAction action
+        datetime timestamp
+        string performedById FK
+        string reason
+        json metadata
+        datetime createdAt
     }
 
     Judgment {
@@ -253,21 +268,41 @@ _Constraints_: Unique composite constraint on `(case_id, advocate_id)`.
 
 Scheduled court proceedings sessions for cases on the daily cause list.
 
-| Column          | Type         | Constraints                   | Description                                           |
-| :-------------- | :----------- | :---------------------------- | :---------------------------------------------------- |
-| `id`            | VARCHAR(191) | PK, UUID                      | Unique hearing identifier                             |
-| `case_id`       | VARCHAR(191) | FK(cases.id), NOT NULL        | Target case                                           |
-| `courtroom_id`  | VARCHAR(191) | FK(courtrooms.id), NOT NULL   | Allocated courtroom                                   |
-| `judge_id`      | VARCHAR(191) | FK(users.id), NOT NULL        | Presiding judge                                       |
-| `scheduled_at`  | DATETIME(3)  | NOT NULL                      | Session start timestamp                               |
-| `duration_mins` | INT          | DEFAULT 30                    | Allocated duration in minutes                         |
-| `purpose`       | VARCHAR(191) | NOT NULL                      | Purpose of listing (e.g., Arguments, Framing Charges) |
-| `status`        | ENUM         | NOT NULL, DEFAULT `SCHEDULED` | `SCHEDULED`, `COMPLETED`, `ADJOURNED`, `CANCELLED`    |
-| `outcome_notes` | TEXT         | NULLABLE                      | Daily court order summary / bench remarks             |
-| `created_at`    | DATETIME(3)  | DEFAULT NOW()                 | Creation timestamp                                    |
-| `updated_at`    | DATETIME(3)  | UPDATED AT                    | Modification timestamp                                |
+| Column            | Type         | Constraints                   | Description                                           |
+| :---------------- | :----------- | :---------------------------- | :---------------------------------------------------- |
+| `id`              | VARCHAR(191) | PK, UUID                      | Unique hearing identifier                             |
+| `case_id`         | VARCHAR(191) | FK(cases.id), NOT NULL        | Target case                                           |
+| `courtroom_id`    | VARCHAR(191) | FK(courtrooms.id), NOT NULL   | Allocated courtroom                                   |
+| `judge_id`        | VARCHAR(191) | FK(users.id), NOT NULL        | Presiding judge                                       |
+| `scheduled_by_id` | VARCHAR(191) | FK(users.id), NOT NULL        | Staff user / Registrar who scheduled the hearing      |
+| `scheduled_at`    | DATETIME(3)  | NOT NULL                      | Session start timestamp (IST working hours)           |
+| `duration_mins`   | INT          | DEFAULT 30                    | Allocated duration in minutes                         |
+| `purpose`         | VARCHAR(191) | NOT NULL                      | Purpose of listing (e.g., Arguments, Framing Charges) |
+| `status`          | ENUM         | NOT NULL, DEFAULT `SCHEDULED` | `SCHEDULED`, `COMPLETED`, `ADJOURNED`, `CANCELLED`    |
+| `outcome_notes`   | TEXT         | NULLABLE                      | Daily court order summary / bench remarks             |
+| `created_at`      | DATETIME(3)  | DEFAULT NOW()                 | Creation timestamp                                    |
+| `updated_at`      | DATETIME(3)  | UPDATED AT                    | Modification timestamp                                |
 
 _Indexes_: `scheduled_at`, `(courtroom_id, scheduled_at)`, `(judge_id, scheduled_at)`.
+
+---
+
+### Table: `hearing_events`
+
+Append-only immutable lifecycle event log tracking every action performed on court hearings (`SCHEDULED`, `RESCHEDULED`, `CANCELLED`, `COMPLETED`, `ADJOURNED`).
+
+| Column            | Type         | Constraints               | Description                                                                              |
+| :---------------- | :----------- | :------------------------ | :--------------------------------------------------------------------------------------- |
+| `id`              | VARCHAR(191) | PK, UUID                  | Unique event identifier                                                                  |
+| `hearing_id`      | VARCHAR(191) | FK(hearings.id), NOT NULL | Associated hearing record                                                                |
+| `action`          | ENUM         | NOT NULL                  | `SCHEDULED`, `RESCHEDULED`, `CANCELLED`, `COMPLETED`, `ADJOURNED`                        |
+| `timestamp`       | DATETIME(3)  | DEFAULT NOW()             | Event occurrence timestamp                                                               |
+| `performed_by_id` | VARCHAR(191) | FK(users.id), NULLABLE    | User who performed or authorized the action                                              |
+| `reason`          | TEXT         | NULLABLE                  | Recorded justification (mandatory for cancellation, adjournment, rescheduling)           |
+| `metadata`        | JSON         | NULLABLE                  | Additional event context (e.g., previous slot, next hearing ID, outcome notes, warnings) |
+| `created_at`      | DATETIME(3)  | DEFAULT NOW()             | Record creation timestamp                                                                |
+
+_Indexes_: `hearing_id`, `(hearing_id, timestamp)`.
 
 ---
 
@@ -327,15 +362,20 @@ _Constraints_: Unique composite index on `(prefix, year)`.
 
 ### Table: `system_settings`
 
-Global key-value configuration repository for court-wide thresholds and operational flags (e.g., `backlog_threshold_days`, `court_jurisdiction`, `advocate_workload_warning_threshold`).
+Global key-value configuration repository for court-wide thresholds, operating hours, and operational flags.
 
-| Column        | Type         | Constraints   | Description                                                                                |
-| :------------ | :----------- | :------------ | :----------------------------------------------------------------------------------------- |
-| `key`         | VARCHAR(191) | PK            | Unique setting key (e.g., `backlog_threshold_days`, `advocate_workload_warning_threshold`) |
-| `value`       | VARCHAR(191) | NOT NULL      | Configuration value (e.g., `90`)                                                           |
-| `description` | VARCHAR(191) | NULLABLE      | Setting explanation                                                                        |
-| `created_at`  | DATETIME(3)  | DEFAULT NOW() | Setting creation timestamp                                                                 |
-| `updated_at`  | DATETIME(3)  | UPDATED AT    | Last change timestamp                                                                      |
+| Setting Key                           | Default Value              | Description                                                            |
+| :------------------------------------ | :------------------------- | :--------------------------------------------------------------------- |
+| `court_start_time`                    | `10:00`                    | Daily court commencement time (IST)                                    |
+| `court_end_time`                      | `17:00`                    | Daily court rising / adjournment time (IST)                            |
+| `court_lunch_start`                   | `13:00`                    | Daily lunch break commencement time (IST)                              |
+| `court_lunch_end`                     | `14:00`                    | Daily lunch break conclusion time (IST)                                |
+| `hearing_slot_duration_mins`          | `30`                       | Default duration for scheduled hearing slots                           |
+| `hearing_min_advance_hours`           | `2`                        | Minimum advance notice required to schedule a hearing                  |
+| `hearing_max_advance_days`            | `90`                       | Maximum advance window for scheduling a hearing                        |
+| `advocate_workload_warning_threshold` | `5`                        | Soft warning threshold for advocate active cases on a single date/case |
+| `backlog_threshold_days`              | `90`                       | Backlog classification age threshold in days                           |
+| `court_jurisdiction`                  | `Principal District Court` | Formal jurisdictional entity title                                     |
 
 ---
 
@@ -356,7 +396,7 @@ The court case management system implements a strict, sequential state machine:
 | **`REGISTERED`**        | Case record filed; registrar recorded.                                                           | Must have **0** advocates and **0** hearings. |
 | **`ADVOCATE_ASSIGNED`** | At least **1 active `CaseAdvocate`** assigned to petitioner/respondent.                          | Must have **0** scheduled hearings.           |
 | **`HEARING_SCHEDULED`** | Active advocates assigned + at least **1 future `SCHEDULED` hearing** on cause list.             | Cannot have delivered judgments.              |
-| **`UNDER_TRIAL`**       | Advocates assigned + at least **1 past `COMPLETED` hearing** + at least **1 future hearing**.    | Cannot have closed date.                      |
+| **`UNDER_TRIAL`**       | Active advocates assigned + at least **1 past `COMPLETED` hearing**.                             | Cannot have closed date.                      |
 | **`JUDGMENT_RESERVED`** | Active `Judgment` record with `status: RESERVED` and `reservedOn` populated.                     | Cannot have future scheduled hearings.        |
 | **`CLOSED`**            | Active `Judgment` record with `status: DELIVERED`, `outcome` populated, and `Case.closedAt` set. | Case is final; further hearings locked.       |
 

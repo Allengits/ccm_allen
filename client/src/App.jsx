@@ -32,7 +32,7 @@ export default function App() {
               <Route
                 path="hearings"
                 element={
-                  <ProtectedRoute allowedRoles={['ADMIN', 'REGISTRAR', 'JUDGE']}>
+                  <ProtectedRoute allowedRoles={['ADMIN', 'REGISTRAR', 'JUDGE', 'ADVOCATE']}>
                     <Hearings />
                   </ProtectedRoute>
                 }

@@ -5,12 +5,18 @@ import { useAuth } from '../context/AuthContext';
 import EditCaseModal from '../components/cases/EditCaseModal';
 import AssignAdvocateModal from '../components/cases/AssignAdvocateModal';
 import UnassignAdvocateModal from '../components/cases/UnassignAdvocateModal';
+import ScheduleHearingModal from '../components/hearings/ScheduleHearingModal';
+import RescheduleHearingModal from '../components/hearings/RescheduleHearingModal';
+import CancelHearingModal from '../components/hearings/CancelHearingModal';
+import CompleteHearingModal from '../components/hearings/CompleteHearingModal';
+import AdjournHearingModal from '../components/hearings/AdjournHearingModal';
 import {
   ArrowLeft,
   Calendar,
   Clock,
   FileText,
   Gavel,
+  Scale,
   Users,
   AlertTriangle,
   History,
@@ -25,7 +31,7 @@ import {
 
 export default function CaseDetail() {
   const { id } = useParams();
-  const { can } = useAuth();
+  const { user, can } = useAuth();
 
   const [caseData, setCaseData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,6 +42,14 @@ export default function CaseDetail() {
   const [unassigningAdvocate, setUnassigningAdvocate] = useState(null);
   const [assignmentNotice, setAssignmentNotice] = useState(null);
   const [showPastAssignments, setShowPastAssignments] = useState(false);
+
+  // Hearing modal state
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [reschedulingHearing, setReschedulingHearing] = useState(null);
+  const [cancellingHearing, setCancellingHearing] = useState(null);
+  const [completingHearing, setCompletingHearing] = useState(null);
+  const [adjourningHearing, setAdjourningHearing] = useState(null);
+  const [hearingNotice, setHearingNotice] = useState(null);
 
   const fetchCaseDetail = async () => {
     try {
@@ -518,17 +532,57 @@ export default function CaseDetail() {
         {/* HEARINGS TAB */}
         {activeTab === 'hearings' && (
           <div className="registry-card rounded-lg p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
               <div>
-                <h3 className="text-base font-serif font-bold text-navy-900">Scheduled Hearings</h3>
+                <h3 className="text-base font-serif font-bold text-navy-900">
+                  Scheduled Court Hearings
+                </h3>
                 <p className="text-xs text-gray-500">
-                  Court sessions, cause list allocations, and bench proceedings.
+                  Court sessions, bench proceedings, daily orders, and cause list allocations.
                 </p>
               </div>
-              <span className="text-xs italic text-gray-400 bg-gray-50 px-2.5 py-1 rounded border border-gray-200">
-                Phase 6 will enable hearing scheduling & courtroom allocation.
-              </span>
+
+              {can('hearing.schedule') &&
+                caseData.status !== 'CLOSED' &&
+                caseData.status !== 'REGISTERED' && (
+                  <button
+                    onClick={() => setIsScheduleModalOpen(true)}
+                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-navy-900 text-white rounded-lg text-xs font-semibold hover:bg-navy-800 transition-colors shadow-sm self-start sm:self-auto"
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-brass-400" />
+                    <span>Schedule Hearing</span>
+                  </button>
+                )}
             </div>
+
+            {/* Lifecycle Automation Notice */}
+            <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-md text-blue-900 text-xs flex items-start space-x-2">
+              <Scale className="w-4 h-4 text-blue-700 flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold block">Case Status Automation</span>
+                <span className="text-blue-800 text-[11px]">
+                  Concluding the first hearing automatically transitions this docket to{' '}
+                  <strong className="font-mono">UNDER_TRIAL</strong>. Adjourning without fixing a
+                  subsequent date or cancelling the sole scheduled hearing reverts status to{' '}
+                  <strong className="font-mono">ADVOCATE_ASSIGNED</strong>.
+                </span>
+              </div>
+            </div>
+
+            {hearingNotice && (
+              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>{hearingNotice}</span>
+                </div>
+                <button
+                  onClick={() => setHearingNotice(null)}
+                  className="text-emerald-700 hover:text-emerald-950 font-bold ml-4"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
 
             {caseData.hearings?.length === 0 ? (
               <div className="text-center py-8 text-gray-500 text-sm">
@@ -539,38 +593,124 @@ export default function CaseDetail() {
                 <table className="min-w-full text-xs text-left">
                   <thead className="bg-gray-50 uppercase text-gray-500 font-semibold border-y border-gray-200">
                     <tr>
-                      <th className="py-2.5 px-3">Hearing Date & Time</th>
+                      <th className="py-2.5 px-3">Date & Time (IST)</th>
                       <th className="py-2.5 px-3">Courtroom</th>
                       <th className="py-2.5 px-3">Purpose</th>
                       <th className="py-2.5 px-3">Presiding Judge</th>
-                      <th className="py-2.5 px-3">Status</th>
-                      <th className="py-2.5 px-3">Proceedings Notes</th>
+                      <th className="py-2.5 px-3">Daily Order / Notes</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {caseData.hearings.map((h) => (
-                      <tr key={h.id} className="hover:bg-gray-50">
-                        <td className="py-2.5 px-3 font-semibold text-navy-950 whitespace-nowrap">
-                          {new Date(h.scheduledAt).toLocaleString('en-IN', {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })}
-                        </td>
-                        <td className="py-2.5 px-3 text-gray-700 whitespace-nowrap">
-                          {h.courtroom?.name} ({h.courtroom?.location})
-                        </td>
-                        <td className="py-2.5 px-3 font-medium text-navy-900">{h.purpose}</td>
-                        <td className="py-2.5 px-3 text-gray-600">{h.judge?.name}</td>
-                        <td className="py-2.5 px-3">
-                          <span className="font-mono text-[11px] font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-800">
-                            {h.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-gray-600 max-w-xs truncate">
-                          {h.outcomeNotes || '—'}
-                        </td>
-                      </tr>
-                    ))}
+                    {caseData.hearings.map((h) => {
+                      const isActionable =
+                        h.status === 'SCHEDULED' &&
+                        (user?.role === 'ADMIN' ||
+                          user?.role === 'REGISTRAR' ||
+                          (user?.role === 'JUDGE' &&
+                            (h.judgeId === user.id || caseData.judgeId === user.id)));
+
+                      const canComplete =
+                        isActionable &&
+                        (user?.role === 'ADMIN' || user?.role === 'JUDGE') &&
+                        new Date(h.scheduledAt) <= new Date();
+
+                      return (
+                        <tr key={h.id} className="hover:bg-gray-50">
+                          <td className="py-2.5 px-3 font-semibold text-navy-950 whitespace-nowrap font-mono">
+                            <div>
+                              {new Date(h.scheduledAt).toLocaleDateString('en-IN', {
+                                dateStyle: 'medium',
+                              })}
+                            </div>
+                            <div className="text-[10px] text-gray-500 font-normal">
+                              {new Date(h.scheduledAt).toLocaleTimeString('en-IN', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}{' '}
+                              ({h.durationMinutes || h.durationMins || 30}m)
+                            </div>
+                          </td>
+
+                          <td className="py-2.5 px-3 text-gray-700 whitespace-nowrap">
+                            <span className="font-semibold text-navy-900 block">
+                              {h.courtroom?.name}
+                            </span>
+                            <span className="text-[10px] text-gray-500">
+                              {h.courtroom?.location}
+                            </span>
+                          </td>
+
+                          <td className="py-2.5 px-3 font-medium text-navy-900 max-w-xs">
+                            {h.purpose}
+                          </td>
+
+                          <td className="py-2.5 px-3 text-gray-600 whitespace-nowrap">
+                            {h.judge?.name || caseData.judge?.name || 'Presiding Bench'}
+                          </td>
+
+                          <td className="py-2.5 px-3 text-gray-600 max-w-xs truncate">
+                            {h.outcomeNotes || <span className="text-gray-400 italic">—</span>}
+                          </td>
+
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            <span
+                              className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
+                                h.status === 'SCHEDULED'
+                                  ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                  : h.status === 'COMPLETED'
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    : h.status === 'ADJOURNED'
+                                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                      : 'bg-red-50 text-red-800 border-red-200'
+                              }`}
+                            >
+                              {h.status}
+                            </span>
+                          </td>
+
+                          <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                            {isActionable ? (
+                              <div className="flex items-center justify-end space-x-1">
+                                {canComplete && (
+                                  <button
+                                    onClick={() => setCompletingHearing(h)}
+                                    className="px-2 py-0.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 rounded text-[11px] font-semibold transition-colors"
+                                    title="Complete hearing"
+                                  >
+                                    Complete
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => setAdjourningHearing(h)}
+                                  className="px-2 py-0.5 bg-navy-50 text-navy-800 hover:bg-navy-100 border border-navy-200 rounded text-[11px] font-semibold transition-colors"
+                                  title="Adjourn hearing"
+                                >
+                                  Adjourn
+                                </button>
+                                <button
+                                  onClick={() => setReschedulingHearing(h)}
+                                  className="px-2 py-0.5 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 rounded text-[11px] font-semibold transition-colors"
+                                  title="Reschedule hearing"
+                                >
+                                  Reschedule
+                                </button>
+                                <button
+                                  onClick={() => setCancellingHearing(h)}
+                                  className="px-2 py-0.5 bg-red-50 text-red-800 hover:bg-red-100 border border-red-200 rounded text-[11px] font-semibold transition-colors"
+                                  title="Cancel hearing"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 text-xs italic">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -771,6 +911,71 @@ export default function CaseDetail() {
           advocate={unassigningAdvocate}
           isLastAdvocate={(caseData.advocates?.filter((a) => a.isActive) || []).length === 1}
           caseStatus={caseData.status}
+        />
+      )}
+
+      {/* Schedule Hearing Modal */}
+      {can('hearing.schedule') && (
+        <ScheduleHearingModal
+          isOpen={isScheduleModalOpen}
+          onClose={() => setIsScheduleModalOpen(false)}
+          caseItem={caseData}
+          onSuccess={({ message }) => {
+            setHearingNotice(message);
+            fetchCaseDetail();
+          }}
+        />
+      )}
+
+      {/* Reschedule Hearing Modal */}
+      {reschedulingHearing && (
+        <RescheduleHearingModal
+          isOpen={!!reschedulingHearing}
+          onClose={() => setReschedulingHearing(null)}
+          hearing={reschedulingHearing}
+          onSuccess={({ message }) => {
+            setHearingNotice(message);
+            fetchCaseDetail();
+          }}
+        />
+      )}
+
+      {/* Cancel Hearing Modal */}
+      {cancellingHearing && (
+        <CancelHearingModal
+          isOpen={!!cancellingHearing}
+          onClose={() => setCancellingHearing(null)}
+          hearing={cancellingHearing}
+          onSuccess={({ message }) => {
+            setHearingNotice(message);
+            fetchCaseDetail();
+          }}
+        />
+      )}
+
+      {/* Complete Hearing Modal */}
+      {completingHearing && (
+        <CompleteHearingModal
+          isOpen={!!completingHearing}
+          onClose={() => setCompletingHearing(null)}
+          hearing={completingHearing}
+          onSuccess={({ message }) => {
+            setHearingNotice(message);
+            fetchCaseDetail();
+          }}
+        />
+      )}
+
+      {/* Adjourn Hearing Modal */}
+      {adjourningHearing && (
+        <AdjournHearingModal
+          isOpen={!!adjourningHearing}
+          onClose={() => setAdjourningHearing(null)}
+          hearing={adjourningHearing}
+          onSuccess={({ message }) => {
+            setHearingNotice(message);
+            fetchCaseDetail();
+          }}
         />
       )}
     </div>

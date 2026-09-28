@@ -97,7 +97,20 @@ Any payload containing these immutable keys is rejected with **HTTP 400 Bad Requ
 
 If `status === 'CLOSED'`, the case is legally disposed. Any attempt to update a closed case is rejected with **HTTP 400 Bad Request** (`"Closed cases cannot be edited"`).
 
-### 4.4 Prohibition of Deletion
+### 4.4 Cross-Module Judge Reassignment Protection
+
+Changing `judgeId` on a case via `PATCH /cases/:id` is blocked with **HTTP 400 Bad Request** (`"Cannot reassign presiding judge while active scheduled hearings exist. Please reschedule or reassign the hearings first."`) if the case has one or more hearings currently in `SCHEDULED` status. This prevents orphaning scheduled courtroom cause list sessions or creating calendar conflicts between presiding benches.
+
+### 4.5 Hearing Status Automation & Timeline Merging
+
+Case status transitions automatically through hearing operations:
+
+1. **First Hearing Scheduled**: When a hearing is scheduled for a case in `ADVOCATE_ASSIGNED` status, the case automatically transitions to `HEARING_SCHEDULED` with audit reason `"First hearing scheduled"`.
+2. **Hearing Completed**: When the presiding judge marks a past hearing as `COMPLETED`, the case automatically transitions from `HEARING_SCHEDULED` to `UNDER_TRIAL` with audit reason `"Hearing completed: trial underway"`.
+3. **Cancellation / Adjournment Reversion**: If a scheduled hearing is cancelled or adjourned without immediately booking a new date, and no other `SCHEDULED` hearings remain for the case, the case status safely reverts back to `ADVOCATE_ASSIGNED`.
+4. **History Timeline Merging**: The case detail endpoint (`GET /cases/:id`) retrieves both formal `statusHistory` records and all `HearingEvent` entries (`SCHEDULED`, `RESCHEDULED`, `CANCELLED`, `COMPLETED`, `ADJOURNED`), merging them into a unified chronological audit trail with ISO timestamps, actors, and reasons.
+
+### 4.6 Prohibition of Deletion
 
 There is **no DELETE endpoint** in Court CMS. In judicial practice, case filings, proceedings, and orders constitute official public records. Deleting records violates statutory preservation requirements. Erroneously filed cases are disposed of through formal judicial dismissal or closure orders, never by database deletion.
 
