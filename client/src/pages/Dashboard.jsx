@@ -195,11 +195,11 @@ export default function Dashboard() {
               </div>
               <div className="mt-3">
                 <div className="text-2xl font-serif font-bold text-gray-400">--</div>
-                <p className="text-xs text-gray-500 font-medium mt-1">Awaiting Orders (Phase 8)</p>
+                <p className="text-xs text-gray-500 font-medium mt-1">Awaiting Orders (Phase 7)</p>
               </div>
             </div>
             <div className="mt-4 pt-3 border-t border-gray-100 text-[11px] text-gray-400 italic">
-              Module arrives in Phase 8
+              Module arrives in Phase 7
             </div>
           </div>
         </div>

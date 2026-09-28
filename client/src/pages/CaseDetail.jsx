@@ -12,7 +12,6 @@ import {
   FileText,
   Gavel,
   Users,
-  Briefcase,
   AlertTriangle,
   History,
   Edit2,
@@ -116,7 +115,6 @@ export default function CaseDetail() {
     { id: 'overview', label: 'Overview', icon: FileText },
     { id: 'advocates', label: `Advocates (${caseData.advocates?.length || 0})`, icon: Users },
     { id: 'hearings', label: `Hearings (${caseData.hearings?.length || 0})`, icon: Calendar },
-    { id: 'evidence', label: `Evidence (${caseData.evidence?.length || 0})`, icon: Briefcase },
     { id: 'judgment', label: 'Judgment', icon: Gavel },
     { id: 'history', label: `History (${caseData.statusHistory?.length || 0})`, icon: History },
   ];
@@ -570,74 +568,6 @@ export default function CaseDetail() {
                         </td>
                         <td className="py-2.5 px-3 text-gray-600 max-w-xs truncate">
                           {h.outcomeNotes || '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* EVIDENCE TAB */}
-        {activeTab === 'evidence' && (
-          <div className="registry-card rounded-lg p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <div>
-                <h3 className="text-base font-serif font-bold text-navy-900">Evidence Vault</h3>
-                <p className="text-xs text-gray-500">
-                  Recorded physical exhibits and tamper-evident digital records.
-                </p>
-              </div>
-              <span className="text-xs italic text-gray-400 bg-gray-50 px-2.5 py-1 rounded border border-gray-200">
-                Phase 7 will enable evidence submission & chain of custody logs.
-              </span>
-            </div>
-
-            {caseData.evidence?.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 text-sm">
-                No exhibits or digital evidence registered for this case.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-xs text-left">
-                  <thead className="bg-gray-50 uppercase text-gray-500 font-semibold border-y border-gray-200">
-                    <tr>
-                      <th className="py-2.5 px-3">Exhibit Title</th>
-                      <th className="py-2.5 px-3">Type</th>
-                      <th className="py-2.5 px-3">Submitted By</th>
-                      <th className="py-2.5 px-3">Status</th>
-                      <th className="py-2.5 px-3">Submission Date</th>
-                      <th className="py-2.5 px-3">File / Cryptographic Hash</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {caseData.evidence.map((ev) => (
-                      <tr key={ev.id} className="hover:bg-gray-50">
-                        <td className="py-2.5 px-3 font-semibold text-navy-950">{ev.title}</td>
-                        <td className="py-2.5 px-3 text-gray-600 font-mono text-[11px]">
-                          {ev.evidenceType}
-                        </td>
-                        <td className="py-2.5 px-3 text-gray-700">{ev.submittedBy}</td>
-                        <td className="py-2.5 px-3">
-                          <span
-                            className={`font-semibold uppercase px-2 py-0.5 rounded text-[11px] ${
-                              ev.status === 'ADMITTED'
-                                ? 'bg-emerald-50 text-emerald-800'
-                                : ev.status === 'REJECTED'
-                                  ? 'bg-red-50 text-red-800'
-                                  : 'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            {ev.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-gray-600">
-                          {new Date(ev.submittedAt).toLocaleDateString('en-IN')}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono text-gray-500 text-[10px] max-w-xs truncate">
-                          {ev.fileHash ? `SHA-256: ${ev.fileHash}` : 'Physical Artifact'}
                         </td>
                       </tr>
                     ))}

@@ -77,7 +77,7 @@ Court CMS implements a stateless, cryptographically signed JSON Web Token (JWT) 
 
 ## 2. Role-Based Access Control (RBAC) Matrix
 
-Court CMS defines 14 granular, named permissions managed centrally in [server/src/config/permissions.js](file:///c:/Users/allen/OneDrive/Desktop/ccm_allen/server/src/config/permissions.js).
+Court CMS defines 12 granular, named permissions managed centrally in [server/src/config/permissions.js](file:///c:/Users/allen/OneDrive/Desktop/ccm_allen/server/src/config/permissions.js).
 
 ### Permissions Definition
 
@@ -91,8 +91,6 @@ Court CMS defines 14 granular, named permissions managed centrally in [server/sr
 | `advocate.assign`     | Assign, reassign, or unassign legal counsel on court dockets            |
 | `hearing.schedule`    | Allocate hearing schedules, dates, and courtroom venues                 |
 | `hearing.update`      | Record hearing bench outcomes, proceedings, and daily cause notes       |
-| `evidence.submit`     | Upload and log digital evidence records and initial custody logs        |
-| `evidence.review`     | Formally mark evidence as ADMITTED or REJECTED during bench proceedings |
 | `judgment.record`     | Draft, record, and transition judgments to RESERVED state               |
 | `judgment.deliver`    | Authorize and formally deliver certified case judgments                 |
 | `user.manage`         | Create, modify, deactivate users and reset credentials (Admin only)     |
@@ -110,8 +108,6 @@ Court CMS defines 14 granular, named permissions managed centrally in [server/sr
 | `advocate.assign`  |    ✅    |    ✅     |      ❌       |     ❌      |
 | `hearing.schedule` |    ✅    |    ✅     |      ❌       |     ❌      |
 | `hearing.update`   |    ✅    |    ❌     |      ✅       |     ❌      |
-| `evidence.submit`  |    ✅    |    ✅     |      ❌       |     ✅      |
-| `evidence.review`  |    ✅    |    ❌     |      ✅       |     ❌      |
 | `judgment.record`  |    ✅    |    ❌     |      ✅       |     ❌      |
 | `judgment.deliver` |    ✅    |    ❌     |      ✅       |     ❌      |
 | `user.manage`      |    ✅    |    ❌     |      ❌       |     ❌      |

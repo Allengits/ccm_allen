@@ -57,31 +57,6 @@ enum HearingStatus {
   CANCELLED
 }
 
-enum EvidenceType {
-  DOCUMENT
-  PHOTOGRAPH
-  VIDEO
-  AUDIO
-  PHYSICAL
-  DIGITAL_RECORD
-  TESTIMONY
-}
-
-enum EvidenceStatus {
-  SUBMITTED
-  ADMITTED
-  REJECTED
-}
-
-enum CustodyAction {
-  SUBMITTED
-  VIEWED
-  TRANSFERRED
-  ADMITTED
-  REJECTED
-  RETURNED
-}
-
 enum JudgmentStatus {
   RESERVED
   DELIVERED
@@ -116,8 +91,6 @@ model User {
   assignedCases         Case[]               @relation("JudgeCases")
   registeredCases       Case[]               @relation("RegisteredByCases")
   hearings              Hearing[]            @relation("JudgeHearings")
-  submittedEvidence     Evidence[]           @relation("EvidenceSubmitter")
-  evidenceCustodyLogs   EvidenceCustodyLog[] @relation("CustodyActor")
   deliveredJudgments    Judgment[]           @relation("JudgeJudgments")
   caseStatusChanges     CaseStatusHistory[]  @relation("StatusChanger")
   assignedCaseAdvocates   CaseAdvocate[]       @relation("AdvocateAssignedBy")
@@ -183,7 +156,6 @@ model Case {
   // Relationships
   advocates      CaseAdvocate[]
   hearings       Hearing[]
-  evidence       Evidence[]
   judgment       Judgment?
   statusHistory  CaseStatusHistory[]
 
@@ -237,48 +209,6 @@ model Hearing {
   @@index([courtroomId, scheduledAt])
   @@index([judgeId, scheduledAt])
   @@map("hearings")
-}
-
-/// Exhibit, digital record, or physical item produced in evidence
-model Evidence {
-  id            String         @id @default(uuid())
-  caseId        String         @map("case_id")
-  case          Case           @relation(fields: [caseId], references: [id], onDelete: Restrict)
-  title         String
-  evidenceType  EvidenceType   @map("evidence_type")
-  description   String?        @db.Text
-  submittedBy   String         @map("submitted_by") // Submitter display name
-  submittedById String?        @map("submitted_by_id") // Optional User ID if submitted by logged-in advocate/party
-  submittedUser User?          @relation("EvidenceSubmitter", fields: [submittedById], references: [id], onDelete: Restrict)
-  status        EvidenceStatus @default(SUBMITTED)
-  submittedAt   DateTime       @default(now()) @map("submitted_at")
-  fileName      String?        @map("file_name") // Stored file name
-  filePath      String?        @map("file_path") // Storage path in vault
-  mimeType      String?        @map("mime_type")
-  fileSize      Int?           @map("file_size") // Size in bytes
-  fileHash      String?        @map("file_hash") // Cryptographic SHA-256 hash for tamper evidence
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
-
-  // Relationships
-  custodyLogs   EvidenceCustodyLog[]
-
-  @@index([caseId])
-  @@map("evidence")
-}
-
-/// Chain-of-custody audit log for evidentiary integrity
-model EvidenceCustodyLog {
-  id            String        @id @default(uuid())
-  evidenceId    String        @map("evidence_id")
-  evidence      Evidence      @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
-  action        CustodyAction
-  performedById String        @map("performed_by_id")
-  performedBy   User          @relation("CustodyActor", fields: [performedById], references: [id], onDelete: Restrict)
-  note          String?       @db.Text
-  createdAt     DateTime      @default(now()) @map("created_at")
-
-  @@map("evidence_custody_logs")
 }
 
 /// Final decree, reserved order, or delivered judgment for a case

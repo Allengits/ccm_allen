@@ -36,8 +36,6 @@ async function runVerification() {
       cases: await prisma.case.count(),
       caseAdvocates: await prisma.caseAdvocate.count(),
       hearings: await prisma.hearing.count(),
-      evidence: await prisma.evidence.count(),
-      evidenceCustodyLogs: await prisma.evidenceCustodyLog.count(),
       judgments: await prisma.judgment.count(),
       caseStatusHistory: await prisma.caseStatusHistory.count(),
       caseSequences: await prisma.caseSequence.count(),
@@ -55,7 +53,7 @@ async function runVerification() {
       tableCounts.hearings >= 15 &&
       tableCounts.users === 7
     ) {
-      recordResult('Table Row Counts', true, `All 12 tables populated (${countSummary})`);
+      recordResult('Table Row Counts', true, `All 10 tables populated (${countSummary})`);
     } else {
       recordResult(
         'Table Row Counts',
@@ -74,7 +72,6 @@ async function runVerification() {
       include: {
         advocates: { include: { assignedBy: true, unassignedBy: true } },
         hearings: true,
-        evidence: true,
         judgment: true,
       },
     });
@@ -137,10 +134,9 @@ async function runVerification() {
             (h) => h.status === 'COMPLETED' && new Date(h.scheduledAt) <= now
           );
           const hasFutureHearing = c.hearings.some((h) => new Date(h.scheduledAt) > now);
-          const hasEvidence = c.evidence.length >= 1;
-          if (!hasAdvocate || !hasPastCompleted || !hasFutureHearing || !hasEvidence) {
+          if (!hasAdvocate || !hasPastCompleted || !hasFutureHearing) {
             statusFailures.push(
-              `${c.caseNumber} (UNDER_TRIAL): Needs advocate (has:${hasAdvocate}), past completed hearing (has:${hasPastCompleted}), future hearing (has:${hasFutureHearing}), and evidence (has:${hasEvidence})`
+              `${c.caseNumber} (UNDER_TRIAL): Needs advocate (has:${hasAdvocate}), past completed hearing (has:${hasPastCompleted}), and future hearing (has:${hasFutureHearing})`
             );
           }
           break;

@@ -5,7 +5,6 @@ import {
   Briefcase,
   Calendar,
   Users as UsersIcon,
-  FileText,
   Scale,
   UserCheck,
   ShieldCheck,
@@ -41,12 +40,6 @@ const allNavigationItems = [
     path: '/advocates',
     icon: UserCheck,
     roles: ['ADVOCATE'],
-  },
-  {
-    name: 'Evidence',
-    path: '/evidence',
-    icon: FileText,
-    roles: ['ADMIN', 'REGISTRAR', 'JUDGE', 'ADVOCATE'],
   },
   {
     name: 'Judgments',

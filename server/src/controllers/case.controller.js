@@ -553,21 +553,6 @@ export const getCaseById = async (req, res) => {
           },
           orderBy: { scheduledAt: 'asc' },
         },
-        evidence: {
-          select: {
-            id: true,
-            title: true,
-            evidenceType: true,
-            description: true,
-            submittedBy: true,
-            status: true,
-            submittedAt: true,
-            fileName: true,
-            fileSize: true,
-            fileHash: true,
-          },
-          orderBy: { submittedAt: 'asc' },
-        },
         judgment: {
           include: {
             judge: {

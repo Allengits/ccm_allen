@@ -449,7 +449,7 @@ describe('Court CMS - Phase 4 Cases API & RBAC Suite', () => {
   // 4. Case Detail (GET /api/v1/cases/:id)
   // -------------------------------------------------------------
   describe('GET /api/v1/cases/:id - Detail & Information Shielding', () => {
-    it('returns full case detail with advocates, hearings, evidence, judgment, and status history', async () => {
+    it('returns full case detail with advocates, hearings, judgment, and status history', async () => {
       // Find a case with full related records (e.g. under trial case CC/2025/00045)
       const targetCase = await prisma.case.findUnique({
         where: { caseNumber: 'CC/2025/00045' },
@@ -467,13 +467,34 @@ describe('Court CMS - Phase 4 Cases API & RBAC Suite', () => {
       expect(c.caseNumber).toBe('CC/2025/00045');
       expect(c.advocates).toBeDefined();
       expect(c.hearings).toBeDefined();
-      expect(c.evidence).toBeDefined();
+      expect(c.evidence).toBeUndefined();
       expect(c.statusHistory).toBeDefined();
       expect(c.statusHistory.length).toBeGreaterThanOrEqual(1);
       expect(c.judge).toBeDefined();
       expect(c.registeredBy).toBeDefined();
       expect(c.ageDays).toBeGreaterThan(90);
       expect(c.isBacklog).toBe(true);
+    });
+
+    it('regression: GET /cases/:id has no evidence field and evidence tables do not exist in information_schema', async () => {
+      const anyCase = await prisma.case.findFirst();
+
+      const res = await request(app)
+        .get(`/api/v1/cases/${anyCase.id}`)
+        .set('Cookie', [registrarCookie]);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.case.evidence).toBeUndefined();
+      expect('evidence' in res.body.data.case).toBe(false);
+
+      // Verify evidence and evidence_custody_logs tables no longer exist in the MySQL database
+      const tables = await prisma.$queryRaw`
+        SELECT TABLE_NAME
+        FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME IN ('evidence', 'evidence_custody_logs')
+      `;
+      expect(tables).toEqual([]);
     });
 
     it('returns 404 (not 403) when user attempts to access an out-of-scope case', async () => {

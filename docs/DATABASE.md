@@ -12,8 +12,6 @@ erDiagram
     User ||--o{ Case : "presides as judge"
     User ||--o{ Case : "registers as clerk"
     User ||--o{ Hearing : "presides hearing"
-    User ||--o{ Evidence : "submits evidence"
-    User ||--o{ EvidenceCustodyLog : "performs custody action"
     User ||--o{ Judgment : "delivers judgment"
     User ||--o{ CaseStatusHistory : "authorizes status change"
     User ||--o{ CaseAdvocate : "assigns advocate"
@@ -24,9 +22,6 @@ erDiagram
 
     Courtroom ||--o{ Hearing : "hosts"
     Case ||--o{ Hearing : "scheduled hearing"
-
-    Case ||--o{ Evidence : "exhibits / records"
-    Evidence ||--o{ EvidenceCustodyLog : "custody audit log"
 
     Case ||--o| Judgment : "has final decree"
     Case ||--o{ CaseStatusHistory : "lifecycle audit history"
@@ -108,34 +103,6 @@ erDiagram
         text outcomeNotes
         datetime createdAt
         datetime updatedAt
-    }
-
-    Evidence {
-        string id PK
-        string caseId FK
-        string title
-        EvidenceType evidenceType
-        text description
-        string submittedBy
-        string submittedById FK
-        EvidenceStatus status
-        datetime submittedAt
-        string fileName
-        string filePath
-        string mimeType
-        int fileSize
-        string fileHash
-        datetime createdAt
-        datetime updatedAt
-    }
-
-    EvidenceCustodyLog {
-        string id PK
-        string evidenceId FK
-        CustodyAction action
-        string performedById FK
-        text note
-        datetime createdAt
     }
 
     Judgment {
@@ -304,48 +271,6 @@ _Indexes_: `scheduled_at`, `(courtroom_id, scheduled_at)`, `(judge_id, scheduled
 
 ---
 
-### Table: `evidence`
-
-Preserves physical, documentary, or digital records produced in trial.
-
-| Column            | Type         | Constraints                   | Description                                                                           |
-| :---------------- | :----------- | :---------------------------- | :------------------------------------------------------------------------------------ |
-| `id`              | VARCHAR(191) | PK, UUID                      | Unique exhibit identifier                                                             |
-| `case_id`         | VARCHAR(191) | FK(cases.id), NOT NULL        | Associated case                                                                       |
-| `title`           | VARCHAR(191) | NOT NULL                      | Exhibit title                                                                         |
-| `evidence_type`   | ENUM         | NOT NULL                      | `DOCUMENT`, `PHOTOGRAPH`, `VIDEO`, `AUDIO`, `PHYSICAL`, `DIGITAL_RECORD`, `TESTIMONY` |
-| `description`     | TEXT         | NULLABLE                      | Evidentiary narrative or source details                                               |
-| `submitted_by`    | VARCHAR(191) | NOT NULL                      | Name of producing party or officer                                                    |
-| `submitted_by_id` | VARCHAR(191) | FK(users.id), NULLABLE        | User ID if submitted via portal                                                       |
-| `status`          | ENUM         | NOT NULL, DEFAULT `SUBMITTED` | `SUBMITTED`, `ADMITTED`, `REJECTED`                                                   |
-| `submitted_at`    | DATETIME(3)  | DEFAULT NOW()                 | Production timestamp                                                                  |
-| `file_name`       | VARCHAR(191) | NULLABLE                      | Physical or digital file name                                                         |
-| `file_path`       | VARCHAR(191) | NULLABLE                      | Storage path in secure vault                                                          |
-| `mime_type`       | VARCHAR(191) | NULLABLE                      | MIME content type                                                                     |
-| `file_size`       | INT          | NULLABLE                      | File size in bytes                                                                    |
-| `file_hash`       | VARCHAR(191) | NULLABLE                      | Cryptographic SHA-256 hash                                                            |
-| `created_at`      | DATETIME(3)  | DEFAULT NOW()                 | Record creation timestamp                                                             |
-| `updated_at`      | DATETIME(3)  | UPDATED AT                    | Last modification timestamp                                                           |
-
-_Indexes_: `case_id`.
-
----
-
-### Table: `evidence_custody_logs`
-
-Cryptographic and physical chain of custody log for evidentiary integrity.
-
-| Column            | Type         | Constraints              | Description                                                              |
-| :---------------- | :----------- | :----------------------- | :----------------------------------------------------------------------- |
-| `id`              | VARCHAR(191) | PK, UUID                 | Unique audit log ID                                                      |
-| `evidence_id`     | VARCHAR(191) | FK(evidence.id), CASCADE | Referenced evidence item                                                 |
-| `action`          | ENUM         | NOT NULL                 | `SUBMITTED`, `VIEWED`, `TRANSFERRED`, `ADMITTED`, `REJECTED`, `RETURNED` |
-| `performed_by_id` | VARCHAR(191) | FK(users.id), NOT NULL   | Officer/Judge performing custody action                                  |
-| `note`            | TEXT         | NULLABLE                 | Action justification or chamber notes                                    |
-| `created_at`      | DATETIME(3)  | DEFAULT NOW()            | Timestamp of custody event                                               |
-
----
-
 ### Table: `judgments`
 
 Final orders, reserved judgments, and decrees delivered by presiding judges.
@@ -426,14 +351,14 @@ The court case management system implements a strict, sequential state machine:
 
 ### State Consistency Constraints
 
-| Lifecycle Status        | Implied & Mandatory Records                                                                                                      | Disallowed Records                            |
-| :---------------------- | :------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------- |
-| **`REGISTERED`**        | Case record filed; registrar recorded.                                                                                           | Must have **0** advocates and **0** hearings. |
-| **`ADVOCATE_ASSIGNED`** | At least **1 active `CaseAdvocate`** assigned to petitioner/respondent.                                                          | Must have **0** scheduled hearings.           |
-| **`HEARING_SCHEDULED`** | Active advocates assigned + at least **1 future `SCHEDULED` hearing** on cause list.                                             | Cannot have delivered judgments.              |
-| **`UNDER_TRIAL`**       | Advocates assigned + at least **1 past `COMPLETED` hearing** + at least **1 future hearing** + at least **1 `Evidence` record**. | Cannot have closed date.                      |
-| **`JUDGMENT_RESERVED`** | Active `Judgment` record with `status: RESERVED` and `reservedOn` populated.                                                     | Cannot have future scheduled hearings.        |
-| **`CLOSED`**            | Active `Judgment` record with `status: DELIVERED`, `outcome` populated, and `Case.closedAt` set.                                 | Case is final; further hearings locked.       |
+| Lifecycle Status        | Implied & Mandatory Records                                                                      | Disallowed Records                            |
+| :---------------------- | :----------------------------------------------------------------------------------------------- | :-------------------------------------------- |
+| **`REGISTERED`**        | Case record filed; registrar recorded.                                                           | Must have **0** advocates and **0** hearings. |
+| **`ADVOCATE_ASSIGNED`** | At least **1 active `CaseAdvocate`** assigned to petitioner/respondent.                          | Must have **0** scheduled hearings.           |
+| **`HEARING_SCHEDULED`** | Active advocates assigned + at least **1 future `SCHEDULED` hearing** on cause list.             | Cannot have delivered judgments.              |
+| **`UNDER_TRIAL`**       | Advocates assigned + at least **1 past `COMPLETED` hearing** + at least **1 future hearing**.    | Cannot have closed date.                      |
+| **`JUDGMENT_RESERVED`** | Active `Judgment` record with `status: RESERVED` and `reservedOn` populated.                     | Cannot have future scheduled hearings.        |
+| **`CLOSED`**            | Active `Judgment` record with `status: DELIVERED`, `outcome` populated, and `Case.closedAt` set. | Case is final; further hearings locked.       |
 
 ---
 

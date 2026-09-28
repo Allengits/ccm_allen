@@ -1,6 +1,6 @@
 # Court Case Management System (Court CMS)
 
-A modernized, full-stack judicial registry and case management system designed to streamline case allocation, hearing scheduling, digital evidence preservation, and judgment tracking across Indian judicial courts.
+A modernized, full-stack judicial registry and case management system designed to streamline case allocation, hearing scheduling, and judgment tracking across Indian judicial courts.
 
 ---
 
@@ -13,7 +13,6 @@ Indian courts face substantial case pendency with over 5.3 crore active cases. A
 - Case registration & lifecycle tracking
 - Advocate assignment & bar council linkage
 - Daily cause lists & hearing management
-- Tamper-evident digital evidence repository
 - Judgment reservation and certified order delivery
 - Automated backlog flagging for cases exceeding threshold pendency limits
 
@@ -263,6 +262,6 @@ For comprehensive API and architectural documentation:
 - [x] **Phase 4: Case Filing & Master Docket Registry**
 - [x] **Phase 5: Advocate Assignment & Bar Directory**
 - [ ] **Phase 6: Hearing Scheduling, Bench Allocation & Cause Lists**
-- [ ] **Phase 7: Digital Evidence Vault & Chain of Custody**
-- [ ] **Phase 8: Judgment Reservation & Orders Repository**
-- [ ] **Phase 9: Pendency Flagging Dashboard & Public Portal**
+- [ ] **Phase 7: Judgment tracker**
+- [ ] **Phase 8: Automation engine and registry dashboard**
+- [ ] **Phase 9: Testing, polish and final documentation**

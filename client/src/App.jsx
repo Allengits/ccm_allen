@@ -7,7 +7,6 @@ import Cases from './pages/Cases';
 import CaseDetail from './pages/CaseDetail';
 import Hearings from './pages/Hearings';
 import Advocates from './pages/Advocates';
-import Evidence from './pages/Evidence';
 import Judgments from './pages/Judgments';
 import Users from './pages/Users';
 import Account from './pages/Account';
@@ -46,7 +45,6 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="evidence" element={<Evidence />} />
               <Route
                 path="judgments"
                 element={

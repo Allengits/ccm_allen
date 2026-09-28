@@ -28,8 +28,6 @@ async function main() {
   // 1. CLEAN EXISTING DATA (Safe Re-run)
   // ==========================================
   console.log('Clearing existing records in reverse dependency order...');
-  await prisma.evidenceCustodyLog.deleteMany({});
-  await prisma.evidence.deleteMany({});
   await prisma.hearing.deleteMany({});
   await prisma.judgment.deleteMany({});
   await prisma.caseStatusHistory.deleteMany({});
@@ -347,7 +345,7 @@ async function main() {
       priority: 'NORMAL',
       petitioner: 'Shalini Verma',
       respondent: 'Gaurav Verma',
-      description: 'Petition for custody and maintenance under Hindu Marriage Act.',
+      description: 'Petition for child guardianship and maintenance under Hindu Marriage Act.',
       filingDate: daysAgo(35),
       judgeId: judge1.id,
       registeredById: registrarUser.id,
@@ -371,7 +369,7 @@ async function main() {
     },
   });
 
-  // --- STATUS: UNDER_TRIAL (4 cases: advocates + past hearings + future hearing + evidence) ---
+  // --- STATUS: UNDER_TRIAL (4 cases: advocates + past hearings + future hearing) ---
   // Case 7: Backlog Case #3 (>90 days old, open)
   const case7 = await prisma.case.create({
     data: {
@@ -808,7 +806,7 @@ async function main() {
         durationMins: 45,
         purpose: 'Cross-Examination of Prosecution Witness PW-1',
         status: 'COMPLETED',
-        outcomeNotes: 'PW-1 cross-examination completed. Exhibits P1 to P4 marked.',
+        outcomeNotes: 'PW-1 cross-examination completed. Deposition records marked.',
       },
       {
         caseId: case8.id,
@@ -848,7 +846,7 @@ async function main() {
         durationMins: 30,
         purpose: 'Preliminary Objections on Employment Termination',
         status: 'COMPLETED',
-        outcomeNotes: 'Preliminary objections dismissed. Plaintiff evidence commenced.',
+        outcomeNotes: 'Preliminary objections dismissed. Plaintiff trial examination commenced.',
       },
 
       // Future Hearings (Scheduled)
@@ -888,7 +886,7 @@ async function main() {
         judgeId: judge2.id,
         scheduledAt: daysAhead(5, 11, 30),
         durationMins: 45,
-        purpose: 'Defendant Witness Evidence',
+        purpose: 'Defendant Witness Examination',
         status: 'SCHEDULED',
         outcomeNotes: null,
       },
@@ -926,306 +924,7 @@ async function main() {
   });
 
   // ==========================================
-  // 10. EVIDENCE & CUSTODY LOGS (8 items)
-  // ==========================================
-  console.log('Seeding evidence items and custody audit logs...');
-
-  // Evidence 1 (Case 7)
-  const ev1 = await prisma.evidence.create({
-    data: {
-      caseId: case7.id,
-      title: 'CCTV Surveillance Footage of Bank Locker Facility',
-      evidenceType: 'VIDEO',
-      description: 'High-definition MP4 capture from Security Camera #04 dated 14-Aug.',
-      submittedBy: 'Inspector S.K. Verma',
-      submittedById: null,
-      status: 'ADMITTED',
-      submittedAt: daysAgo(25),
-      fileName: 'CCTV_Bank_Locker_Cam4.mp4',
-      filePath: 'vault/2025/case7/ev1.mp4',
-      mimeType: 'video/mp4',
-      fileSize: 48920150,
-      fileHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-    },
-  });
-  await prisma.evidenceCustodyLog.createMany({
-    data: [
-      {
-        evidenceId: ev1.id,
-        action: 'SUBMITTED',
-        performedById: registrarUser.id,
-        note: 'Received from investigating agency via secure drive',
-        createdAt: daysAgo(25),
-      },
-      {
-        evidenceId: ev1.id,
-        action: 'ADMITTED',
-        performedById: judge1.id,
-        note: 'Marked Exhibit P-1 after hearing on video admissibility',
-        createdAt: daysAgo(20),
-      },
-    ],
-  });
-
-  // Evidence 2 (Case 7)
-  const ev2 = await prisma.evidence.create({
-    data: {
-      caseId: case7.id,
-      title: 'Forensic Audit Report of Diverted Accounts',
-      evidenceType: 'DOCUMENT',
-      description: 'Certified forensic audit compiled by Special Investigation Cell.',
-      submittedBy: 'Harish Mehta',
-      submittedById: advUser1.id,
-      status: 'ADMITTED',
-      submittedAt: daysAgo(22),
-      fileName: 'Forensic_Audit_Report_v2.pdf',
-      filePath: 'vault/2025/case7/ev2.pdf',
-      mimeType: 'application/pdf',
-      fileSize: 5240180,
-      fileHash: '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8',
-    },
-  });
-  await prisma.evidenceCustodyLog.createMany({
-    data: [
-      {
-        evidenceId: ev2.id,
-        action: 'SUBMITTED',
-        performedById: advUser1.id,
-        note: 'Filed along with affidavit under Section 65B',
-        createdAt: daysAgo(22),
-      },
-      {
-        evidenceId: ev2.id,
-        action: 'ADMITTED',
-        performedById: judge1.id,
-        note: 'Marked Exhibit P-2 in proceedings',
-        createdAt: daysAgo(20),
-      },
-    ],
-  });
-
-  // Evidence 3 (Case 8)
-  const ev3 = await prisma.evidence.create({
-    data: {
-      caseId: case8.id,
-      title: 'Master Service Agreement and Addendum Contract',
-      evidenceType: 'DOCUMENT',
-      description: 'Digitally signed MSA between Orient Infotech and Skyward Telecom.',
-      submittedBy: 'Priya Iyer',
-      submittedById: advUser2.id,
-      status: 'ADMITTED',
-      submittedAt: daysAgo(25),
-      fileName: 'Orient_Skyward_MSA_2023.pdf',
-      filePath: 'vault/2025/case8/ev3.pdf',
-      mimeType: 'application/pdf',
-      fileSize: 1845120,
-      fileHash: '4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a',
-    },
-  });
-  await prisma.evidenceCustodyLog.createMany({
-    data: [
-      {
-        evidenceId: ev3.id,
-        action: 'SUBMITTED',
-        performedById: advUser2.id,
-        note: 'Original contract uploaded with digital signature certificate',
-        createdAt: daysAgo(25),
-      },
-      {
-        evidenceId: ev3.id,
-        action: 'VIEWED',
-        performedById: judge2.id,
-        note: 'Reviewed in chambers prior to admission',
-        createdAt: daysAgo(18),
-      },
-      {
-        evidenceId: ev3.id,
-        action: 'ADMITTED',
-        performedById: judge2.id,
-        note: 'Marked Exhibit C-1',
-        createdAt: daysAgo(15),
-      },
-    ],
-  });
-
-  // Evidence 4 (Case 8)
-  const ev4 = await prisma.evidence.create({
-    data: {
-      caseId: case8.id,
-      title: 'Server Access Logs & Git Repository Commit Records',
-      evidenceType: 'DIGITAL_RECORD',
-      description: 'Audit logs demonstrating unauthorized repository clone from restricted IP.',
-      submittedBy: 'Priya Iyer',
-      submittedById: advUser2.id,
-      status: 'SUBMITTED',
-      submittedAt: daysAgo(16),
-      fileName: 'Server_Access_Audit.zip',
-      filePath: 'vault/2025/case8/ev4.zip',
-      mimeType: 'application/zip',
-      fileSize: 12450890,
-      fileHash: 'ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d',
-    },
-  });
-  await prisma.evidenceCustodyLog.create({
-    data: {
-      evidenceId: ev4.id,
-      action: 'SUBMITTED',
-      performedById: advUser2.id,
-      note: 'Placed on record for examination during next hearing',
-      createdAt: daysAgo(16),
-    },
-  });
-
-  // Evidence 5 (Case 9)
-  const ev5 = await prisma.evidence.create({
-    data: {
-      caseId: case9.id,
-      title: 'Certified Land Revenue Map & Mutation Registry Register',
-      evidenceType: 'DOCUMENT',
-      description: 'Official revenue document showing historical survey demarcations.',
-      submittedBy: 'Zafar Khan',
-      submittedById: advUser3.id,
-      status: 'ADMITTED',
-      submittedAt: daysAgo(18),
-      fileName: 'Revenue_Map_Plot42.pdf',
-      filePath: 'vault/2026/case9/ev5.pdf',
-      mimeType: 'application/pdf',
-      fileSize: 8520340,
-      fileHash: '1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b',
-    },
-  });
-  await prisma.evidenceCustodyLog.createMany({
-    data: [
-      {
-        evidenceId: ev5.id,
-        action: 'SUBMITTED',
-        performedById: advUser3.id,
-        note: 'Certified copy procured from District Tehsil',
-        createdAt: daysAgo(18),
-      },
-      {
-        evidenceId: ev5.id,
-        action: 'ADMITTED',
-        performedById: judge1.id,
-        note: 'Marked Exhibit D-1 without objection from respondent',
-        createdAt: daysAgo(10),
-      },
-    ],
-  });
-
-  // Evidence 6 (Case 10)
-  const ev6 = await prisma.evidence.create({
-    data: {
-      caseId: case10.id,
-      title: 'Consultancy Agreement and Performance Appraisal Records',
-      evidenceType: 'DOCUMENT',
-      description: 'Contract documentation of Dr. Anita Joshi along with annual reviews.',
-      submittedBy: 'Dr. Anita Joshi',
-      submittedById: null,
-      status: 'ADMITTED',
-      submittedAt: daysAgo(12),
-      fileName: 'Consultancy_Appraisal_Records.pdf',
-      filePath: 'vault/2026/case10/ev6.pdf',
-      mimeType: 'application/pdf',
-      fileSize: 3450120,
-      fileHash: '9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e',
-    },
-  });
-  await prisma.evidenceCustodyLog.createMany({
-    data: [
-      {
-        evidenceId: ev6.id,
-        action: 'SUBMITTED',
-        performedById: registrarUser.id,
-        note: 'Filing received and checked for court stamp',
-        createdAt: daysAgo(12),
-      },
-      {
-        evidenceId: ev6.id,
-        action: 'ADMITTED',
-        performedById: judge2.id,
-        note: 'Marked Exhibit P-1',
-        createdAt: daysAgo(5),
-      },
-    ],
-  });
-
-  // Evidence 7 (Case 11)
-  const ev7 = await prisma.evidence.create({
-    data: {
-      caseId: case11.id,
-      title: 'Audio Recording of Procurement Bid Deliberation',
-      evidenceType: 'AUDIO',
-      description: 'Audio recording submitted by whistleblower regarding tender fixing.',
-      submittedBy: 'Special Public Prosecutor',
-      submittedById: null,
-      status: 'ADMITTED',
-      submittedAt: daysAgo(45),
-      fileName: 'Tender_Bid_Deliberation.wav',
-      filePath: 'vault/2025/case11/ev7.wav',
-      mimeType: 'audio/wav',
-      fileSize: 34890120,
-      fileHash: '2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d',
-    },
-  });
-  await prisma.evidenceCustodyLog.createMany({
-    data: [
-      {
-        evidenceId: ev7.id,
-        action: 'SUBMITTED',
-        performedById: registrarUser.id,
-        note: 'Received along with certificate of acoustic forensics',
-        createdAt: daysAgo(45),
-      },
-      {
-        evidenceId: ev7.id,
-        action: 'ADMITTED',
-        performedById: judge1.id,
-        note: 'Admitted following forensic expert testimony',
-        createdAt: daysAgo(30),
-      },
-    ],
-  });
-
-  // Evidence 8 (Case 13)
-  const ev8 = await prisma.evidence.create({
-    data: {
-      caseId: case13.id,
-      title: 'Government Gazette Notification for Land Acquisition',
-      evidenceType: 'DOCUMENT',
-      description: 'Official gazette publication dated 12-Nov-2022 detailing circle rates.',
-      submittedBy: 'Anand Grover',
-      submittedById: null,
-      status: 'ADMITTED',
-      submittedAt: daysAgo(60),
-      fileName: 'Gazette_Notification_CircleRates.pdf',
-      filePath: 'vault/2025/case13/ev8.pdf',
-      mimeType: 'application/pdf',
-      fileSize: 4210980,
-      fileHash: '6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b',
-    },
-  });
-  await prisma.evidenceCustodyLog.createMany({
-    data: [
-      {
-        evidenceId: ev8.id,
-        action: 'SUBMITTED',
-        performedById: registrarUser.id,
-        note: 'Official gazette copy tendered in court',
-        createdAt: daysAgo(60),
-      },
-      {
-        evidenceId: ev8.id,
-        action: 'ADMITTED',
-        performedById: judge1.id,
-        note: 'Marked Exhibit P-5 during final arguments',
-        createdAt: daysAgo(40),
-      },
-    ],
-  });
-
-  // ==========================================
-  // 11. JUDGMENTS (4 total: 2 Reserved, 2 Delivered)
+  // 10. JUDGMENTS (4 total: 2 Reserved, 2 Delivered)
   // ==========================================
   console.log('Seeding judgments...');
 
@@ -1461,7 +1160,7 @@ async function main() {
       caseId: case8.id,
       fromStatus: 'HEARING_SCHEDULED',
       toStatus: 'UNDER_TRIAL',
-      reason: 'Issues framed and evidence commenced',
+      reason: 'Issues framed and trial commenced',
       changedById: judge2.id,
       createdAt: daysAgo(20),
     },
@@ -1647,7 +1346,7 @@ async function main() {
       caseId: case13.id,
       fromStatus: 'HEARING_SCHEDULED',
       toStatus: 'UNDER_TRIAL',
-      reason: 'Evidence led on land valuation rates',
+      reason: 'Arguments led on land valuation rates',
       changedById: judge1.id,
       createdAt: daysAgo(100),
     },
@@ -1697,7 +1396,7 @@ async function main() {
       caseId: case14.id,
       fromStatus: 'HEARING_SCHEDULED',
       toStatus: 'UNDER_TRIAL',
-      reason: 'Witness evidence recorded',
+      reason: 'Witness testimony recorded',
       changedById: judge2.id,
       createdAt: daysAgo(90),
     },
@@ -1731,8 +1430,6 @@ async function main() {
     cases: await prisma.case.count(),
     caseAdvocates: await prisma.caseAdvocate.count(),
     hearings: await prisma.hearing.count(),
-    evidence: await prisma.evidence.count(),
-    evidenceCustodyLogs: await prisma.evidenceCustodyLog.count(),
     judgments: await prisma.judgment.count(),
     caseStatusHistory: await prisma.caseStatusHistory.count(),
     caseSequences: await prisma.caseSequence.count(),

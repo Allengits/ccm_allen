@@ -6,7 +6,9 @@ Indian courts have over 5.3 crore pending cases. Much of the delay comes from ma
 
 ## Solution
 
-One shared case record that links case registration, advocate assignment, hearing scheduling, digital evidence, and judgment tracking. Case status updates automatically as each step is completed. A dashboard flags cases pending beyond a set number of days.
+One shared case record that links case registration, advocate assignment, hearing scheduling, and judgment tracking. Case status updates automatically as each step is completed. A dashboard flags cases pending beyond a set number of days.
+
+> **Scope change**: The Evidence module was removed by decision in Phase 6B; the migration history still contains it, which is expected.
 
 ## Roles
 
@@ -44,9 +46,9 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
 1. Objective 2. What was built 3. Files and folders changed 4. How to run and verify (exact commands) 5. Test evidence (commands run and results) 6. Decisions and assumptions 7. Issues and limitations 8. Deviations from the prompt 9. Ready-for-next-phase checklist
    Also give me a short summary in chat.
 
-## Data Model (Phase 2)
+## Data Model (Phase 2 & Phase 6B Scope Change)
 
-12 core entities implemented in Prisma MySQL:
+10 core entities implemented in Prisma MySQL:
 
 - User (ADMIN, REGISTRAR, JUDGE, ADVOCATE)
 - Advocate (Bar Council ID, specialization, optional User link)
@@ -54,8 +56,6 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
 - Case (caseNumber, CaseType, Priority, CaseStatus, petitioner, respondent, judge, registeredBy)
 - CaseAdvocate (join table linking cases and counsel on PETITIONER/RESPONDENT side)
 - Hearing (case, courtroom, judge, scheduledAt, duration, HearingStatus, outcomeNotes)
-- Evidence (case, EvidenceType, submitter, EvidenceStatus, digital file attributes, SHA-256 hash)
-- EvidenceCustodyLog (CustodyAction audit entries cascading with evidence)
 - Judgment (caseId [1:1], authoring judge, JudgmentStatus, JudgmentOutcome, summary, reserved/delivered dates)
 - CaseStatusHistory (immutable audit log tracking transitions across the 6-state lifecycle)
 - CaseSequence (prefix, year, lastNumber for consecutive case number generation)
@@ -70,9 +70,9 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
 - **Brute-Force Protection**: Express rate limiting on `/login` (10 attempts per 15 min per IP, returning HTTP 429).
 - **Central Permissions Matrix (`server/src/config/permissions.js`)**:
   - `ADMIN`: Full authority (`*`), including user management, registration, hearings, judgments, and registry audit.
-  - `REGISTRAR`: Case docket registration, advocate assignment, hearing scheduling, digital evidence logging, and dashboard viewing. Cannot record/deliver judgments or manage users.
-  - `JUDGE`: View assigned cases, record hearing outcomes, admit/reject digital evidence, and draft/deliver judgments. Cannot register cases, assign counsel, or manage users.
-  - `ADVOCATE`: View assigned client cases and submit evidence for those cases. Read-only otherwise.
+  - `REGISTRAR`: Case docket registration, advocate assignment, hearing scheduling, and dashboard viewing. Cannot record/deliver judgments or manage users.
+  - `JUDGE`: View assigned cases, record hearing outcomes, and draft/deliver judgments. Cannot register cases, assign counsel, or manage users.
+  - `ADVOCATE`: View assigned client cases (read-only).
 - **Case Visibility Scoping (`caseVisibilityFilter(user)`)**:
   - `ADMIN` & `REGISTRAR`: Unrestricted access to all cases (`{}`).
   - `JUDGE`: Scoped to cases allocated to their judicial bench (`{ judgeId: user.id }`).
@@ -128,3 +128,15 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
 - **Audit Timeline Integration**:
   - Case History timeline merges `CaseStatusHistory` records and `CaseAdvocate` assignment/unassignment events sorted chronologically without requiring auxiliary audit tables.
     Detailed endpoint specifications and workflow contracts documented in docs/ADVOCATES.md.
+
+## Implementation Roadmap
+
+- **Phase 1**: Project Setup, Architecture & App Shell (Completed)
+- **Phase 2**: Database Schema, Migrations & Seed Data (Completed)
+- **Phase 3**: Authentication, RBAC & User Management (Completed)
+- **Phase 4**: Case Filing & Master Docket Registry (Completed)
+- **Phase 5**: Advocate Assignment & Bar Directory (Completed)
+- **Phase 6**: Hearing Scheduling, Bench Allocation & Cause Lists
+- **Phase 7**: Judgment tracker
+- **Phase 8**: Automation engine and registry dashboard
+- **Phase 9**: Testing, polish and final documentation

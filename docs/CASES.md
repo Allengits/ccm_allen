@@ -11,7 +11,7 @@ Phase 4 introduces master case registration, lifecycle docket tracking, and info
 - Every case registered receives an **atomic, collision-free case number** generated sequentially within a transactional lock.
 - Case visibility is strictly enforced by the caller's judicial role on both list and detail queries.
 - Requests for cases outside a user's authorized visibility return **HTTP 404 Not Found** (rather than 403 Forbidden) to shield the existence of sensitive dockets.
-- **No deletion endpoint exists**: Court records, dockets, and custody trails are immutable legal artifacts and cannot be destroyed.
+- **No deletion endpoint exists**: Court records, dockets, and audit trails are immutable legal artifacts and cannot be destroyed.
 
 ---
 
@@ -99,7 +99,7 @@ If `status === 'CLOSED'`, the case is legally disposed. Any attempt to update a 
 
 ### 4.4 Prohibition of Deletion
 
-There is **no DELETE endpoint** in Court CMS. In judicial practice, case filings, exhibits, and orders constitute official public records. Deleting records violates statutory preservation requirements. Erroneously filed cases are disposed of through formal judicial dismissal or closure orders, never by database deletion.
+There is **no DELETE endpoint** in Court CMS. In judicial practice, case filings, proceedings, and orders constitute official public records. Deleting records violates statutory preservation requirements. Erroneously filed cases are disposed of through formal judicial dismissal or closure orders, never by database deletion.
 
 ---
 
@@ -279,7 +279,7 @@ Lists judicial cases with filtering, search, pagination, and sorting. Requires `
 
 ### 6.5 `GET /api/v1/cases/:id`
 
-Retrieves full case details along with related advocates, hearings, evidence, judgment, and audit trail history. Requires `case.view`.
+Retrieves full case details along with related advocates, hearings, judgment, and audit trail history. Requires `case.view`.
 
 - **Success Response (200 OK)**:
   ```json
@@ -325,7 +325,6 @@ Retrieves full case details along with related advocates, hearings, evidence, ju
           }
         ],
         "hearings": [],
-        "evidence": [],
         "judgment": null,
         "statusHistory": [
           {
