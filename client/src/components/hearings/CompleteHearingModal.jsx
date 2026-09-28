@@ -23,10 +23,12 @@ export default function CompleteHearingModal({ isOpen, onClose, onSuccess, heari
       const res = await api.post(`/hearings/${hearing.id}/complete`, {
         outcomeNotes: outcomeNotes.trim(),
       });
-      if (res.data?.success) {
+      const isSuccess = res?.success ?? res?.data?.success ?? true;
+      const dataPayload = res?.data?.hearing ? res.data : res?.data?.data || res?.data || {};
+      if (isSuccess && dataPayload.hearing) {
         if (onSuccess) {
           onSuccess({
-            hearing: res.data.data.hearing,
+            hearing: dataPayload.hearing,
             message: 'Hearing proceedings completed successfully',
           });
         }

@@ -45,12 +45,15 @@ export default function UnassignAdvocateModal({
         reason: reason.trim(),
       });
 
-      if (res.data?.success) {
+      const isSuccess = res?.success ?? res?.data?.success ?? true;
+      const dataPayload = res?.data?.assignment ? res.data : res?.data?.data || res?.data || {};
+
+      if (isSuccess) {
         onSuccess({
-          assignment: res.data.data.assignment,
-          statusChanged: res.data.data.statusChanged,
-          currentStatus: res.data.data.currentStatus,
-          message: res.data.message,
+          assignment: dataPayload.assignment,
+          statusChanged: dataPayload.statusChanged,
+          currentStatus: dataPayload.currentStatus,
+          message: res?.message || res?.data?.message,
         });
         onClose();
       }

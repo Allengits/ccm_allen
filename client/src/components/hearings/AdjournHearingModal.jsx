@@ -46,8 +46,9 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
   const fetchCourtrooms = async () => {
     try {
       const res = await api.get('/hearings/meta');
-      if (res.data?.data?.courtrooms) {
-        setCourtrooms(res.data.data.courtrooms);
+      const metaPayload = res?.data?.courtrooms ? res.data : res?.data?.data || res?.data || {};
+      if (Array.isArray(metaPayload.courtrooms)) {
+        setCourtrooms(metaPayload.courtrooms);
       }
     } catch {
       // Fallback
@@ -74,8 +75,9 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
       if (targetJudgeId) url += `&judgeId=${targetJudgeId}`;
 
       const res = await api.get(url);
-      if (res.data?.success) {
-        const d = res.data.data;
+      const isSuccess = res?.success ?? res?.data?.success ?? true;
+      const d = res?.data?.availableSlots ? res.data : res?.data?.data || res?.data || {};
+      if (isSuccess && d) {
         setIsWorkingDay(d.isWorkingDay);
         setAvailableSlots(d.availableSlots || []);
         if (!d.isWorkingDay) {
@@ -125,10 +127,15 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
       };
 
       const res = await api.post(`/hearings/${hearing.id}/adjourn`, payload);
-      if (res.data?.success) {
+      const isSuccess = res?.success ?? res?.data?.success ?? true;
+      const dataPayload =
+        res?.data?.hearing || res?.data?.adjournedHearing
+          ? res.data
+          : res?.data?.data || res?.data || {};
+      if (isSuccess && (dataPayload.hearing || dataPayload.adjournedHearing)) {
         if (onSuccess) {
           onSuccess({
-            result: res.data.data,
+            result: dataPayload,
             message: scheduleNext
               ? 'Hearing adjourned and next hearing session scheduled successfully'
               : 'Hearing adjourned successfully',

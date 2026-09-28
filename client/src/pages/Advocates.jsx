@@ -99,11 +99,18 @@ export default function Advocates() {
       api
         .get('/advocates/meta')
         .then((res) => {
-          if (res.data?.success) {
-            setSpecializations(res.data.data.specializations || []);
+          const specs =
+            res?.data?.specializations ||
+            res?.data?.data?.specializations ||
+            res?.specializations ||
+            [];
+          if (Array.isArray(specs) && specs.length > 0) {
+            setSpecializations(specs);
           }
         })
-        .catch(() => {});
+        .catch((err) => {
+          console.warn('Failed to load advocate metadata:', err.message);
+        });
     }
   }, [isAdvocateRole]);
 
@@ -123,15 +130,32 @@ export default function Advocates() {
       if (hasLoginParam) params.hasLogin = hasLoginParam;
 
       const res = await api.get('/advocates', { params });
-      if (res.data?.success) {
-        setAdvocates(res.data.data.items || []);
-        setTotal(res.data.data.total || 0);
-        setTotalPages(res.data.data.totalPages || 1);
+
+      // Support both unwrapped interceptor response and raw Axios response shapes
+      const payload = res?.data?.items
+        ? res.data
+        : res?.data?.data?.items
+          ? res.data.data
+          : res?.data || {};
+
+      const isSuccess = res?.success ?? res?.data?.success ?? Array.isArray(payload?.items);
+
+      if (isSuccess && Array.isArray(payload.items)) {
+        setAdvocates(payload.items);
+        setTotal(payload.total ?? payload.items.length);
+        setTotalPages(payload.totalPages ?? 1);
+      } else {
+        throw new Error(
+          res?.message ||
+            res?.data?.message ||
+            'Failed to parse advocate records from server response'
+        );
       }
     } catch (err) {
       setError(
         err.response?.data?.message ||
           err.response?.data?.errors?.[0] ||
+          err.message ||
           'Failed to load advocate directory'
       );
     } finally {
@@ -153,8 +177,18 @@ export default function Advocates() {
       }
 
       const res = await api.get(`/advocates/${advocateId}`);
-      if (res.data?.success) {
-        setMyProfile(res.data.data.advocate);
+      const profile = res?.data?.advocate || res?.data?.data?.advocate || res?.advocate || null;
+
+      const isSuccess = res?.success ?? res?.data?.success ?? !!profile;
+
+      if (isSuccess && profile) {
+        setMyProfile(profile);
+      } else {
+        throw new Error(
+          res?.message ||
+            res?.data?.message ||
+            'Failed to parse advocate profile from server response'
+        );
       }
     } catch (err) {
       setError(

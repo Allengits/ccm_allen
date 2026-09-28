@@ -56,14 +56,17 @@ export default function CaseDetail() {
       setLoading(true);
       setError(null);
       const res = await api.get(`/cases/${id}`);
-      if (res.data?.data?.case) {
-        setCaseData(res.data.data.case);
+      const c = res?.data?.case || res?.data?.data?.case || res?.case;
+      if (c) {
+        setCaseData(c);
+      } else {
+        throw new Error(res?.message || res?.data?.message || 'Case record not found');
       }
     } catch (err) {
-      if (err.response?.status === 404) {
+      if (err.status === 404 || err.response?.status === 404) {
         setError('not_found');
       } else {
-        setError(err.message || 'Failed to load case record');
+        setError(err.response?.data?.message || err.message || 'Failed to load case record');
       }
     } finally {
       setLoading(false);

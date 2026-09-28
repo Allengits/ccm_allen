@@ -67,11 +67,16 @@ export default function Hearings() {
     setError(null);
     try {
       const res = await api.get(`/hearings/cause-list?date=${dateStr}`);
-      if (res.data?.success) {
-        setCauseListData(res.data.data);
+      const causeList = res?.data?.courtrooms ? res.data : res?.data?.data || res?.data;
+      const isSuccess = res?.success ?? res?.data?.success ?? !!causeList;
+
+      if (isSuccess && causeList) {
+        setCauseListData(causeList);
+      } else {
+        throw new Error(res?.message || res?.data?.message || 'Failed to load daily cause list');
       }
     } catch (err) {
-      setError(err.message || 'Failed to load daily cause list');
+      setError(err.response?.data?.message || err.message || 'Failed to load daily cause list');
     } finally {
       setLoadingCauseList(false);
     }
@@ -91,13 +96,23 @@ export default function Hearings() {
       if (courtroomFilter) params.append('courtroomId', courtroomFilter);
 
       const res = await api.get(`/hearings?${params.toString()}`);
-      if (res.data?.success) {
-        setHearings(res.data.data.items || []);
-        setRegistryTotalPages(res.data.data.totalPages || 1);
-        setRegistryTotal(res.data.data.total || 0);
+      const payload = res?.data?.items
+        ? res.data
+        : res?.data?.data?.items
+          ? res.data.data
+          : res?.data || {};
+
+      const isSuccess = res?.success ?? res?.data?.success ?? Array.isArray(payload?.items);
+
+      if (isSuccess && Array.isArray(payload.items)) {
+        setHearings(payload.items);
+        setRegistryTotalPages(payload.totalPages ?? 1);
+        setRegistryTotal(payload.total ?? payload.items.length);
+      } else {
+        throw new Error(res?.message || res?.data?.message || 'Failed to load hearings registry');
       }
     } catch (err) {
-      setError(err.message || 'Failed to load hearings registry');
+      setError(err.response?.data?.message || err.message || 'Failed to load hearings registry');
     } finally {
       setLoadingRegistry(false);
     }
@@ -107,8 +122,9 @@ export default function Hearings() {
   const fetchMeta = useCallback(async () => {
     try {
       const res = await api.get('/hearings/meta');
-      if (res.data?.data?.courtrooms) {
-        setCourtroomsList(res.data.data.courtrooms);
+      const rooms = res?.data?.courtrooms || res?.data?.data?.courtrooms || [];
+      if (Array.isArray(rooms) && rooms.length > 0) {
+        setCourtroomsList(rooms);
       }
     } catch {
       // non-blocking

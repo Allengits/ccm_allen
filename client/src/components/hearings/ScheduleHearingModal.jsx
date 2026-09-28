@@ -55,15 +55,22 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
         !caseItem ? api.get('/cases?pageSize=50&status=ADVOCATE_ASSIGNED') : Promise.resolve(null),
       ]);
 
-      if (metaRes.data?.data?.courtrooms) {
-        setCourtrooms(metaRes.data.data.courtrooms);
-        if (metaRes.data.data.courtrooms.length > 0) {
-          setCourtroomId(metaRes.data.data.courtrooms[0].id);
-        }
+      const metaPayload = metaRes?.data?.courtrooms
+        ? metaRes.data
+        : metaRes?.data?.data || metaRes?.data || {};
+      const courtroomsList = metaPayload.courtrooms || [];
+      if (Array.isArray(courtroomsList) && courtroomsList.length > 0) {
+        setCourtrooms(courtroomsList);
+        setCourtroomId(courtroomsList[0].id);
       }
 
-      if (casesRes?.data?.data?.items) {
-        setOpenCases(casesRes.data.data.items);
+      if (casesRes) {
+        const casesPayload = casesRes?.data?.items
+          ? casesRes.data
+          : casesRes?.data?.data || casesRes?.data || {};
+        if (Array.isArray(casesPayload.items)) {
+          setOpenCases(casesPayload.items);
+        }
       }
     } catch (err) {
       setError(err.message || 'Failed to initialize scheduling form');
@@ -96,8 +103,9 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
       }
 
       const res = await api.get(url);
-      if (res.data?.success) {
-        const d = res.data.data;
+      const isSuccess = res?.success ?? res?.data?.success ?? true;
+      const d = res?.data?.availableSlots ? res.data : res?.data?.data || res?.data || {};
+      if (isSuccess && d) {
         setIsWorkingDay(d.isWorkingDay);
         setAvailableSlots(d.availableSlots || []);
         if (!d.isWorkingDay) {
@@ -156,11 +164,13 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
       };
 
       const res = await api.post('/hearings', payload);
-      if (res.data?.success) {
-        const warnings = res.data.data?.warnings || [];
+      const isSuccess = res?.success ?? res?.data?.success ?? true;
+      const dataPayload = res?.data?.hearing ? res.data : res?.data?.data || res?.data || {};
+      if (isSuccess && dataPayload.hearing) {
+        const warnings = dataPayload.warnings || [];
         if (onSuccess) {
           onSuccess({
-            hearing: res.data.data.hearing,
+            hearing: dataPayload.hearing,
             warnings,
             message: 'Hearing scheduled successfully',
           });

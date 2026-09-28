@@ -35,9 +35,8 @@ export default function EditCaseModal({ isOpen, onClose, caseItem, onCaseUpdated
     const fetchMeta = async () => {
       try {
         const res = await api.get('/cases/meta');
-        if (res.data?.data) {
-          setMetadata(res.data.data);
-        }
+        const meta = res?.data?.caseTypes ? res.data : res?.data?.data || res?.data || {};
+        setMetadata(meta);
       } catch (err) {
         setError(err.message || 'Failed to load case metadata');
       }
@@ -77,7 +76,7 @@ export default function EditCaseModal({ isOpen, onClose, caseItem, onCaseUpdated
       };
 
       const res = await api.patch(`/cases/${caseItem.id}`, payload);
-      const updated = res.data?.data?.case;
+      const updated = res?.data?.case || res?.data?.data?.case || res?.case;
 
       if (onCaseUpdated) {
         onCaseUpdated(updated);

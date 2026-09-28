@@ -85,9 +85,14 @@ export default function AddAdvocateModal({ isOpen, onClose, onSuccess, specializ
         phone: formData.phone.trim() || null,
       });
 
-      if (res.data?.success) {
-        onSuccess(res.data.data.advocate);
+      const newAdv = res?.data?.advocate || res?.data?.data?.advocate;
+      const isSuccess = res?.success ?? res?.data?.success ?? !!newAdv;
+
+      if (isSuccess && newAdv) {
+        onSuccess(newAdv);
         onClose();
+      } else {
+        throw new Error(res?.message || res?.data?.message || 'Failed to register advocate');
       }
     } catch (err) {
       setError(

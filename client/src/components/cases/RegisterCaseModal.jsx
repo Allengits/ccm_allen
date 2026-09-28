@@ -39,12 +39,13 @@ export default function RegisterCaseModal({ isOpen, onClose, onCaseRegistered })
     const fetchMeta = async () => {
       try {
         const res = await api.get('/cases/meta');
-        if (res.data?.data) {
-          setMetadata(res.data.data);
-          if (res.data.data.caseTypes?.length > 0) {
+        const meta = res?.data?.caseTypes ? res.data : res?.data?.data || res?.data;
+        if (meta && typeof meta === 'object') {
+          setMetadata(meta);
+          if (meta.caseTypes?.length > 0) {
             setFormData((prev) => ({
               ...prev,
-              caseType: prev.caseType || res.data.data.caseTypes[0],
+              caseType: prev.caseType || meta.caseTypes[0],
             }));
           }
         }
@@ -93,7 +94,11 @@ export default function RegisterCaseModal({ isOpen, onClose, onCaseRegistered })
       };
 
       const res = await api.post('/cases', payload);
-      const newCase = res.data?.data?.case;
+      const newCase = res?.data?.case || res?.data?.data?.case || res?.case;
+
+      if (!newCase) {
+        throw new Error(res?.message || 'Failed to register case');
+      }
 
       setSuccessInfo(newCase);
       if (onCaseRegistered) {

@@ -50,11 +50,13 @@ export default function Dashboard() {
     setStatsLoading(true);
     try {
       const res = await api.get('/cases/stats');
-      if (res.data?.data) {
-        setStatsData(res.data.data);
+      const stats =
+        res?.data?.totalOpenCases !== undefined ? res.data : res?.data?.data || res?.data;
+      if (stats && typeof stats === 'object') {
+        setStatsData(stats);
       }
-    } catch {
-      // Silently fail or keep stats null
+    } catch (err) {
+      console.warn('Failed to load case statistics:', err.message);
     } finally {
       setStatsLoading(false);
     }
@@ -64,11 +66,10 @@ export default function Dashboard() {
     setHearingsLoading(true);
     try {
       const res = await api.get('/hearings/cause-list');
-      if (res.data?.success) {
-        setHearingsCount(res.data.data.totalHearings ?? 0);
-      }
-    } catch {
-      // Silently fail or keep null
+      const count = res?.data?.totalHearings ?? res?.data?.data?.totalHearings ?? 0;
+      setHearingsCount(count);
+    } catch (err) {
+      console.warn('Failed to load hearings statistics:', err.message);
     } finally {
       setHearingsLoading(false);
     }

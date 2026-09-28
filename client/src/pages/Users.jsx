@@ -55,7 +55,8 @@ export default function Users() {
       if (roleFilter) params.role = roleFilter;
 
       const res = await api.get('/users', { params });
-      setUsers(res.data?.users || []);
+      const userList = res?.data?.users || res?.users || res?.data?.data?.users || [];
+      setUsers(Array.isArray(userList) ? userList : []);
     } catch (err) {
       showToast(err.message || 'Failed to fetch users', 'error');
     } finally {

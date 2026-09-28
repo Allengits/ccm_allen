@@ -165,6 +165,50 @@ describe('Court CMS - Phase 5 Advocate Management & Case Assignment Suite', () =
       expect(first).toHaveProperty('totalCaseCount');
     });
 
+    it('returns data.items as an array with all required advocate fields for REGISTRAR and ADMIN', async () => {
+      const requiredFields = [
+        'id',
+        'name',
+        'barNumber',
+        'specialization',
+        'email',
+        'phone',
+        'hasLogin',
+        'loginActive',
+        'activeCaseCount',
+        'totalCaseCount',
+      ];
+
+      for (const [roleName, cookie] of [
+        ['REGISTRAR', registrarCookie],
+        ['ADMIN', adminCookie],
+      ]) {
+        const res = await request(app)
+          .get('/api/v1/advocates?page=1&pageSize=10')
+          .set('Cookie', cookie);
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(Array.isArray(res.body.data.items)).toBe(true);
+        expect(res.body.data.items.length).toBe(seededAdvocates.length);
+
+        for (const advocate of res.body.data.items) {
+          for (const field of requiredFields) {
+            expect(advocate, `${roleName} item missing ${field}`).toHaveProperty(field);
+          }
+          expect(typeof advocate.id).toBe('string');
+          expect(typeof advocate.name).toBe('string');
+          expect(typeof advocate.barNumber).toBe('string');
+          expect(typeof advocate.specialization).toBe('string');
+          expect(typeof advocate.email).toBe('string');
+          expect(typeof advocate.hasLogin).toBe('boolean');
+          expect(typeof advocate.loginActive).toBe('boolean');
+          expect(typeof advocate.activeCaseCount).toBe('number');
+          expect(typeof advocate.totalCaseCount).toBe('number');
+        }
+      }
+    });
+
     it('filters advocates by search query q across name, bar number, and email', async () => {
       const resName = await request(app)
         .get('/api/v1/advocates?q=Mehta')

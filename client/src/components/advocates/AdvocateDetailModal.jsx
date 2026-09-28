@@ -23,13 +23,19 @@ export default function AdvocateDetailModal({ isOpen, onClose, advocateId, onEdi
     setError(null);
     try {
       const res = await api.get(`/advocates/${advocateId}`);
-      if (res.data?.success) {
-        setAdvocate(res.data.data.advocate);
+      const adv = res?.data?.advocate || res?.data?.data?.advocate;
+      const isSuccess = res?.success ?? res?.data?.success ?? !!adv;
+
+      if (isSuccess && adv) {
+        setAdvocate(adv);
+      } else {
+        throw new Error(res?.message || res?.data?.message || 'Failed to parse advocate profile');
       }
     } catch (err) {
       setError(
         err.response?.data?.message ||
           err.response?.data?.errors?.[0] ||
+          err.message ||
           'Failed to load advocate profile'
       );
     } finally {

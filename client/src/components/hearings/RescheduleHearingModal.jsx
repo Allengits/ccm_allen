@@ -42,8 +42,9 @@ export default function RescheduleHearingModal({ isOpen, onClose, onSuccess, hea
     setLoadingMeta(true);
     try {
       const res = await api.get('/hearings/meta');
-      if (res.data?.data?.courtrooms) {
-        setCourtrooms(res.data.data.courtrooms);
+      const metaPayload = res?.data?.courtrooms ? res.data : res?.data?.data || res?.data || {};
+      if (Array.isArray(metaPayload.courtrooms)) {
+        setCourtrooms(metaPayload.courtrooms);
       }
     } catch {
       // Keep existing courtroom
@@ -72,8 +73,9 @@ export default function RescheduleHearingModal({ isOpen, onClose, onSuccess, hea
       if (targetJudgeId) url += `&judgeId=${targetJudgeId}`;
 
       const res = await api.get(url);
-      if (res.data?.success) {
-        const d = res.data.data;
+      const isSuccess = res?.success ?? res?.data?.success ?? true;
+      const d = res?.data?.availableSlots ? res.data : res?.data?.data || res?.data || {};
+      if (isSuccess && d) {
         setIsWorkingDay(d.isWorkingDay);
         setAvailableSlots(d.availableSlots || []);
         if (!d.isWorkingDay) {
@@ -118,10 +120,12 @@ export default function RescheduleHearingModal({ isOpen, onClose, onSuccess, hea
       };
 
       const res = await api.patch(`/hearings/${hearing.id}`, payload);
-      if (res.data?.success) {
+      const isSuccess = res?.success ?? res?.data?.success ?? true;
+      const dataPayload = res?.data?.hearing ? res.data : res?.data?.data || res?.data || {};
+      if (isSuccess && dataPayload.hearing) {
         if (onSuccess) {
           onSuccess({
-            hearing: res.data.data.hearing,
+            hearing: dataPayload.hearing,
             message: 'Hearing rescheduled successfully',
           });
         }

@@ -41,9 +41,12 @@ export default function AssignAdvocateModal({
     setFetchingList(true);
     try {
       const res = await api.get('/advocates?pageSize=50');
-      if (res.data?.success) {
-        setAdvocates(res.data.data.items || []);
-      }
+      const payload = res?.data?.items
+        ? res.data
+        : res?.data?.data?.items
+          ? res.data.data
+          : res?.data || {};
+      setAdvocates(Array.isArray(payload.items) ? payload.items : []);
     } catch {
       setError('Failed to fetch available advocates');
     } finally {
@@ -89,13 +92,16 @@ export default function AssignAdvocateModal({
         side,
       });
 
-      if (res.data?.success) {
+      const isSuccess = res?.success ?? res?.data?.success ?? true;
+      const dataPayload = res?.data?.assignment ? res.data : res?.data?.data || res?.data || {};
+
+      if (isSuccess) {
         onSuccess({
-          assignment: res.data.data.assignment,
-          warning: res.data.data.warning,
-          statusChanged: res.data.data.statusChanged,
-          currentStatus: res.data.data.currentStatus,
-          message: res.data.message,
+          assignment: dataPayload.assignment,
+          warning: dataPayload.warning,
+          statusChanged: dataPayload.statusChanged,
+          currentStatus: dataPayload.currentStatus,
+          message: res?.message || res?.data?.message,
         });
         onClose();
       }

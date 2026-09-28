@@ -23,10 +23,12 @@ export default function CancelHearingModal({ isOpen, onClose, onSuccess, hearing
       const res = await api.post(`/hearings/${hearing.id}/cancel`, {
         reason: reason.trim(),
       });
-      if (res.data?.success) {
+      const isSuccess = res?.success ?? res?.data?.success ?? true;
+      const dataPayload = res?.data?.hearing ? res.data : res?.data?.data || res?.data || {};
+      if (isSuccess && dataPayload.hearing) {
         if (onSuccess) {
           onSuccess({
-            hearing: res.data.data.hearing,
+            hearing: dataPayload.hearing,
             message: 'Hearing cancelled successfully',
           });
         }

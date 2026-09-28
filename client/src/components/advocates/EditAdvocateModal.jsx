@@ -80,9 +80,14 @@ export default function EditAdvocateModal({
         phone: formData.phone.trim() || null,
       });
 
-      if (res.data?.success) {
-        onSuccess(res.data.data.advocate);
+      const updatedAdv = res?.data?.advocate || res?.data?.data?.advocate;
+      const isSuccess = res?.success ?? res?.data?.success ?? !!updatedAdv;
+
+      if (isSuccess && updatedAdv) {
+        onSuccess(updatedAdv);
         onClose();
+      } else {
+        throw new Error(res?.message || res?.data?.message || 'Failed to update advocate');
       }
     } catch (err) {
       setError(
