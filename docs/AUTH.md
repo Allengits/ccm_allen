@@ -81,41 +81,43 @@ Court CMS defines 13 granular, named permissions managed centrally in [server/sr
 
 ### Permissions Definition
 
-| Permission Identifier | Description                                                             |
-| :-------------------- | :---------------------------------------------------------------------- |
-| `case.create`         | Register new judicial dockets and assign initial case numbers           |
-| `case.view`           | View court cases (subject to role visibility filters)                   |
-| `case.edit`           | Modify case details, priority status, or petitioner/respondent metadata |
-| `advocate.view`       | View and search the advocate directory, bar roll numbers, and caseloads |
-| `advocate.manage`     | Register new advocates, modify contact details and specializations      |
-| `advocate.assign`     | Assign, reassign, or unassign legal counsel on court dockets            |
-| `hearing.view`        | View daily cause lists, hearing calendar, and scheduled proceedings     |
-| `hearing.schedule`    | Allocate hearing schedules, dates, and courtroom venues                 |
-| `hearing.update`      | Record hearing bench outcomes, proceedings, and daily cause notes       |
-| `judgment.view`       | View judgment registry, reserved matters, and delivered decrees         |
-| `judgment.record`     | Draft, record, and transition judgments to RESERVED state               |
-| `judgment.deliver`    | Authorize and formally deliver certified case judgments                 |
-| `user.manage`         | Create, modify, deactivate users and reset credentials (Admin only)     |
-| `dashboard.view`      | Access executive summary metrics and pendency monitors                  |
+| Permission Identifier | Description                                                                                |
+| :-------------------- | :----------------------------------------------------------------------------------------- |
+| `case.create`         | Register new judicial dockets and assign initial case numbers                              |
+| `case.view`           | View court cases (subject to role visibility filters)                                      |
+| `case.edit`           | Modify case details, priority status, or petitioner/respondent metadata                    |
+| `advocate.view`       | View and search the advocate directory, bar roll numbers, and caseloads                    |
+| `advocate.manage`     | Register new advocates, modify contact details and specializations                         |
+| `advocate.assign`     | Assign, reassign, or unassign legal counsel on court dockets                               |
+| `hearing.view`        | View daily cause lists, hearing calendar, and scheduled proceedings                        |
+| `hearing.schedule`    | Allocate hearing schedules, dates, and courtroom venues                                    |
+| `hearing.update`      | Record hearing bench outcomes, proceedings, and daily cause notes                          |
+| `judgment.view`       | View judgment registry, reserved matters, and delivered decrees                            |
+| `judgment.record`     | Draft, record, and transition judgments to RESERVED state                                  |
+| `judgment.deliver`    | Authorize and formally deliver certified case judgments                                    |
+| `user.manage`         | Create, modify, deactivate users and reset credentials (Admin only)                        |
+| `dashboard.view.all`  | Access executive summary metrics, backlog, stale cases, and workload across the registry   |
+| `dashboard.view.own`  | Access role-scoped caseload metrics, personal backlog, and representations (Advocate only) |
 
 ### Role Permissions Matrix
 
-| Permission         |  ADMIN   | REGISTRAR |     JUDGE      |  ADVOCATE   |
-| :----------------- | :------: | :-------: | :------------: | :---------: |
-| `case.create`      |    ✅    |    ✅     |       ❌       |     ❌      |
-| `case.view`        | ✅ (All) | ✅ (All)  | ✅ (Assigned)  | ✅ (Client) |
-| `case.edit`        |    ✅    |    ✅     |       ❌       |     ❌      |
-| `advocate.view`    |    ✅    |    ✅     |       ✅       | ❌ (Self)*  |
-| `advocate.manage`  |    ✅    |    ✅     |       ❌       |     ❌      |
-| `advocate.assign`  |    ✅    |    ✅     |       ❌       |     ❌      |
-| `hearing.view`     | ✅ (All) | ✅ (All)  | ✅ (Presiding) | ✅ (Client) |
-| `hearing.schedule` |    ✅    |    ✅     |       ❌       |     ❌      |
-| `hearing.update`   |    ✅    |    ❌     |       ✅       |     ❌      |
-| `judgment.view`    | ✅ (All) | ✅ (All)  | ✅ (Assigned)  | ✅ (Client) |
-| `judgment.record`  |    ✅    |    ❌     |       ✅       |     ❌      |
-| `judgment.deliver` |    ✅    |    ❌     |       ✅       |     ❌      |
-| `user.manage`      |    ✅    |    ❌     |       ❌       |     ❌      |
-| `dashboard.view`   |    ✅    |    ✅     |       ✅       |     ❌      |
+| Permission           |  ADMIN   | REGISTRAR |     JUDGE      |  ADVOCATE   |
+| :------------------- | :------: | :-------: | :------------: | :---------: |
+| `case.create`        |    ✅    |    ✅     |       ❌       |     ❌      |
+| `case.view`          | ✅ (All) | ✅ (All)  | ✅ (Assigned)  | ✅ (Client) |
+| `case.edit`          |    ✅    |    ✅     |       ❌       |     ❌      |
+| `advocate.view`      |    ✅    |    ✅     |       ✅       | ❌ (Self)*  |
+| `advocate.manage`    |    ✅    |    ✅     |       ❌       |     ❌      |
+| `advocate.assign`    |    ✅    |    ✅     |       ❌       |     ❌      |
+| `hearing.view`       | ✅ (All) | ✅ (All)  | ✅ (Presiding) | ✅ (Client) |
+| `hearing.schedule`   |    ✅    |    ✅     |       ❌       |     ❌      |
+| `hearing.update`     |    ✅    |    ❌     |       ✅       |     ❌      |
+| `judgment.view`      | ✅ (All) | ✅ (All)  | ✅ (Assigned)  | ✅ (Client) |
+| `judgment.record`    |    ✅    |    ❌     |       ✅       |     ❌      |
+| `judgment.deliver`   |    ✅    |    ❌     |       ✅       |     ❌      |
+| `user.manage`        |    ✅    |    ❌     |       ❌       |     ❌      |
+| `dashboard.view.all` |    ✅    |    ✅     |       ✅       |     ❌      |
+| `dashboard.view.own` |    ❌    |    ❌     |       ❌       |     ✅      |
 
 _\* Note: The ADVOCATE role has scoped access to view their own profile and representations via `GET /advocates/:id`._
 

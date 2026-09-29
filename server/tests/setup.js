@@ -12,7 +12,7 @@ export const SEEDED_BASELINE = {
   judgments: 4,
   caseStatusHistory: 50,
   caseSequences: 2,
-  systemSettings: 10,
+  systemSettings: 14,
 };
 
 export const SEEDED_SEQUENCES = [

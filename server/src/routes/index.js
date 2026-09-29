@@ -6,6 +6,7 @@ import caseRouter from './case.routes.js';
 import advocateRouter from './advocate.routes.js';
 import hearingRouter from './hearing.routes.js';
 import judgmentRouter from './judgment.routes.js';
+import dashboardRouter from './dashboard.routes.js';
 
 const apiRouter = Router();
 
@@ -16,5 +17,6 @@ apiRouter.use('/cases', caseRouter);
 apiRouter.use('/advocates', advocateRouter);
 apiRouter.use('/hearings', hearingRouter);
 apiRouter.use('/judgments', judgmentRouter);
+apiRouter.use('/dashboard', dashboardRouter);
 
 export default apiRouter;

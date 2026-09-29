@@ -30,7 +30,7 @@ async function runVerification() {
     // -------------------------------------------------------------
     // CHECK 1: Table Row Counts
     // -------------------------------------------------------------
-    console.log('[1/5] Checking table row counts...');
+    console.log('[1/6] Checking table row counts...');
     const tableCounts = {
       users: await prisma.user.count(),
       advocates: await prisma.advocate.count(),
@@ -56,7 +56,7 @@ async function runVerification() {
       tableCounts.hearings >= 16 &&
       tableCounts.hearingEvents >= 25 &&
       tableCounts.users === 7 &&
-      tableCounts.systemSettings >= 10
+      tableCounts.systemSettings === 14
     ) {
       recordResult('Table Row Counts', true, `All 11 tables populated (${countSummary})`);
     } else {
@@ -72,7 +72,7 @@ async function runVerification() {
     // -------------------------------------------------------------
     // CHECK 2: Case Lifecycle Status Consistency
     // -------------------------------------------------------------
-    console.log('[2/5] Validating case lifecycle records consistency...');
+    console.log('[2/6] Validating case lifecycle records consistency...');
     const cases = await prisma.case.findMany({
       include: {
         advocates: { include: { assignedBy: true, unassignedBy: true } },
@@ -215,7 +215,7 @@ async function runVerification() {
     // CHECK 3: Courtroom, Judge & Case Scheduling Conflicts + Hearing Events
     // -------------------------------------------------------------
     console.log(
-      '[3/5] Checking for courtroom, judge and case scheduling conflicts & audit events...'
+      '[3/6] Checking for courtroom, judge and case scheduling conflicts & audit events...'
     );
     const hearings = await prisma.hearing.findMany({
       include: {
@@ -292,7 +292,7 @@ async function runVerification() {
     // -------------------------------------------------------------
     // CHECK 4: Judgment Uniqueness & Lifecycle Constraints
     // -------------------------------------------------------------
-    console.log('[4/5] Checking judgment uniqueness and lifecycle constraints...');
+    console.log('[4/6] Checking judgment uniqueness and lifecycle constraints...');
     const judgments = await prisma.judgment.findMany({
       include: { case: true },
     });
@@ -341,7 +341,7 @@ async function runVerification() {
     // -------------------------------------------------------------
     // CHECK 5: Backlog Cases Threshold Verification
     // -------------------------------------------------------------
-    console.log('[5/5] Checking backlog threshold cases...');
+    console.log('[5/6] Checking backlog threshold cases...');
     const thresholdSetting = await prisma.systemSetting.findUnique({
       where: { key: 'backlog_threshold_days' },
     });
@@ -368,6 +368,57 @@ async function runVerification() {
         'Backlog Cases Threshold',
         false,
         `Found only ${openBacklogCases.length} open backlog cases, expected at least 3`
+      );
+    }
+
+    // -------------------------------------------------------------
+    // CHECK 6: Stale Cases Rules Verification (Phase 8 Automation Engine)
+    // -------------------------------------------------------------
+    console.log('[6/6] Checking stale cases rules...');
+    const staleAdvSetting = await prisma.systemSetting.findUnique({
+      where: { key: 'stale_case_no_advocate_days' },
+    });
+    const staleAdvDays = staleAdvSetting ? parseInt(staleAdvSetting.value, 10) : 14;
+    const staleAdvDate = new Date(now.getTime() - staleAdvDays * 24 * 60 * 60 * 1000);
+
+    const staleRule1Cases = await prisma.case.findMany({
+      where: {
+        status: 'REGISTERED',
+        filingDate: { lt: staleAdvDate },
+        advocates: { none: { isActive: true } },
+      },
+    });
+
+    const staleHearingSetting = await prisma.systemSetting.findUnique({
+      where: { key: 'stale_case_no_hearing_days' },
+    });
+    const staleHearingDays = staleHearingSetting ? parseInt(staleHearingSetting.value, 10) : 21;
+    const staleHearingDate = new Date(now.getTime() - staleHearingDays * 24 * 60 * 60 * 1000);
+
+    const staleRule2Cases = await prisma.case.findMany({
+      where: {
+        status: 'ADVOCATE_ASSIGNED',
+        hearings: { none: {} },
+        advocates: { some: { isActive: true, assignedAt: { lt: staleHearingDate } } },
+      },
+    });
+
+    const rule1Passed = staleRule1Cases.length >= 1;
+    const rule2Passed = staleRule2Cases.length >= 1;
+
+    if (rule1Passed && rule2Passed) {
+      const r1Summary = staleRule1Cases.map((c) => c.caseNumber).join(', ');
+      const r2Summary = staleRule2Cases.map((c) => c.caseNumber).join(', ');
+      recordResult(
+        'Stale Cases Rules Verification',
+        true,
+        `Rule 1 (REGISTERED without advocate > ${staleAdvDays}d): ${staleRule1Cases.length} case(s) [${r1Summary}]; Rule 2 (ADVOCATE_ASSIGNED without hearing > ${staleHearingDays}d): ${staleRule2Cases.length} case(s) [${r2Summary}]`
+      );
+    } else {
+      recordResult(
+        'Stale Cases Rules Verification',
+        false,
+        `Stale rule check failed: Rule 1 matches=${staleRule1Cases.length} (expected >= 1), Rule 2 matches=${staleRule2Cases.length} (expected >= 1)`
       );
     }
 

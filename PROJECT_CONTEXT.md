@@ -175,6 +175,26 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
   - Centralized unwrapper eliminating dual-shape payload parsing across frontend components.
     Detailed endpoint specifications, rules, and workflows documented in docs/JUDGMENTS.md.
 
+## Automation Engine & Registry Dashboard (Phase 8)
+
+- **Real-Time Caseload Telemetry (Zero Caching Layer)**:
+  - Dynamic status distribution across all 6 lifecycle stages computed via atomic `groupBy`.
+  - Open vs closed totals, today's hearings, and upcoming hearings within configurable window.
+- **Overdue Backlog Monitor**:
+  - Real-time worklist of active open cases exceeding `backlog_threshold_days` (default 90 days), sortable by age or filing date, with direct case links.
+- **Stale Case Detection Engine**:
+  - Unified worklist tracking two distinct stagnation bottlenecks:
+    - **Rule 1 (`NO_ADVOCATE`)**: `REGISTERED` cases older than `stale_case_no_advocate_days` (default 14 days) with zero active advocates.
+    - **Rule 2 (`NO_HEARING`)**: `ADVOCATE_ASSIGNED` cases older than `stale_case_no_hearing_days` (default 21 days) with zero hearings ever scheduled.
+- **Personnel Workload & Capacity Distribution**:
+  - Live active docket counts per advocate and judge with automated `isOverloaded` warning flags triggered by `advocate_workload_warning_threshold` (default 15) and `judge_workload_warning_threshold` (default 25).
+  - Role-scoped: available to ADMIN, REGISTRAR, and JUDGE (scoped to own bench row); completely omitted for ADVOCATE.
+- **Administrative Configuration & Audit Trail**:
+  - ADMIN-managed threshold configuration via `PATCH /dashboard/settings`, validated with strict integer range checks (1-3650 days).
+  - Updates execute in atomic transactions writing immutable audit records (`audit:<timestamp>:<uuid>`) capturing who changed what and when.
+  - Changes immediately reflect across dashboard telemetry without full page reload.
+    Detailed endpoint specifications, thresholds, and query strategies documented in docs/DASHBOARD.md.
+
 ## Implementation Roadmap
 
 - **Phase 1**: Project Setup, Architecture & App Shell (Completed)
@@ -184,5 +204,5 @@ Create reports/PHASE_<n>_REPORT.md with these sections:
 - **Phase 5**: Advocate Assignment & Bar Directory (Completed)
 - **Phase 6**: Hearing Scheduling, Cause Lists & Case-Status Automation (Completed)
 - **Phase 7**: Judgment Tracker, State Machine & Permissions (Completed)
-- **Phase 8**: Automation engine and registry dashboard
-- **Phase 9**: Testing, polish and final documentation
+- **Phase 8**: Automation Engine and Registry Dashboard (Completed)
+- **Phase 9**: Testing, polish, accessibility pass, Prisma config migration and final documentation (Next)

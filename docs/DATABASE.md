@@ -375,18 +375,24 @@ _Constraints_: Unique composite index on `(prefix, year)`.
 
 Global key-value configuration repository for court-wide thresholds, operating hours, and operational flags.
 
-| Setting Key                           | Default Value              | Description                                                            |
-| :------------------------------------ | :------------------------- | :--------------------------------------------------------------------- |
-| `court_start_time`                    | `10:00`                    | Daily court commencement time (IST)                                    |
-| `court_end_time`                      | `17:00`                    | Daily court rising / adjournment time (IST)                            |
-| `court_lunch_start`                   | `13:00`                    | Daily lunch break commencement time (IST)                              |
-| `court_lunch_end`                     | `14:00`                    | Daily lunch break conclusion time (IST)                                |
-| `hearing_slot_duration_mins`          | `30`                       | Default duration for scheduled hearing slots                           |
-| `hearing_min_advance_hours`           | `2`                        | Minimum advance notice required to schedule a hearing                  |
-| `hearing_max_advance_days`            | `90`                       | Maximum advance window for scheduling a hearing                        |
-| `advocate_workload_warning_threshold` | `5`                        | Soft warning threshold for advocate active cases on a single date/case |
-| `backlog_threshold_days`              | `90`                       | Backlog classification age threshold in days                           |
-| `court_jurisdiction`                  | `Principal District Court` | Formal jurisdictional entity title                                     |
+| Setting Key                           | Default Value                                         | Description                                                                                                      |
+| :------------------------------------ | :---------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| `backlog_threshold_days`              | `90`                                                  | Case pendency threshold in days beyond which active cases are flagged on backlog monitor                         |
+| `court_jurisdiction`                  | `District & Sessions Court, Central Judicial Complex` | Official court jurisdiction title                                                                                |
+| `advocate_workload_warning_threshold` | `15`                                                  | Active open cases threshold beyond which a soft workload warning is flagged                                      |
+| `court_timezone`                      | `Asia/Kolkata`                                        | Primary legal and operational timezone for judicial hearings                                                     |
+| `court_start_time`                    | `10:00`                                               | Daily court commencement time in 24h format                                                                      |
+| `court_end_time`                      | `17:00`                                               | Daily court concluding time in 24h format                                                                        |
+| `lunch_start`                         | `13:00`                                               | Judicial lunch recess start time                                                                                 |
+| `lunch_end`                           | `14:00`                                               | Judicial lunch recess end time                                                                                   |
+| `court_working_days`                  | `MON,TUE,WED,THU,FRI`                                 | Comma-separated operational court days of the week                                                               |
+| `slot_minutes`                        | `15`                                                  | Granular duration increment for hearing scheduling slots in minutes                                              |
+| `judge_workload_warning_threshold`    | `25`                                                  | Active open cases threshold beyond which a soft workload warning is flagged for judges                           |
+| `stale_case_no_advocate_days`         | `14`                                                  | Case pendency threshold in days beyond which a REGISTERED case with no advocate is flagged as stale              |
+| `stale_case_no_hearing_days`          | `21`                                                  | Case pendency threshold in days beyond which an ADVOCATE_ASSIGNED case with no hearings ever is flagged as stale |
+| `upcoming_hearings_window_days`       | `7`                                                   | Forward-looking window in days for upcoming hearings monitoring and metrics                                      |
+
+_Audit Trail Rows_: Administrative adjustments to threshold settings via `PATCH /api/v1/dashboard/settings` dynamically record audit entries under individual rows with the prefix `audit:<timestamp>:<uuid>`, preserving complete historical accountability.
 
 ---
 

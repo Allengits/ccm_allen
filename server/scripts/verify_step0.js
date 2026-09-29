@@ -47,7 +47,6 @@ async function runStep0Verification() {
     const registrarCookie = await getAuthCookie('registrar@courtcms.gov.in');
     const judge1Cookie = await getAuthCookie('judge.swaminathan@courtcms.gov.in');
     const judge2Cookie = await getAuthCookie('judge.banerjee@courtcms.gov.in');
-    const advocateCookie = await getAuthCookie('adv.mehta@courtcms.gov.in');
 
     // -------------------------------------------------------------
     // Check 1: Reserve judgment eligible vs ineligible
@@ -238,7 +237,9 @@ async function runStep0Verification() {
       adminFutureAdj.body.message.includes('future date');
 
     // Test a hearing dated today: create a temporary hearing dated today IST
-    const todayHearingDt = DateTime.now().setZone(COURT_TZ).set({ hour: 10, minute: 0, second: 0, millisecond: 0 });
+    const todayHearingDt = DateTime.now()
+      .setZone(COURT_TZ)
+      .set({ hour: 10, minute: 0, second: 0, millisecond: 0 });
     const tempCase = await prisma.case.create({
       data: {
         caseNumber: 'CC/2026/99991',

@@ -503,6 +503,18 @@ describe('Court CMS - Authentication & RBAC Suite', () => {
       expect(hasPermission('ADVOCATE', PERMISSIONS.ADVOCATE_MANAGE)).toBe(false);
     });
 
+    it('grants dashboard.view.all to ADMIN, REGISTRAR, JUDGE and dashboard.view.own to ADVOCATE', () => {
+      expect(hasPermission('ADMIN', PERMISSIONS.DASHBOARD_VIEW_ALL)).toBe(true);
+      expect(hasPermission('REGISTRAR', PERMISSIONS.DASHBOARD_VIEW_ALL)).toBe(true);
+      expect(hasPermission('JUDGE', PERMISSIONS.DASHBOARD_VIEW_ALL)).toBe(true);
+      expect(hasPermission('ADVOCATE', PERMISSIONS.DASHBOARD_VIEW_ALL)).toBe(false);
+
+      expect(hasPermission('ADVOCATE', PERMISSIONS.DASHBOARD_VIEW_OWN)).toBe(true);
+      expect(hasPermission('ADMIN', PERMISSIONS.DASHBOARD_VIEW_OWN)).toBe(false);
+      expect(hasPermission('REGISTRAR', PERMISSIONS.DASHBOARD_VIEW_OWN)).toBe(false);
+      expect(hasPermission('JUDGE', PERMISSIONS.DASHBOARD_VIEW_OWN)).toBe(false);
+    });
+
     it('confirms evidence permissions are removed from matrix and roles', () => {
       expect(PERMISSIONS.EVIDENCE_SUBMIT).toBeUndefined();
       expect(PERMISSIONS.EVIDENCE_REVIEW).toBeUndefined();

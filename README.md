@@ -227,7 +227,7 @@ npm run format:check
 
 ### Automated Testing (Vitest & Supertest)
 
-Court CMS includes full backend unit and integration test coverage for authentication, RBAC, password policies, rate limiting, case visibility scoping, advocate assignment, hearing scheduling, and cause lists:
+Court CMS includes full backend unit and integration test coverage for authentication, RBAC, password policies, rate limiting, case visibility scoping, advocate assignment, hearing scheduling, cause lists, judgment lifecycle tracking, and dashboard automation metrics:
 
 ```powershell
 # Run all server tests (from root or server/)
@@ -248,11 +248,14 @@ npm run test:hearings
 # Run judgment tracking and state transition test suite specifically
 npm run test:judgments
 
+# Run dashboard automation engine test suite specifically
+npx vitest run tests/dashboard.test.js --dir server
+
 # Run test suites across both UTC and Asia/Kolkata timezones
 npm run test:tz
 ```
 
-All 5 test suites (177 tests total) enforce global teardown verification, guaranteeing that the MySQL database row counts, case sequences, and judgment constraints strictly match the seeded baseline upon test completion.
+All 6 test suites (213 tests total) enforce global teardown verification, guaranteeing that the MySQL database row counts, case sequences, and judgment constraints strictly match the seeded baseline upon test completion.
 
 For comprehensive API and architectural documentation:
 
@@ -262,6 +265,7 @@ For comprehensive API and architectural documentation:
 - [docs/ADVOCATES.md](docs/ADVOCATES.md) - Advocate directory, assignment rules & workflow state automation
 - [docs/HEARINGS.md](docs/HEARINGS.md) - Hearing scheduling, cause lists, slot availability & audit events
 - [docs/JUDGMENTS.md](docs/JUDGMENTS.md) - Judgment reservation, delivery, concurrency control & permanent read-only rules
+- [docs/DASHBOARD.md](docs/DASHBOARD.md) - Automation engine, threshold settings, backlog & stale-case detection
 
 ---
 
@@ -274,5 +278,5 @@ For comprehensive API and architectural documentation:
 - [x] **Phase 5: Advocate Assignment & Bar Directory**
 - [x] **Phase 6: Hearing Scheduling, Cause Lists & Case-Status Automation**
 - [x] **Phase 7: Judgment Tracker, State Machine & Permissions**
-- [ ] **Phase 8: Automation engine and registry dashboard**
-- [ ] **Phase 9: Testing, polish and final documentation**
+- [x] **Phase 8: Automation Engine and Registry Dashboard**
+- [ ] **Phase 9: Testing, polish, accessibility pass, Prisma config migration and final documentation**

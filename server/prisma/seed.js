@@ -109,6 +109,29 @@ async function main() {
         value: '15',
         description: 'Granular duration increment for hearing scheduling slots in minutes',
       },
+      {
+        key: 'judge_workload_warning_threshold',
+        value: '25',
+        description:
+          'Active open cases threshold beyond which a soft workload warning is flagged for judges',
+      },
+      {
+        key: 'stale_case_no_advocate_days',
+        value: '14',
+        description:
+          'Case pendency threshold in days beyond which a REGISTERED case with no advocate is flagged as stale',
+      },
+      {
+        key: 'stale_case_no_hearing_days',
+        value: '21',
+        description:
+          'Case pendency threshold in days beyond which an ADVOCATE_ASSIGNED case with no hearings ever is flagged as stale',
+      },
+      {
+        key: 'upcoming_hearings_window_days',
+        value: '7',
+        description: 'Forward-looking window in days for upcoming hearings monitoring and metrics',
+      },
     ],
   });
 
@@ -325,7 +348,7 @@ async function main() {
       petitioner: 'State through Inspector S.K. Verma',
       respondent: 'Rameshwar Prasad, Jagdish Prasad',
       description: 'Allegations of illegal warehousing under Essential Commodities Act.',
-      filingDate: daysAgo(10),
+      filingDate: daysAgo(16), // >14 days old: matches Stale Rule 1 (REGISTERED with no advocate)
       judgeId: judge1.id,
       registeredById: registrarUser.id,
     },
