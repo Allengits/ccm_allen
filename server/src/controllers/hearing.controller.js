@@ -1361,7 +1361,7 @@ export const completeHearing = async (req, res) => {
       const hearingDateStr = hearingDtIST.toFormat('dd LLL yyyy');
       return res.status(400).json({
         success: false,
-        message: `Cannot complete a hearing scheduled for a future date (${hearingDateStr}) (future hearing)`,
+        message: `Cannot complete a hearing scheduled for a future date (${hearingDateStr})`,
         errors: [`Cannot complete a hearing scheduled for a future date (${hearingDateStr})`],
       });
     }
@@ -1506,7 +1506,7 @@ export const adjournHearing = async (req, res) => {
       const hearingDateStr = hearingDtIST.toFormat('dd LLL yyyy');
       return res.status(400).json({
         success: false,
-        message: `Cannot adjourn a hearing scheduled for a future date (${hearingDateStr}) (future hearing)`,
+        message: `Cannot adjourn a hearing scheduled for a future date (${hearingDateStr})`,
         errors: [`Cannot adjourn a hearing scheduled for a future date (${hearingDateStr})`],
       });
     }

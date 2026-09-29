@@ -2,26 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { unwrap } from '../api/unwrap';
-import { useAuth } from '../context/AuthContext';
 import {
   Scale,
   Search,
-  Filter,
-  Calendar,
   ChevronLeft,
   ChevronRight,
-  ArrowUpDown,
   ExternalLink,
   RotateCcw,
   Loader2,
   AlertTriangle,
-  FileText,
-  Clock,
-  CheckCircle2,
 } from 'lucide-react';
 
 export default function Judgments() {
-  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL Query State
@@ -396,7 +388,6 @@ export default function Judgments() {
               <tbody className="divide-y divide-gray-100">
                 {items.map((item) => {
                   const isDelivered = item.state === 'DELIVERED';
-                  const isReserved = item.state === 'RESERVED';
 
                   return (
                     <tr key={item.id} className="hover:bg-gray-50/80 transition-colors">

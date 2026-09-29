@@ -744,7 +744,7 @@ describe('Court CMS - Phase 6 Hearing Scheduling, Cause Lists & Automation Suite
         });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toContain('future hearing');
+      expect(res.body.message).toContain('future date');
     });
 
     it('allows presiding JUDGE to complete past hearing, transitioning HEARING_SCHEDULED to UNDER_TRIAL', async () => {

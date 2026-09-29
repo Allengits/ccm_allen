@@ -4,7 +4,7 @@ import { DateTime } from 'luxon';
 import app from '../src/app.js';
 import prisma from '../src/db/prisma.js';
 import { transitionCaseStatus, WorkflowError } from '../src/services/caseWorkflow.js';
-import { PERMISSIONS, ROLE_PERMISSIONS } from '../src/config/permissions.js';
+import { PERMISSIONS } from '../src/config/permissions.js';
 import { unwrap } from '../../client/src/api/unwrap.js';
 import { PERMISSIONS as clientPermissions } from '../../client/src/constants/permissions.js';
 
@@ -16,7 +16,6 @@ describe('Court CMS - Phase 7 Judgment Tracker, State Machine & Permissions Suit
   let judge1Cookie;
   let judge2Cookie;
   let advocateMehtaCookie;
-  let advocateIyerCookie;
 
   let seededUsers;
   let seededCases;
@@ -135,7 +134,6 @@ describe('Court CMS - Phase 7 Judgment Tracker, State Machine & Permissions Suit
     judge1Cookie = await loginUser('judge.swaminathan@courtcms.gov.in');
     judge2Cookie = await loginUser('judge.banerjee@courtcms.gov.in');
     advocateMehtaCookie = await loginUser('adv.mehta@courtcms.gov.in');
-    advocateIyerCookie = await loginUser('adv.iyer@courtcms.gov.in');
 
     [
       seededUsers,
