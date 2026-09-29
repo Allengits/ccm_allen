@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { unwrap } from '../../api/unwrap';
 import { X, UserCheck, Search, AlertCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 export default function AssignAdvocateModal({
   isOpen,
@@ -11,6 +12,7 @@ export default function AssignAdvocateModal({
   caseNumber,
   existingAdvocates = [],
 }) {
+  const modalRef = useModalA11y(isOpen, onClose);
   const [advocates, setAdvocates] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAdvocateId, setSelectedAdvocateId] = useState('');
@@ -108,15 +110,23 @@ export default function AssignAdvocateModal({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-navy-950/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full overflow-hidden border border-navy-100 animate-in fade-in zoom-in-95 duration-200">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="assign-advocate-title"
+        className="bg-white rounded-xl shadow-2xl max-w-xl w-full overflow-hidden border border-navy-100 animate-in fade-in zoom-in-95 duration-200"
+      >
         {/* Modal Header */}
         <div className="bg-navy-900 text-white px-6 py-4 flex items-center justify-between border-b border-navy-800">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-lg bg-brass-500/20 border border-brass-400/40 flex items-center justify-center text-brass-400">
-              <UserCheck className="w-4 h-4" />
+              <UserCheck className="w-4 h-4" aria-hidden="true" />
             </div>
             <div>
-              <h3 className="font-serif text-lg font-bold">Assign Legal Counsel</h3>
+              <h3 id="assign-advocate-title" className="font-serif text-lg font-bold">
+                Assign Legal Counsel
+              </h3>
               <p className="text-xs text-navy-300">
                 Docket <span className="font-mono text-brass-300 font-semibold">{caseNumber}</span>
               </p>
@@ -124,9 +134,10 @@ export default function AssignAdvocateModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="text-navy-300 hover:text-white transition-colors p-1 rounded hover:bg-navy-800"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -197,18 +208,27 @@ export default function AssignAdvocateModal({
 
             {/* Advocate Search Input */}
             <div className="relative mb-2">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-gray-400" />
+              <Search
+                className="w-3.5 h-3.5 absolute left-3 top-2.5 text-gray-400"
+                aria-hidden="true"
+              />
               <input
+                id="advocate-search"
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search advocate by name, bar roll, specialization"
                 placeholder="Search advocate by name, bar roll, specialization..."
                 className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-navy-600"
               />
             </div>
 
             {/* Scrollable Advocate List */}
-            <div className="max-h-56 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100 bg-white">
+            <div
+              className="max-h-56 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100 bg-white"
+              role="listbox"
+              aria-label="Available advocates"
+            >
               {fetchingList ? (
                 <div className="p-6 text-center text-gray-400 text-xs">
                   Loading active advocates...
@@ -225,12 +245,27 @@ export default function AssignAdvocateModal({
                   return (
                     <div
                       key={adv.id}
+                      role="option"
+                      aria-selected={isSelected}
+                      tabIndex={alreadyAssignedSide ? -1 : 0}
+                      aria-disabled={Boolean(alreadyAssignedSide)}
+                      aria-label={
+                        alreadyAssignedSide
+                          ? `${adv.name} (Bar: ${adv.barNumber}) - already assigned on this case`
+                          : `Select ${adv.name} (Bar: ${adv.barNumber})`
+                      }
+                      onKeyDown={(e) => {
+                        if ((e.key === 'Enter' || e.key === ' ') && !alreadyAssignedSide) {
+                          e.preventDefault();
+                          setSelectedAdvocateId(adv.id);
+                        }
+                      }}
                       onClick={() => {
                         if (!alreadyAssignedSide) {
                           setSelectedAdvocateId(adv.id);
                         }
                       }}
-                      className={`p-2.5 flex items-center justify-between text-xs transition-colors ${
+                      className={`p-2.5 flex items-center justify-between text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-brass-500 ${
                         alreadyAssignedSide
                           ? 'bg-gray-50 opacity-60 cursor-not-allowed'
                           : isSelected

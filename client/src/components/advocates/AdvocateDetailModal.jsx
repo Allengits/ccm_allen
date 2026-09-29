@@ -4,8 +4,10 @@ import api from '../../api/axios';
 import { unwrap } from '../../api/unwrap';
 import { useAuth } from '../../context/AuthContext';
 import { X, Mail, Phone, Scale, CheckCircle2, XCircle, ExternalLink, Edit3 } from 'lucide-react';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 export default function AdvocateDetailModal({ isOpen, onClose, advocateId, onEdit }) {
+  const modalRef = useModalA11y(isOpen, onClose);
   const navigate = useNavigate();
   const { can } = useAuth();
 
@@ -47,16 +49,22 @@ export default function AdvocateDetailModal({ isOpen, onClose, advocateId, onEdi
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-navy-950/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full overflow-hidden border border-navy-100 animate-in fade-in zoom-in-95 duration-200">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="advocate-detail-title"
+        className="bg-white rounded-xl shadow-2xl max-w-3xl w-full overflow-hidden border border-navy-100 animate-in fade-in zoom-in-95 duration-200"
+      >
         {/* Modal Header */}
         <div className="bg-navy-900 text-white px-6 py-4 flex items-center justify-between border-b border-navy-800">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-lg bg-brass-500/20 border border-brass-400/40 flex items-center justify-center text-brass-400 font-serif font-bold text-lg">
-              <Scale className="w-5 h-5" />
+              <Scale className="w-5 h-5" aria-hidden="true" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h3 className="font-serif text-lg font-bold">
+                <h3 id="advocate-detail-title" className="font-serif text-lg font-bold">
                   {advocate?.name || 'Advocate Profile'}
                 </h3>
                 {advocate && (
@@ -79,15 +87,16 @@ export default function AdvocateDetailModal({ isOpen, onClose, advocateId, onEdi
                 }}
                 className="px-3 py-1.5 text-xs font-semibold text-brass-300 bg-navy-800 hover:bg-navy-700 border border-brass-400/30 rounded-lg transition-colors flex items-center space-x-1"
               >
-                <Edit3 className="w-3.5 h-3.5" />
+                <Edit3 className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Edit Profile</span>
               </button>
             )}
             <button
               onClick={onClose}
+              aria-label="Close dialog"
               className="text-navy-300 hover:text-white transition-colors p-1 rounded hover:bg-navy-800"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
         </div>

@@ -19,9 +19,6 @@
     "db:studio": "prisma studio",
     "db:verify": "node prisma/verify.js"
   },
-  "prisma": {
-    "seed": "node prisma/seed.js"
-  },
   "dependencies": {
     "@prisma/client": "^6.4.1",
     "bcryptjs": "^3.0.2",

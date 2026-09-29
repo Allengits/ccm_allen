@@ -1,20 +1,20 @@
 # Court Case Management System (Court CMS)
 
-A modernized, full-stack judicial registry and case management system designed to streamline case allocation, hearing scheduling, and judgment tracking across Indian judicial courts.
+A modernized, enterprise-grade, full-stack Judicial Registry and Case Management System designed to streamline case allocation, hearing scheduling, trial proceedings, and judgment tracking across Indian courts.
 
 ---
 
 ## 🏛️ Project Overview
 
-Indian courts face substantial case pendency with over 5.3 crore active cases. A significant portion of this delay stems from fragmented case allocation, manual registry procedures, and siloed tracking.
+Indian courts face substantial case pendency with over 5.3 crore active cases. A significant portion of this backlog stems from fragmented case allocation, manual registry procedures, unmonitored adjournment cycles, and siloed tracking across disparate systems.
 
 **Court CMS** provides a unified case docket connecting:
 
-- Case registration & lifecycle tracking
-- Advocate assignment & bar council linkage
-- Daily cause lists & hearing management
-- Judgment reservation and certified order delivery
-- Automated backlog flagging for cases exceeding threshold pendency limits
+- **Case Registration & Auto-Numbering**: Standardized sequence generation (`PREFIX/YEAR/00001`) with strict legal immutability.
+- **Advocate Management & Case Assignment**: Bar Council credential validation, conflict-of-interest defense, and automated counsel linkage.
+- **Hearing Scheduling & Cause Lists**: IST timezone calendar standards, pessimistic courtroom lock management, dynamic slot availability, and automated daily cause lists.
+- **Trial & Judgment Tracker**: Hearing outcome recording, reasoned adjournment handling, two-stage disposition (Reserve $\rightarrow$ Deliver), and permanent closed-case read-only protection.
+- **Automation Engine & Registry Dashboard**: Zero-cache real-time caseload telemetry, 90-day overdue backlog worklists, dual-rule stale case detection, personnel capacity monitoring, and administrative threshold tuning.
 
 ---
 
@@ -24,44 +24,51 @@ This project is organized as a monorepo:
 
 ```
 ccm_allen/
-├── client/                 # Frontend React Application (Vite)
+├── client/                 # Frontend React Application (Vite + Tailwind CSS)
 │   ├── src/
-│   │   ├── api/            # Axios API client instance
-│   │   ├── components/     # App shell, navigation, and common UI
-│   │   └── pages/          # Route views (Dashboard, Cases, Hearings, etc.)
-│   ├── .env.example        # Client environment template
-│   └── tailwind.config.js  # Theme colors (Navy #1C2B45, Brass #A6763B)
-├── server/                 # Backend Node.js / Express API
-│   ├── prisma/             # Prisma schema & database migrations
+│   │   ├── api/            # Axios API client & payload unwrap utility
+│   │   ├── components/     # Accessible UI modals, layout & dashboard widgets
+│   │   ├── hooks/          # A11y focus-trap & modal keyboard handlers
+│   │   ├── pages/          # Route views (Dashboard, Cases, Hearings, Judgments, etc.)
+│   │   └── context/        # Authentication & session state context
+│   └── .env.example        # Client environment template
+├── server/                 # Backend Node.js / Express REST API
+│   ├── prisma/             # Prisma schema, migrations, seed script & verify suite
+│   ├── prisma.config.js    # Modern Prisma 6 configuration (ES module)
 │   ├── src/
-│   │   ├── config/         # Environment variable loader
-│   │   ├── db/             # Prisma client instance
-│   │   ├── middlewares/    # Central error handler & route guards
-│   │   └── routes/         # REST API v1 endpoints
+│   │   ├── config/         # Permissions matrix & case visibility filters
+│   │   ├── controllers/    # API endpoint controllers across all 4 modules
+│   │   ├── middlewares/    # Session authentication & RBAC guards
+│   │   ├── services/       # caseWorkflow state automation engine
+│   │   └── utils/          # courtTime (IST standard) & dashboard settings
+│   ├── tests/              # 7 test suites (228 automated tests)
 │   └── .env.example        # Server environment template
-├── reports/                # Phase milestone reports
-├── PROJECT_CONTEXT.md      # Core domain context, roadmap & conventions
-└── package.json            # Monorepo scripts (concurrently dev runner)
+├── docs/                   # Architectural & module specifications
+│   └── DEMO_SCRIPT.md      # Live evaluation & demonstration walkthrough
+├── reports/                # Phase milestone reports & final project report
+├── PROJECT_CONTEXT.md      # Authoritative single current-state specification
+└── package.json            # Monorepo scripts & dev runner
 ```
 
 ### Core Technologies
 
-- **Frontend**: React 18, Vite 6, Tailwind CSS 3, React Router 6, Axios, Lucide Icons
-- **Backend**: Node.js (ES Modules), Express 4, Helmet, CORS, Morgan
-- **Database & ORM**: MySQL (running on port `3307`), Prisma ORM 6
-- **Tooling**: ESLint 9 (Flat Config), Prettier 3, Concurrently 9
+- **Frontend**: React 19, Vite 6, Tailwind CSS 3.4, React Router 7, Axios, Lucide Icons, WCAG AA accessible components
+- **Backend**: Node.js 22 LTS (ES Modules), Express 4.21, Luxon 3.7 (IST Court Timezone standard), Zod 3.24
+- **Database & ORM**: MySQL 26.7.0 (Port `3307`), Prisma ORM 6.4.1 (configured via `prisma.config.js`)
+- **Testing**: Vitest 3.0.7, Supertest 7.0.0, 7 automated suites (228 tests passing under UTC and `Asia/Kolkata`)
+- **Quality Gates**: ESLint 9 (Flat Config, 0/0 clean), Prettier 3 (formatted), Vite Production Build
 
 ---
 
 ## ⚙️ Prerequisites
 
-- **Node.js**: v24.14.0 or higher
-- **npm**: v11.9.0 or higher
-- **Git**: 2.50+
-- **MySQL Database**: Server running on `localhost:3307`
-  - Database name: `court_cms`
-  - User: `court_user`
-  - Password: `CourtCms2026`
+- **Node.js**: v20.x or v22.x LTS (tested on Node v24.14.0)
+- **npm**: v10.x or v11.x
+- **Git**: 2.40+
+- **MySQL Database**: Running on `localhost:3307` (or configured via `DATABASE_URL`)
+  - Default database name: `court_cms`
+  - Default user: `court_user`
+  - Default password: `CourtCms2026`
 
 ---
 
@@ -76,7 +83,7 @@ PORT=5000
 NODE_ENV=development
 DATABASE_URL="mysql://court_user:CourtCms2026@localhost:3307/court_cms"
 CORS_ORIGIN=http://localhost:5173
-JWT_SECRET=your_super_secret_jwt_key_at_least_32_chars_long
+JWT_SECRET=your_super_secret_jwt_key_at_least_32_chars_long_2026
 JWT_EXPIRES_IN=8h
 COOKIE_NAME=court_cms_token
 ```
@@ -88,188 +95,144 @@ COOKIE_NAME=court_cms_token
 Create `client/.env` based on `client/.env.example`:
 
 ```env
-# Using the Vite dev proxy for same-origin cookies:
+# Using Vite dev proxy for same-origin session cookies:
 VITE_API_URL=/api/v1
 ```
 
 ---
 
-## 👥 Demo Logins for Development
+## 👥 Demo Accounts for Reviewers
 
-When running in development mode (`npm run dev`), the `/login` page displays one-click quick-fill buttons for the seeded accounts. All seeded users share the demo password `Demo@1234`:
+All accounts share the standard evaluation password: `Demo@1234`
 
-| Role          | Name                           | Email                               | Password    |
-| :------------ | :----------------------------- | :---------------------------------- | :---------- |
-| **ADMIN**     | Rajesh Varma                   | `admin@courtcms.gov.in`             | `Demo@1234` |
-| **REGISTRAR** | Sunita Sharma                  | `registrar@courtcms.gov.in`         | `Demo@1234` |
-| **JUDGE**     | Hon. Justice D. Y. Swaminathan | `judge.swaminathan@courtcms.gov.in` | `Demo@1234` |
-| **ADVOCATE**  | Harish Mehta                   | `adv.mehta@courtcms.gov.in`         | `Demo@1234` |
+| Role          | Name                     | Official Email                      | Key Demonstration Purpose                                        |
+| :------------ | :----------------------- | :---------------------------------- | :--------------------------------------------------------------- |
+| **ADMIN**     | Rajesh Varma             | `admin@courtcms.gov.in`             | User onboarding, threshold settings, court-wide audit oversight  |
+| **REGISTRAR** | Sunita Sharma            | `registrar@courtcms.gov.in`         | Docket registration, counsel assignment, hearing scheduling      |
+| **JUDGE**     | Hon. Justice Swaminathan | `judge.swaminathan@courtcms.gov.in` | Courtroom 1 bench, conducting hearings, delivering judgments     |
+| **JUDGE**     | Hon. Justice Banerjee    | `judge.banerjee@courtcms.gov.in`    | Courtroom 2 bench, civil suits, hearing adjournment & completion |
+| **ADVOCATE**  | Adv. Tariq Khan          | `adv.khan@courtcms.gov.in`          | Senior Criminal Counsel, client-only scoped docket view          |
+| **ADVOCATE**  | Adv. Priya Mehta         | `adv.mehta@courtcms.gov.in`         | Commercial & Civil Litigator, client-only scoped view            |
+| **ADVOCATE**  | Adv. K. S. Iyer          | `adv.iyer@courtcms.gov.in`          | Appellate & Constitutional Counsel, cause list review            |
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started (Step-by-Step)
 
-### 1. Install Dependencies
+### 1. Install Monorepo Dependencies
 
-Run the installation command from the repository root:
+Run from the root directory:
 
 ```powershell
 npm run install:all
 ```
 
-Or install individually:
+### 2. Initialize Database & Seed Demo Data
+
+Run the database reset script (applies migrations, executes clean seed, and establishes baseline):
 
 ```powershell
-npm install
-cd server && npm install
-cd ../client && npm install
+npm run db:reset
 ```
 
-### 2. Generate Prisma Client
-
-Inside the `server/` directory:
+Verify that the database passes all 6 integrity checks:
 
 ```powershell
-npm run prisma:generate
+npm run db:verify
 ```
 
-### 3. Run Development Servers
+### 3. Start Development Servers
 
-Start both the Express backend (`http://localhost:5000`) and the Vite client (`http://localhost:5173`) concurrently:
+Start both Express backend (`http://localhost:5000`) and Vite frontend (`http://localhost:5173`):
 
 ```powershell
 npm run dev
 ```
 
----
-
-## 📡 REST API Specifications
-
-All endpoints are prefixed under `/api/v1` and follow standard JSON response conventions:
-
-- **Success**: `{ success: true, message: string, data: any }`
-- **Error**: `{ success: false, message: string, errors: string[] }`
-
-### Phase 1 Endpoints
-
-#### `GET /api/v1/health`
-
-Checks API server availability and live database connectivity via Prisma.
-
-**Sample Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "System is healthy",
-  "data": {
-    "api": "ok",
-    "database": "connected",
-    "timestamp": "2026-09-28T05:29:45.613Z"
-  }
-}
-```
+Open `http://localhost:5173` in your browser. The `/login` page offers quick-login buttons for all demo roles.
 
 ---
 
-## 🗄️ Database Management & Operations
+## 🗄️ Database Operations
 
-Court CMS uses Prisma ORM with MySQL. All database operations can be executed directly from root:
+All database commands run via root scripts without deprecation warnings:
 
 ```powershell
-# Apply schema migrations
-npm run db:migrate
-
-# Seed / re-seed realistic demo data
-npm run db:seed
-
-# Reset database from scratch and re-seed
+# Reset database from empty and seed initial dataset
 npm run db:reset
 
-# Run automated integrity and business-rule validation
+# Re-run seeder on existing database
+npm run db:seed
+
+# Verify table counts, constraints, conflicts, and business rules (6 checks)
 npm run db:verify
 
-# Launch Prisma Studio GUI
+# Launch Prisma Studio GUI database browser
 npm run db:studio
-```
 
-For complete schema details, entity-relationship diagrams, and data dictionary, see [docs/DATABASE.md](docs/DATABASE.md).
+# Apply any pending schema migrations
+npm run db:migrate
+```
 
 ---
 
-## 🎨 UI Theme & Design Tokens
+## 🧪 Testing & Quality Gates
 
-Designed with a formal, accessible judicial registry aesthetic:
+### Automated Test Suites (Vitest + Supertest)
 
-- **Navy Primary**: `#1C2B45`
-- **Brass Accent**: `#A6763B`
-- **Background**: `#FFFFFF` / `#F8FAFC`
-- **Typography**:
-  - Headings: _Source Serif 4_ / _Times New Roman_ (Serif)
-  - Body & Data: _Inter_ / system sans-serif
-
----
-
-## 🧪 Code Quality, Formatting & Testing
-
-### Linting & Formatting
+Court CMS features **228 automated tests** across 7 dedicated suites:
 
 ```powershell
-# Run ESLint across entire repository
-npm run lint
-
-# Format code with Prettier
-npm run format
-
-# Verify formatting compliance
-npm run format:check
-```
-
-### Automated Testing (Vitest & Supertest)
-
-Court CMS includes full backend unit and integration test coverage for authentication, RBAC, password policies, rate limiting, case visibility scoping, advocate assignment, hearing scheduling, cause lists, judgment lifecycle tracking, and dashboard automation metrics:
-
-```powershell
-# Run all server tests (from root or server/)
+# Run all 7 test suites (228 tests)
 npm test
 
-# Run authentication and RBAC test suite specifically
-npm run test:auth
-
-# Run case management and registration test suite specifically
-npm run test:cases
-
-# Run advocate management and assignment test suite specifically
-npm run test:advocates
-
-# Run hearing scheduling and cause list test suite specifically
-npm run test:hearings
-
-# Run judgment tracking and state transition test suite specifically
-npm run test:judgments
-
-# Run dashboard automation engine test suite specifically
-npx vitest run tests/dashboard.test.js --dir server
-
-# Run test suites across both UTC and Asia/Kolkata timezones
+# Run tests under both UTC and Asia/Kolkata timezones to prove calendar parity
 npm run test:tz
+
+# Run specific functional test suites:
+npm run test:auth        # Authentication, sessions, rate limits & RBAC (38 tests)
+npm run test:cases       # Case filing, auto-numbering & role scoping (28 tests)
+npm run test:advocates   # Bar directory, assignment rules & conflicts (30 tests)
+npm run test:hearings    # Scheduling, cause lists, IST rules & audit (42 tests)
+npm run test:judgments   # Reservation, delivery & closed immutability (48 tests)
+npx vitest run tests/dashboard.test.js --dir server  # Dashboard telemetry & thresholds (27 tests)
+npx vitest run tests/e2e.test.js --dir server        # Continuous lifecycle E2E flow (15 tests)
 ```
 
-All 6 test suites (213 tests total) enforce global teardown verification, guaranteeing that the MySQL database row counts, case sequences, and judgment constraints strictly match the seeded baseline upon test completion.
+### Linting, Formatting & Production Build
 
-For comprehensive API and architectural documentation:
+```powershell
+# Run ESLint (0 errors, 0 warnings enforced)
+npm run lint
 
-- [docs/DATABASE.md](docs/DATABASE.md) - Database schema, relations & data dictionary
-- [docs/AUTH.md](docs/AUTH.md) - Authentication, sessions & RBAC permission matrix
-- [docs/CASES.md](docs/CASES.md) - Case registration, number generation & docket querying
-- [docs/ADVOCATES.md](docs/ADVOCATES.md) - Advocate directory, assignment rules & workflow state automation
-- [docs/HEARINGS.md](docs/HEARINGS.md) - Hearing scheduling, cause lists, slot availability & audit events
-- [docs/JUDGMENTS.md](docs/JUDGMENTS.md) - Judgment reservation, delivery, concurrency control & permanent read-only rules
-- [docs/DASHBOARD.md](docs/DASHBOARD.md) - Automation engine, threshold settings, backlog & stale-case detection
+# Check code formatting with Prettier
+npm run format:check
+
+# Auto-format all files
+npm run format
+
+# Verify production frontend bundle builds cleanly
+npm run build --prefix client
+```
 
 ---
 
-## 📋 Phase Implementation Roadmap
+## 📖 Detailed Documentation
+
+- [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) — Authoritative system specifications, ER diagram, status transition table, permissions matrix, and API route directory.
+- [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) — 8-to-10 minute live walkthrough demo script for presenters.
+- [reports/FINAL_PROJECT_REPORT.md](reports/FINAL_PROJECT_REPORT.md) — Comprehensive academic project report covering problem, novelty, architecture, scope decisions, testing, and future work.
+- [docs/DATABASE.md](docs/DATABASE.md) — Database schema, relational models & data dictionary.
+- [docs/AUTH.md](docs/AUTH.md) — Authentication, sessions, rate limiting & RBAC permission matrix.
+- [docs/CASES.md](docs/CASES.md) — Case registration, auto-number generation & docket querying.
+- [docs/ADVOCATES.md](docs/ADVOCATES.md) — Advocate directory, representation rules & workflow automation.
+- [docs/HEARINGS.md](docs/HEARINGS.md) — Hearing scheduling, cause lists, slot availability & audit events.
+- [docs/JUDGMENTS.md](docs/JUDGMENTS.md) — Judgment reservation, delivery, concurrency control & permanent read-only rules.
+- [docs/DASHBOARD.md](docs/DASHBOARD.md) — Automation engine, threshold settings, backlog & stale-case detection.
+
+---
+
+## 📋 Project Roadmap Summary
 
 - [x] **Phase 1: Project Setup, Architecture & App Shell**
 - [x] **Phase 2: Database Schema, Migrations & Seed Data**
@@ -279,4 +242,4 @@ For comprehensive API and architectural documentation:
 - [x] **Phase 6: Hearing Scheduling, Cause Lists & Case-Status Automation**
 - [x] **Phase 7: Judgment Tracker, State Machine & Permissions**
 - [x] **Phase 8: Automation Engine and Registry Dashboard**
-- [ ] **Phase 9: Testing, polish, accessibility pass, Prisma config migration and final documentation**
+- [x] **Phase 9: Final E2E Testing, Accessibility Pass, Prisma Migration, Documentation & Demo Readiness**

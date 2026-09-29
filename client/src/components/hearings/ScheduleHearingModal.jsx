@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { unwrap } from '../../api/unwrap';
 import { X, Calendar, AlertCircle, AlertTriangle, Loader2, Search } from 'lucide-react';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseItem = null }) {
+  const modalRef = useModalA11y(isOpen, onClose);
   const [courtrooms, setCourtrooms] = useState([]);
   const [openCases, setOpenCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState(caseItem);
@@ -192,15 +194,23 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-2xl border border-gray-200 w-full max-w-2xl my-8 overflow-hidden animate-in fade-in duration-200">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="schedule-hearing-title"
+        className="bg-white rounded-lg shadow-2xl border border-gray-200 w-full max-w-2xl my-8 overflow-hidden animate-in fade-in duration-200"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 bg-navy-900 text-white">
           <div className="flex items-center space-x-2">
             <div className="p-1.5 bg-brass-500/20 text-brass-400 rounded-md">
-              <Calendar className="w-5 h-5" />
+              <Calendar className="w-5 h-5" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="font-serif text-lg font-bold">Schedule Court Hearing</h2>
+              <h2 id="schedule-hearing-title" className="font-serif text-lg font-bold">
+                Schedule Court Hearing
+              </h2>
               <p className="text-xs text-gray-300">
                 Allocate courtroom bench slot and publish to daily cause list
               </p>
@@ -208,9 +218,10 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
           </div>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="text-gray-400 hover:text-white transition-colors p-1 rounded-md"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -404,10 +415,15 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
           <div className="space-y-3">
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold uppercase tracking-wider text-navy-900">
+                <label
+                  htmlFor="schedule-purpose"
+                  className="block text-xs font-bold uppercase tracking-wider text-navy-900"
+                >
                   Hearing Purpose *
                 </label>
                 <span
+                  id="schedule-purpose-counter"
+                  aria-live="polite"
                   className={`text-[11px] font-mono ${
                     purpose.trim().length < 3
                       ? 'text-amber-600 font-semibold'
@@ -420,22 +436,28 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
                 </span>
               </div>
               <input
+                id="schedule-purpose"
                 type="text"
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
+                aria-describedby="schedule-purpose-counter schedule-purpose-hint"
                 placeholder="e.g. Framing of Charges, Final Arguments, Examination of Complainant"
                 className="w-full text-xs border border-gray-300 rounded-md py-2 px-3 focus:ring-2 focus:ring-brass-500 focus:outline-none"
               />
-              <p className="text-[11px] text-gray-500 mt-1">
+              <p id="schedule-purpose-hint" className="text-[11px] text-gray-500 mt-1">
                 Specify proceeding objective for cause list and daily bench calendar.
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-navy-900 mb-1">
+              <label
+                htmlFor="schedule-notes"
+                className="block text-xs font-bold uppercase tracking-wider text-navy-900 mb-1"
+              >
                 Registry Notes / Instructions (Optional)
               </label>
               <textarea
+                id="schedule-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="e.g. Parties directed to submit written arguments 48 hours prior to hearing..."
@@ -448,7 +470,7 @@ export default function ScheduleHearingModal({ isOpen, onClose, onSuccess, caseI
           {/* Action Buttons */}
           <div className="flex items-center justify-end space-x-3 pt-3 border-t border-gray-200">
             {(!selectedSlot || !isWorkingDay || purpose.trim().length < 3) && (
-              <span className="text-[11px] text-gray-500 mr-auto">
+              <span aria-live="polite" className="text-[11px] text-gray-500 mr-auto">
                 {!isWorkingDay
                   ? 'Selected date is not a working day'
                   : !selectedSlot

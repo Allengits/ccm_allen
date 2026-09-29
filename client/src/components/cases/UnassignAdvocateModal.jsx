@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { unwrap } from '../../api/unwrap';
 import { X, UserMinus, AlertCircle, AlertTriangle } from 'lucide-react';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 export default function UnassignAdvocateModal({
   isOpen,
@@ -13,6 +14,7 @@ export default function UnassignAdvocateModal({
   isLastAdvocate,
   caseStatus,
 }) {
+  const modalRef = useModalA11y(isOpen, onClose);
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -64,15 +66,23 @@ export default function UnassignAdvocateModal({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-navy-950/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border border-navy-100 animate-in fade-in zoom-in-95 duration-200">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="unassign-advocate-title"
+        className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border border-navy-100 animate-in fade-in zoom-in-95 duration-200"
+      >
         {/* Modal Header */}
         <div className="bg-navy-900 text-white px-6 py-4 flex items-center justify-between border-b border-navy-800">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-lg bg-red-500/20 border border-red-400/40 flex items-center justify-center text-red-400">
-              <UserMinus className="w-4 h-4" />
+              <UserMinus className="w-4 h-4" aria-hidden="true" />
             </div>
             <div>
-              <h3 className="font-serif text-lg font-bold">Unassign Legal Counsel</h3>
+              <h3 id="unassign-advocate-title" className="font-serif text-lg font-bold">
+                Unassign Legal Counsel
+              </h3>
               <p className="text-xs text-navy-300">
                 Docket <span className="font-mono text-brass-300 font-semibold">{caseNumber}</span>
               </p>
@@ -80,9 +90,10 @@ export default function UnassignAdvocateModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="text-navy-300 hover:text-white transition-colors p-1 rounded hover:bg-navy-800"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -134,10 +145,15 @@ export default function UnassignAdvocateModal({
           {/* Withdrawal Reason Field */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+              <label
+                htmlFor="unassign-reason"
+                className="text-xs font-semibold text-gray-700 uppercase tracking-wider"
+              >
                 Reason for Unassignment / Withdrawal <span className="text-red-500">*</span>
               </label>
               <span
+                id="unassign-reason-counter"
+                aria-live="polite"
                 className={`text-[11px] font-mono ${
                   reason.trim().length < 5
                     ? 'text-amber-600 font-semibold'
@@ -150,13 +166,15 @@ export default function UnassignAdvocateModal({
               </span>
             </div>
             <textarea
+              id="unassign-reason"
               rows={4}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
+              aria-describedby="unassign-reason-counter unassign-reason-hint"
               placeholder="Record mandatory administrative / judicial reason for advocate withdrawal (e.g. Vakalatnama revoked by party, advocate conflict of interest, elevated to bench, failure to appear)..."
               className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-navy-600"
             />
-            <p className="text-[11px] text-gray-500 mt-1">
+            <p id="unassign-reason-hint" className="text-[11px] text-gray-500 mt-1">
               Provide formal administrative justification. Recorded permanently in the case audit
               trail.
             </p>

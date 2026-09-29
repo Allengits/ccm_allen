@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { unwrap } from '../../api/unwrap';
 import { X, AlertCircle, Edit2, Loader2 } from 'lucide-react';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 export default function EditCaseModal({ isOpen, onClose, caseItem, onCaseUpdated }) {
+  const modalRef = useModalA11y(isOpen, onClose);
   const [metadata, setMetadata] = useState({ judges: [] });
   const [formData, setFormData] = useState({
     title: '',
@@ -93,13 +95,21 @@ export default function EditCaseModal({ isOpen, onClose, caseItem, onCaseUpdated
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="relative bg-white rounded-lg shadow-2xl max-w-2xl w-full border border-gray-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-case-title"
+        className="relative bg-white rounded-lg shadow-2xl max-w-2xl w-full border border-gray-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 bg-navy-950 text-white border-b border-navy-800">
           <div className="flex items-center space-x-2">
-            <Edit2 className="w-5 h-5 text-brass-400" />
+            <Edit2 className="w-5 h-5 text-brass-400" aria-hidden="true" />
             <div>
-              <h2 className="text-lg font-serif font-bold tracking-tight">Edit Case Details</h2>
+              <h2 id="edit-case-title" className="text-lg font-serif font-bold tracking-tight">
+                Edit Case Details
+              </h2>
               <p className="text-xs text-brass-200 font-mono mt-0.5">
                 {caseItem.caseNumber} • {caseItem.caseType}
               </p>
@@ -108,9 +118,10 @@ export default function EditCaseModal({ isOpen, onClose, caseItem, onCaseUpdated
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close dialog"
             className="text-gray-400 hover:text-white rounded-md p-1 hover:bg-navy-900 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -126,52 +137,81 @@ export default function EditCaseModal({ isOpen, onClose, caseItem, onCaseUpdated
           <form onSubmit={handleSubmit} className="space-y-4 text-left">
             {/* Title */}
             <div>
-              <label className="block text-xs font-semibold text-navy-900 uppercase">
+              <label
+                htmlFor="edit-case-title-input"
+                className="block text-xs font-semibold text-navy-900 uppercase"
+              >
                 Case Title <span className="text-red-500">*</span>
               </label>
               <input
+                id="edit-case-title-input"
                 type="text"
                 required
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                aria-describedby={fieldErrors.title ? 'edit-case-title-err' : undefined}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-brass-500 focus:border-brass-500"
               />
               {fieldErrors.title && (
-                <p className="mt-1 text-xs text-red-600">{fieldErrors.title}</p>
+                <p id="edit-case-title-err" role="alert" className="mt-1 text-xs text-red-600">
+                  {fieldErrors.title}
+                </p>
               )}
             </div>
 
             {/* Parties */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-navy-900 uppercase">
+                <label
+                  htmlFor="edit-case-petitioner"
+                  className="block text-xs font-semibold text-navy-900 uppercase"
+                >
                   Petitioner <span className="text-red-500">*</span>
                 </label>
                 <input
+                  id="edit-case-petitioner"
                   type="text"
                   required
                   value={formData.petitioner}
                   onChange={(e) => setFormData({ ...formData, petitioner: e.target.value })}
+                  aria-describedby={fieldErrors.petitioner ? 'edit-case-petitioner-err' : undefined}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-brass-500 focus:border-brass-500"
                 />
                 {fieldErrors.petitioner && (
-                  <p className="mt-1 text-xs text-red-600">{fieldErrors.petitioner}</p>
+                  <p
+                    id="edit-case-petitioner-err"
+                    role="alert"
+                    className="mt-1 text-xs text-red-600"
+                  >
+                    {fieldErrors.petitioner}
+                  </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-navy-900 uppercase">
+                <label
+                  htmlFor="edit-case-respondent"
+                  className="block text-xs font-semibold text-navy-900 uppercase"
+                >
                   Respondent <span className="text-red-500">*</span>
                 </label>
                 <input
+                  id="edit-case-respondent"
                   type="text"
                   required
                   value={formData.respondent}
                   onChange={(e) => setFormData({ ...formData, respondent: e.target.value })}
+                  aria-describedby={fieldErrors.respondent ? 'edit-case-respondent-err' : undefined}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-brass-500 focus:border-brass-500"
                 />
                 {fieldErrors.respondent && (
-                  <p className="mt-1 text-xs text-red-600">{fieldErrors.respondent}</p>
+                  <p
+                    id="edit-case-respondent-err"
+                    role="alert"
+                    className="mt-1 text-xs text-red-600"
+                  >
+                    {fieldErrors.respondent}
+                  </p>
                 )}
               </div>
             </div>
@@ -179,10 +219,14 @@ export default function EditCaseModal({ isOpen, onClose, caseItem, onCaseUpdated
             {/* Priority & Presiding Judge */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-navy-900 uppercase">
+                <label
+                  htmlFor="edit-case-priority"
+                  className="block text-xs font-semibold text-navy-900 uppercase"
+                >
                   Priority
                 </label>
                 <select
+                  id="edit-case-priority"
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-brass-500 focus:border-brass-500"
@@ -193,10 +237,14 @@ export default function EditCaseModal({ isOpen, onClose, caseItem, onCaseUpdated
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-navy-900 uppercase">
+                <label
+                  htmlFor="edit-case-judge"
+                  className="block text-xs font-semibold text-navy-900 uppercase"
+                >
                   Presiding Judge
                 </label>
                 <select
+                  id="edit-case-judge"
                   value={formData.judgeId}
                   onChange={(e) => setFormData({ ...formData, judgeId: e.target.value })}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-brass-500 focus:border-brass-500"

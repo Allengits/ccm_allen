@@ -2,8 +2,10 @@ import { useState } from 'react';
 import api from '../../api/axios';
 import { unwrap } from '../../api/unwrap';
 import { X, AlertTriangle, AlertCircle, Loader2 } from 'lucide-react';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 export default function CancelHearingModal({ isOpen, onClose, onSuccess, hearing }) {
+  const modalRef = useModalA11y(isOpen, onClose);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -43,35 +45,53 @@ export default function CancelHearingModal({ isOpen, onClose, onSuccess, hearing
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-2xl border border-gray-200 w-full max-w-md my-8 overflow-hidden animate-in fade-in duration-200">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cancel-hearing-title"
+        className="bg-white rounded-lg shadow-2xl border border-gray-200 w-full max-w-md my-8 overflow-hidden animate-in fade-in duration-200"
+      >
         <div className="flex items-center justify-between px-6 py-4 bg-red-900 text-white">
           <div className="flex items-center space-x-2">
             <div className="p-1.5 bg-red-800 text-red-200 rounded-md">
-              <AlertTriangle className="w-5 h-5" />
+              <AlertTriangle className="w-5 h-5" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="font-serif text-lg font-bold">Cancel Court Hearing</h2>
+              <h2 id="cancel-hearing-title" className="font-serif text-lg font-bold">
+                Cancel Court Hearing
+              </h2>
               <p className="text-xs text-red-200">
                 Case {hearing.case?.caseNumber || hearing.caseNumber}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-red-300 hover:text-white p-1 rounded-md">
-            <X className="w-5 h-5" />
+          <button
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="text-red-300 hover:text-white p-1 rounded-md"
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs flex items-start space-x-2">
-              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+            <div
+              role="alert"
+              className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs flex items-start space-x-2"
+            >
+              <AlertCircle
+                className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5"
+                aria-hidden="true"
+              />
               <span>{error}</span>
             </div>
           )}
 
           <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-md text-amber-900 text-xs space-y-1.5">
             <p className="font-semibold flex items-center space-x-1.5">
-              <AlertTriangle className="w-4 h-4 text-amber-700 flex-shrink-0" />
+              <AlertTriangle className="w-4 h-4 text-amber-700 flex-shrink-0" aria-hidden="true" />
               <span>Lifecycle Status Notice</span>
             </p>
             <p className="text-amber-800">
@@ -97,10 +117,15 @@ export default function CancelHearingModal({ isOpen, onClose, onSuccess, hearing
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-navy-900">
+              <label
+                htmlFor="cancel-hearing-reason"
+                className="block text-xs font-bold uppercase tracking-wider text-navy-900"
+              >
                 Cancellation Reason (Required) *
               </label>
               <span
+                id="cancel-hearing-counter"
+                aria-live="polite"
                 className={`text-[11px] font-mono ${
                   reason.trim().length < 5
                     ? 'text-amber-600 font-semibold'
@@ -113,20 +138,22 @@ export default function CancelHearingModal({ isOpen, onClose, onSuccess, hearing
               </span>
             </div>
             <textarea
+              id="cancel-hearing-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
+              aria-describedby="cancel-hearing-counter cancel-hearing-hint"
               placeholder="e.g. Complainant withdrew motion; matter resolved out of court."
               rows={3}
               className="w-full text-xs border border-gray-300 rounded-md py-2 px-3 focus:ring-2 focus:ring-red-500 focus:outline-none"
             />
-            <p className="text-[11px] text-gray-500 mt-1">
+            <p id="cancel-hearing-hint" className="text-[11px] text-gray-500 mt-1">
               Official cancellation reason permanently recorded in the audit trail.
             </p>
           </div>
 
           <div className="flex items-center justify-end space-x-3 pt-3 border-t border-gray-200">
             {reason.trim().length < 5 && (
-              <span className="text-[11px] text-gray-500 mr-auto">
+              <span aria-live="polite" className="text-[11px] text-gray-500 mr-auto">
                 Reason requires {5 - reason.trim().length} more character(s)
               </span>
             )}

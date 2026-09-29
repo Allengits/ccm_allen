@@ -2,8 +2,10 @@ import { useState } from 'react';
 import api from '../../api/axios';
 import { unwrap } from '../../api/unwrap';
 import { X, CheckCircle2, AlertCircle, Loader2, Scale } from 'lucide-react';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 export default function CompleteHearingModal({ isOpen, onClose, onSuccess, hearing }) {
+  const modalRef = useModalA11y(isOpen, onClose);
   const [outcomeNotes, setOutcomeNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -43,35 +45,53 @@ export default function CompleteHearingModal({ isOpen, onClose, onSuccess, heari
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-2xl border border-gray-200 w-full max-w-lg my-8 overflow-hidden animate-in fade-in duration-200">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="complete-hearing-title"
+        className="bg-white rounded-lg shadow-2xl border border-gray-200 w-full max-w-lg my-8 overflow-hidden animate-in fade-in duration-200"
+      >
         <div className="flex items-center justify-between px-6 py-4 bg-emerald-900 text-white">
           <div className="flex items-center space-x-2">
             <div className="p-1.5 bg-emerald-800 text-emerald-200 rounded-md">
-              <CheckCircle2 className="w-5 h-5" />
+              <CheckCircle2 className="w-5 h-5" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="font-serif text-lg font-bold">Conclude Hearing Session</h2>
+              <h2 id="complete-hearing-title" className="font-serif text-lg font-bold">
+                Conclude Hearing Session
+              </h2>
               <p className="text-xs text-emerald-200">
                 Case {hearing.case?.caseNumber || hearing.caseNumber}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-emerald-300 hover:text-white p-1 rounded-md">
-            <X className="w-5 h-5" />
+          <button
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="text-emerald-300 hover:text-white p-1 rounded-md"
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs flex items-start space-x-2">
-              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+            <div
+              role="alert"
+              className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs flex items-start space-x-2"
+            >
+              <AlertCircle
+                className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5"
+                aria-hidden="true"
+              />
               <span>{error}</span>
             </div>
           )}
 
           <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-900 text-xs space-y-1">
             <p className="font-semibold flex items-center space-x-1.5">
-              <Scale className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+              <Scale className="w-4 h-4 text-emerald-700 flex-shrink-0" aria-hidden="true" />
               <span>Judicial Proceedings Outcome</span>
             </p>
             <p className="text-emerald-800">
@@ -98,10 +118,15 @@ export default function CompleteHearingModal({ isOpen, onClose, onSuccess, heari
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-navy-900">
+              <label
+                htmlFor="complete-hearing-notes"
+                className="block text-xs font-bold uppercase tracking-wider text-navy-900"
+              >
                 Daily Order / Proceedings Outcome Notes *
               </label>
               <span
+                id="complete-hearing-counter"
+                aria-live="polite"
                 className={`text-[11px] font-mono ${
                   outcomeNotes.trim().length < 5
                     ? 'text-amber-600 font-semibold'
@@ -114,20 +139,22 @@ export default function CompleteHearingModal({ isOpen, onClose, onSuccess, heari
               </span>
             </div>
             <textarea
+              id="complete-hearing-notes"
               value={outcomeNotes}
               onChange={(e) => setOutcomeNotes(e.target.value)}
+              aria-describedby="complete-hearing-counter complete-hearing-hint"
               placeholder="e.g. Accused present. Charges framed under sections 420 & 406 IPC. Counsel for complainant cross-examined PW-1. Matter directed for further evidence."
               rows={4}
               className="w-full text-xs border border-gray-300 rounded-md py-2 px-3 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             />
-            <p className="text-[11px] text-gray-500 mt-1">
+            <p id="complete-hearing-hint" className="text-[11px] text-gray-500 mt-1">
               Recorded in daily order. Formal record of proceeding findings.
             </p>
           </div>
 
           <div className="flex items-center justify-end space-x-3 pt-3 border-t border-gray-200">
             {outcomeNotes.trim().length < 5 && (
-              <span className="text-[11px] text-gray-500 mr-auto">
+              <span aria-live="polite" className="text-[11px] text-gray-500 mr-auto">
                 Notes require {5 - outcomeNotes.trim().length} more character(s)
               </span>
             )}

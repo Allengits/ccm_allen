@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { unwrap } from '../../api/unwrap';
 import { X, UserPlus, AlertCircle } from 'lucide-react';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 export default function AddAdvocateModal({ isOpen, onClose, onSuccess, specializations = [] }) {
+  const modalRef = useModalA11y(isOpen, onClose);
   const [formData, setFormData] = useState({
     name: '',
     barNumber: '',
@@ -106,15 +108,23 @@ export default function AddAdvocateModal({ isOpen, onClose, onSuccess, specializ
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-navy-950/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border border-navy-100 animate-in fade-in zoom-in-95 duration-200">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-advocate-title"
+        className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border border-navy-100 animate-in fade-in zoom-in-95 duration-200"
+      >
         {/* Modal Header */}
         <div className="bg-navy-900 text-white px-6 py-4 flex items-center justify-between border-b border-navy-800">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-lg bg-brass-500/20 border border-brass-400/40 flex items-center justify-center text-brass-400">
-              <UserPlus className="w-4 h-4" />
+              <UserPlus className="w-4 h-4" aria-hidden="true" />
             </div>
             <div>
-              <h3 className="font-serif text-lg font-bold">Register Legal Counsel</h3>
+              <h3 id="add-advocate-title" className="font-serif text-lg font-bold">
+                Register Legal Counsel
+              </h3>
               <p className="text-xs text-navy-300">
                 Enroll new advocate in the official court directory
               </p>
@@ -122,31 +132,43 @@ export default function AddAdvocateModal({ isOpen, onClose, onSuccess, specializ
           </div>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="text-navy-300 hover:text-white transition-colors p-1 rounded hover:bg-navy-800"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
         {/* Modal Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 flex items-start space-x-2 text-red-800 text-xs">
-              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+            <div
+              role="alert"
+              className="p-3 rounded-lg bg-red-50 border border-red-200 flex items-start space-x-2 text-red-800 text-xs"
+            >
+              <AlertCircle
+                className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5"
+                aria-hidden="true"
+              />
               <span>{error}</span>
             </div>
           )}
 
           {/* Full Name */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+            <label
+              htmlFor="add-adv-name"
+              className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1"
+            >
               Advocate Full Name <span className="text-red-500">*</span>
             </label>
             <input
+              id="add-adv-name"
               type="text"
               name="name"
               value={formData.name}
               onChange={handleChange}
+              aria-describedby={fieldErrors.name ? 'add-adv-name-err' : undefined}
               placeholder="e.g. Adv. Rakesh K. Srivastava"
               className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 ${
                 fieldErrors.name
@@ -155,13 +177,22 @@ export default function AddAdvocateModal({ isOpen, onClose, onSuccess, specializ
               }`}
             />
             {fieldErrors.name && (
-              <p className="text-xs text-red-600 mt-1 font-medium">{fieldErrors.name}</p>
+              <p
+                id="add-adv-name-err"
+                role="alert"
+                className="text-xs text-red-600 mt-1 font-medium"
+              >
+                {fieldErrors.name}
+              </p>
             )}
           </div>
 
           {/* Bar Council Number */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+            <label
+              htmlFor="add-adv-barnumber"
+              className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1 flex items-center justify-between"
+            >
               <span>
                 Bar Council Number <span className="text-red-500">*</span>
               </span>
@@ -170,10 +201,14 @@ export default function AddAdvocateModal({ isOpen, onClose, onSuccess, specializ
               </span>
             </label>
             <input
+              id="add-adv-barnumber"
               type="text"
               name="barNumber"
               value={formData.barNumber}
               onChange={handleChange}
+              aria-describedby={
+                fieldErrors.barNumber ? 'add-adv-bar-err add-adv-bar-hint' : 'add-adv-bar-hint'
+              }
               placeholder="STATE/YEAR/ROLL"
               className={`w-full px-3 py-2 text-sm font-mono uppercase rounded-lg border focus:outline-none focus:ring-2 ${
                 fieldErrors.barNumber
@@ -182,24 +217,35 @@ export default function AddAdvocateModal({ isOpen, onClose, onSuccess, specializ
               }`}
             />
             {fieldErrors.barNumber && (
-              <p className="text-xs text-red-600 mt-1 font-medium">{fieldErrors.barNumber}</p>
+              <p
+                id="add-adv-bar-err"
+                role="alert"
+                className="text-xs text-red-600 mt-1 font-medium"
+              >
+                {fieldErrors.barNumber}
+              </p>
             )}
-            <p className="text-[11px] text-gray-500 mt-1">
+            <p id="add-adv-bar-hint" className="text-[11px] text-gray-500 mt-1">
               Official Bar Council enrollment ID. Cannot be modified after registration.
             </p>
           </div>
 
           {/* Specialization */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+            <label
+              htmlFor="add-adv-specialization"
+              className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1"
+            >
               Primary Practice Specialization <span className="text-red-500">*</span>
             </label>
             <input
+              id="add-adv-specialization"
               type="text"
               name="specialization"
               list="specialization-options"
               value={formData.specialization}
               onChange={handleChange}
+              aria-describedby={fieldErrors.specialization ? 'add-adv-spec-err' : undefined}
               placeholder="Select or enter specialization"
               className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 ${
                 fieldErrors.specialization
@@ -213,21 +259,32 @@ export default function AddAdvocateModal({ isOpen, onClose, onSuccess, specializ
               ))}
             </datalist>
             {fieldErrors.specialization && (
-              <p className="text-xs text-red-600 mt-1 font-medium">{fieldErrors.specialization}</p>
+              <p
+                id="add-adv-spec-err"
+                role="alert"
+                className="text-xs text-red-600 mt-1 font-medium"
+              >
+                {fieldErrors.specialization}
+              </p>
             )}
           </div>
 
           {/* Email & Phone grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+              <label
+                htmlFor="add-adv-email"
+                className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1"
+              >
                 Email Address <span className="text-red-500">*</span>
               </label>
               <input
+                id="add-adv-email"
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
+                aria-describedby={fieldErrors.email ? 'add-adv-email-err' : undefined}
                 placeholder="advocate@chambers.in"
                 className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 ${
                   fieldErrors.email
@@ -236,19 +293,30 @@ export default function AddAdvocateModal({ isOpen, onClose, onSuccess, specializ
                 }`}
               />
               {fieldErrors.email && (
-                <p className="text-xs text-red-600 mt-1 font-medium">{fieldErrors.email}</p>
+                <p
+                  id="add-adv-email-err"
+                  role="alert"
+                  className="text-xs text-red-600 mt-1 font-medium"
+                >
+                  {fieldErrors.email}
+                </p>
               )}
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+              <label
+                htmlFor="add-adv-phone"
+                className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1"
+              >
                 Phone Number <span className="text-gray-400 font-normal lowercase">(optional)</span>
               </label>
               <input
+                id="add-adv-phone"
                 type="text"
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
+                aria-describedby={fieldErrors.phone ? 'add-adv-phone-err' : undefined}
                 placeholder="+91 98XXX XXXXX"
                 className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 ${
                   fieldErrors.phone
@@ -257,7 +325,13 @@ export default function AddAdvocateModal({ isOpen, onClose, onSuccess, specializ
                 }`}
               />
               {fieldErrors.phone && (
-                <p className="text-xs text-red-600 mt-1 font-medium">{fieldErrors.phone}</p>
+                <p
+                  id="add-adv-phone-err"
+                  role="alert"
+                  className="text-xs text-red-600 mt-1 font-medium"
+                >
+                  {fieldErrors.phone}
+                </p>
               )}
             </div>
           </div>

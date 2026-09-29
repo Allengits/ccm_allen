@@ -2,8 +2,10 @@ import { useState } from 'react';
 import api from '../../api/axios';
 import { unwrap } from '../../api/unwrap';
 import { Gavel, X, AlertTriangle, Loader2 } from 'lucide-react';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 export default function ReserveJudgmentModal({ isOpen, onClose, courtCase, onReserved }) {
+  const modalRef = useModalA11y(isOpen, onClose);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -54,27 +56,43 @@ export default function ReserveJudgmentModal({ isOpen, onClose, courtCase, onRes
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-navy-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-2xl border border-navy-900/10 max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reserve-judgment-title"
+        className="bg-white rounded-lg shadow-2xl border border-navy-900/10 max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      >
         {/* Header */}
         <div className="bg-navy-900 px-6 py-4 flex items-center justify-between text-white">
           <div className="flex items-center space-x-2">
-            <Gavel className="w-5 h-5 text-brass-400" />
-            <h2 className="font-serif text-lg font-bold tracking-wide">Reserve Judgment</h2>
+            <Gavel className="w-5 h-5 text-brass-400" aria-hidden="true" />
+            <h2 id="reserve-judgment-title" className="font-serif text-lg font-bold tracking-wide">
+              Reserve Judgment
+            </h2>
           </div>
           <button
             onClick={onClose}
             className="text-navy-300 hover:text-white transition-colors"
             title="Close dialog"
+            aria-label="Close dialog"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs flex items-start space-x-2">
-              <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+            <div
+              id="reserve-judgment-error"
+              role="alert"
+              className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs flex items-start space-x-2"
+            >
+              <AlertTriangle
+                className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5"
+                aria-hidden="true"
+              />
               <span>{error}</span>
             </div>
           )}
@@ -97,6 +115,8 @@ export default function ReserveJudgmentModal({ isOpen, onClose, courtCase, onRes
                 Reservation Bench Note <span className="text-gray-400 font-normal">(Optional)</span>
               </label>
               <span
+                id="reserve-note-counter"
+                aria-live="polite"
                 className={`font-mono text-[11px] ${
                   trimmedNote.length > 0 && trimmedNote.length < 5
                     ? 'text-amber-600 font-semibold'
@@ -114,10 +134,11 @@ export default function ReserveJudgmentModal({ isOpen, onClose, courtCase, onRes
               rows={3}
               value={note}
               onChange={(e) => setNote(e.target.value)}
+              aria-describedby="reserve-note-counter reserve-note-hint"
               placeholder="e.g. Oral submissions concluded; written arguments taken on record. Matter reserved for pronouncement."
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brass-500 focus:border-brass-500"
             />
-            <p className="text-[11px] text-gray-500">
+            <p id="reserve-note-hint" className="text-[11px] text-gray-500">
               Optional bench memorandum or scheduling context for reserving judgment. Minimum 5
               characters if entered.
             </p>

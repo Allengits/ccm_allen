@@ -82,8 +82,9 @@ export default function TopBar() {
               onClick={handleLogout}
               className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors"
               title="Sign Out of Session"
+              aria-label="Sign Out of Session"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
               <span className="hidden md:inline">Sign Out</span>
             </button>
           </div>

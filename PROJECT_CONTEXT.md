@@ -2,207 +2,241 @@
 
 ## Problem
 
-Indian courts have over 5.3 crore pending cases. Much of the delay comes from manual, disconnected case allocation and tracking.
+Indian courts face a staggering pendency of over 5.3 crore cases across district and subordinate courts. Much of this chronic backlog stems from manual, disconnected case tracking, lack of procedural accountability, missed procedural deadlines, unmonitored court adjournment cycles, and lack of real-time registry visibility.
 
 ## Solution
 
-One shared case record that links case registration, advocate assignment, hearing scheduling, and judgment tracking. Case status updates automatically as each step is completed. A dashboard flags cases pending beyond a set number of days.
+A unified, full-stack, enterprise-grade Judicial Registry and Case Tracking System that links case filing, advocate assignment, hearing scheduling, trial proceedings, and judgment disposition into a single shared, audited legal docket. Case status advances or reverts automatically as procedural steps occur. An integrated Automation Engine and Registry Dashboard continuously computes caseload telemetry, flags aging backlogs, detects stagnating cases, and monitors judicial workloads without caching lag.
 
-> **Scope change**: The Evidence module was removed by decision in Phase 6B; the migration history still contains it, which is expected.
+> **Scope Note**: The Evidence module was removed by deliberate architectural decision in Phase 6B to maintain judicial record integrity and focus on docket flow; the initial migration history retains the historical table dropping, as intended.
 
-## Roles
+---
 
-Admin, Registrar (court clerk), Judge, Advocate.
+## Roles & Access Control Summary
 
-## Case status lifecycle
+The system defines four mutually exclusive, strictly enforced roles:
 
-Registered -> Advocate Assigned -> Hearing Scheduled -> Under Trial -> Judgment Reserved -> Closed
+1. **ADMIN**: Court Superadministrator. Full system authority (`*`), personnel onboarding, credentials management, system parameter & threshold configuration, registry audit oversight.
+2. **REGISTRAR**: Court Registry Officer / Clerk. Case registration, counsel assignment/unassignment, courtroom hearing scheduling, rescheduling, cancellation, and registry dashboard monitoring. Cannot deliver judgments or modify user accounts.
+3. **JUDGE**: Judicial Officer / Presiding Magistrate. Presides over allocated courtrooms, conducts trial hearings, records hearing outcomes, grants reasoned adjournments, reserves judgments, and authorises operative judgments closing dockets. Cannot register cases or assign counsel.
+4. **ADVOCATE**: Legal Counsel / Bar Advocate. Restricted strictly to viewing cases where they are actively retained as counsel, inspecting their daily hearing cause lists, and monitoring personal caseload statistics. Read-only access to their client cases.
 
-## Tech stack
+---
 
-- Frontend: React (Vite) + Tailwind CSS + react-router + axios
-- Backend: Node.js + Express (ES modules)
-- Database: MySQL with Prisma ORM
-- Auth: JWT
-- Validation: zod
+## Complete Case Status Lifecycle
 
-## Conventions
+The court case record follows an automated, state-machine-driven lifecycle across 6 formal states:
 
-- Monorepo: /client and /server
-- REST API under /api/v1
-- JSON response format: { success, message, data } and { success:false, message, errors }
-- Config in .env, provide .env.example, never commit secrets
-- Small, readable code with comments where logic is non-obvious
-- One git commit per phase
+```
+[ REGISTERED ]
+       │  ▲
+       │  │ (last counsel unassigned)
+       ▼  │
+[ ADVOCATE_ASSIGNED ]
+       │  ▲
+       │  │ (hearing cancelled / adjourned without next date)
+       ▼  │
+[ HEARING_SCHEDULED ]
+       │
+       │ (first hearing completed)
+       ▼
+[ UNDER_TRIAL ] ◄──┐ (further hearings completed / adjourned with next date)
+       │         └──┘
+       │ (all hearings complete & oral arguments closed)
+       ▼
+[ JUDGMENT_RESERVED ]
+       │
+       │ (operative judgment delivered)
+       ▼
+[ CLOSED ] (Read-only legal artifact; permanent immutability)
+```
 
-## UI theme
+### Full Case Status Automation Matrix
 
-Navy #1C2B45, brass #A6763B, white background. Serif headings (Source Serif 4 or Times New Roman), clean sans-serif body. Professional, registry-like, accessible.
+| Initial State       | Target State        | Triggering Event / API Endpoint                          | Business Rules & Invariants                                                                          | Automated By             |
+| ------------------- | ------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------ |
+| `—`                 | `REGISTERED`        | `POST /api/v1/cases`                                     | Case filed by Registrar/Admin; auto-generates consecutive sequence (e.g. `CC/2026/00101`).           | `case.controller.js`     |
+| `REGISTERED`        | `ADVOCATE_ASSIGNED` | `POST /api/v1/cases/:id/advocates`                       | First active counsel assigned to petitioner or respondent.                                           | `caseWorkflow.js`        |
+| `ADVOCATE_ASSIGNED` | `REGISTERED`        | `POST /api/v1/cases/:id/advocates/:advId/unassign`       | Last remaining counsel unassigned with mandatory legal reason. Reverts status automatically.         | `caseWorkflow.js`        |
+| `ADVOCATE_ASSIGNED` | `HEARING_SCHEDULED` | `POST /api/v1/hearings`                                  | First active hearing scheduled in available courtroom/slot by Registrar. Case `judgeId` set.         | `caseWorkflow.js`        |
+| `HEARING_SCHEDULED` | `ADVOCATE_ASSIGNED` | `POST /api/v1/hearings/:id/cancel`                       | Active scheduled hearing cancelled before occurrence; 0 active hearings remain. Reverts status.      | `caseWorkflow.js`        |
+| `HEARING_SCHEDULED` | `ADVOCATE_ASSIGNED` | `POST /api/v1/hearings/:id/adjourn`                      | Hearing adjourned without specifying a next hearing date; 0 active hearings remain. Reverts status.  | `caseWorkflow.js`        |
+| `HEARING_SCHEDULED` | `UNDER_TRIAL`       | `POST /api/v1/hearings/:id/complete`                     | Presiding judge completes the first scheduled hearing with outcome notes on or after hearing date.   | `caseWorkflow.js`        |
+| `UNDER_TRIAL`       | `UNDER_TRIAL`       | `POST /api/v1/hearings` / `:id/adjourn` / `:id/complete` | Subsequent hearings scheduled, adjourned with next date, or completed. Status remains `UNDER_TRIAL`. | `caseWorkflow.js`        |
+| `UNDER_TRIAL`       | `JUDGMENT_RESERVED` | `POST /api/v1/cases/:id/judgment/reserve`                | Presiding judge reserves judgment. Requires $\ge 1$ `COMPLETED` hearing and 0 `SCHEDULED` hearings.  | `judgment.controller.js` |
+| `JUDGMENT_RESERVED` | `CLOSED`            | `POST /api/v1/cases/:id/judgment/deliver`                | Presiding judge delivers final judgment with decree outcome, summary, and date. Sets `closedAt`.     | `judgment.controller.js` |
+| `CLOSED`            | `—`                 | Any Mutation Attempt                                     | **Immutable**. Edits, advocate changes, hearings, and judgment modifications rejected with 400/409.  | Route Middlewares        |
 
-## Report format (end of every phase)
+---
 
-Create reports/PHASE_<n>_REPORT.md with these sections:
+## Final Tech Stack
 
-1. Objective 2. What was built 3. Files and folders changed 4. How to run and verify (exact commands) 5. Test evidence (commands run and results) 6. Decisions and assumptions 7. Issues and limitations 8. Deviations from the prompt 9. Ready-for-next-phase checklist
-   Also give me a short summary in chat.
+- **Frontend**: React 19, Vite 6, Tailwind CSS 3.4, React Router 7, Axios, Lucide React, Prettier, ESLint 9.
+- **Backend**: Node.js 22 LTS, Express 4.21 (native ES modules), Luxon 3.7 (IST Court Timezone standard), Zod 3.24 (strict schemas), Helmet, Express Rate Limit, Cookie Parser.
+- **Database & ORM**: MySQL 26.7.0 Community Server (Port 3307), Prisma ORM 6.4.1 configured via modern `server/prisma.config.js`.
+- **Testing**: Vitest 3.0.7, Supertest 7.0.0, 7 comprehensive test suites (228 automated tests passing under both UTC and `Asia/Kolkata` timezones).
+- **Architecture**: Monorepo (`/client` and `/server`), stateless signed `httpOnly` JWT sessions, RESTful API under `/api/v1`.
 
-## Data Model (Phase 2, Phase 6B Scope Change, Phase 6)
+---
 
-11 core entities implemented in Prisma MySQL:
+## Complete Permissions Matrix
 
-- User (ADMIN, REGISTRAR, JUDGE, ADVOCATE)
-- Advocate (Bar Council ID, specialization, optional User link)
-- Courtroom (court complex halls, location, availability)
-- Case (caseNumber, CaseType, Priority, CaseStatus, petitioner, respondent, judge, registeredBy)
-- CaseAdvocate (join table linking cases and counsel on PETITIONER/RESPONDENT side)
-- Hearing (case, courtroom, judge, scheduledById, scheduledAt, durationMins, HearingStatus, outcomeNotes)
-- HearingEvent (append-only audit log tracking SCHEDULED, RESCHEDULED, CANCELLED, COMPLETED, ADJOURNED actions with timestamp, user, reason, metadata)
-- Judgment (caseId [1:1], authoring judge, JudgmentStatus, JudgmentOutcome, summary, reserved/delivered dates)
-- CaseStatusHistory (immutable audit log tracking transitions across the 6-state lifecycle)
-- CaseSequence (prefix, year, lastNumber for consecutive case number generation)
-- SystemSetting (key/value, 10 settings: operating hours, lunch break, slot duration, advance scheduling windows, advocate workload threshold, backlog threshold, court jurisdiction)
-  Detailed ER diagram and data dictionary documented in docs/DATABASE.md.
+| Permission Key       | Description                              | ADMIN | REGISTRAR |        JUDGE         |      ADVOCATE       |
+| -------------------- | ---------------------------------------- | :---: | :-------: | :------------------: | :-----------------: |
+| `case.create`        | Register new court docket                |  ✅   |    ✅     |          ❌          |         ❌          |
+| `case.view`          | View cases within authorized scope       |  ✅   |    ✅     | ✅ (assigned bench)  | ✅ (active counsel) |
+| `case.edit`          | Modify case details (active only)        |  ✅   |    ✅     |          ❌          |         ❌          |
+| `advocate.view`      | Browse advocate directory                |  ✅   |    ✅     |          ✅          |  ✅ (own profile)   |
+| `advocate.manage`    | Onboard and edit advocate profiles       |  ✅   |    ✅     |          ❌          |         ❌          |
+| `advocate.assign`    | Assign / unassign counsel on cases       |  ✅   |    ✅     |          ❌          |         ❌          |
+| `hearing.view`       | View hearing listings & cause lists      |  ✅   |    ✅     | ✅ (courtroom bench) |   ✅ (own cases)    |
+| `hearing.schedule`   | Book courtrooms and schedule hearings    |  ✅   |    ✅     |          ❌          |         ❌          |
+| `hearing.update`     | Complete, adjourn, or reschedule hearing |  ✅   |    ❌     | ✅ (presiding bench) |         ❌          |
+| `judgment.view`      | View judgment decrees & registry         |  ✅   |    ✅     |          ✅          |   ✅ (own cases)    |
+| `judgment.record`    | Reserve judgment on eligible cases       |  ✅   |    ❌     | ✅ (presiding bench) |         ❌          |
+| `judgment.deliver`   | Deliver final operative judgment         |  ✅   |    ❌     | ✅ (presiding bench) |         ❌          |
+| `user.manage`        | Onboard users & reset passwords          |  ✅   |    ❌     |          ❌          |         ❌          |
+| `dashboard.view.all` | View court-wide telemetry & backlog      |  ✅   |    ✅     | ✅ (bench caseload)  |         ❌          |
+| `dashboard.view.own` | View personal caseload summary           |  ❌   |    ❌     |          ❌          |         ✅          |
 
-## Auth and Access Control (Phase 3)
+---
 
-- **Session Architecture**: Stateless signed JWT stored in an `httpOnly` cookie (`court_cms_token`, SameSite=Lax, Secure in production, 8h expiration). Never returned in response bodies or stored in localStorage.
-- **Immediate Invalidation**: `authenticate` middleware re-reads user from MySQL on every request to instantly enforce deactivations and role modifications.
-- **Timing Leak Defense**: Unified generic error message (`Invalid email or password`) with dummy bcrypt comparison for unknown emails to eliminate response-timing side channels.
-- **Brute-Force Protection**: Express rate limiting on `/login` (10 attempts per 15 min per IP, returning HTTP 429).
-- **Central Permissions Matrix (`server/src/config/permissions.js`)**:
-  - `ADMIN`: Full authority (`*`), including user management, registration, hearings, judgments, and registry audit.
-  - `REGISTRAR`: Case docket registration, advocate assignment, hearing scheduling, and dashboard viewing. Cannot record/deliver judgments or manage users.
-  - `JUDGE`: View assigned cases, record hearing outcomes, and draft/deliver judgments. Cannot register cases, assign counsel, or manage users.
-  - `ADVOCATE`: View assigned client cases (read-only).
-- **Case Visibility Scoping (`caseVisibilityFilter(user)`)**:
-  - `ADMIN` & `REGISTRAR`: Unrestricted access to all cases (`{}`).
-  - `JUDGE`: Scoped to cases allocated to their judicial bench (`{ judgeId: user.id }`).
-  - `ADVOCATE`: Scoped to cases where user's linked advocate is active counsel (`{ advocates: { some: { advocateId, isActive: true } } }`).
-- **User Management Safety Rules**:
-  - Admins cannot deactivate or demote their own account.
-  - The system must never be left without at least one active ADMIN.
-  - Unique emails strictly enforced; passwords must meet complexity rules (>= 8 chars with letter and number).
-    Detailed API contract and security decisions documented in docs/AUTH.md.
+## Final Data Model & Complete Mermaid ER Diagram
 
-## Case Management (Phase 4)
+```mermaid
+erDiagram
+    User ||--o{ Case : "registers (registeredById)"
+    User ||--o{ Case : "presides (judgeId)"
+    User ||--o| Advocate : "linked account (userId)"
+    User ||--o{ Hearing : "schedules (scheduledById)"
+    User ||--o{ Hearing : "presides (judgeId)"
+    User ||--o{ HearingEvent : "performs (performedById)"
+    User ||--o{ Judgment : "author (judgeId)"
+    User ||--o{ Judgment : "reserves (reservedById)"
+    User ||--o{ Judgment : "delivers (deliveredById)"
+    User ||--o{ CaseStatusHistory : "audits (changedById)"
 
-- **Automated Sequential Numbering**: Case numbers formatted as `PREFIX/YEAR/00001` (5-digit padded sequence) generated within an exclusive row lock transaction on `case_sequences`. Prefix mapped by case type (`CRIMINAL=CC`, `CIVIL=CV`, `FAMILY=FM`, `PROPERTY=PR`, `COMMERCIAL=CM`, `CONSTITUTIONAL=WP`, `OTHER=MC`).
-- **Atomic Registration**: Registering a case atomically writes the master `Case` record and initial `CaseStatusHistory` (`REGISTERED`, reason "Case registered") inside one transaction.
-- **Strict Role Visibility & 404 Shielding**:
-  - `ADMIN` & `REGISTRAR`: Full docket visibility across the court registry.
-  - `JUDGE`: Scoped strictly to cases assigned to their bench.
-  - `ADVOCATE`: Scoped strictly to cases where they are active counsel.
-  - Out-of-scope case lookups return HTTP 404 to shield sensitive docket existence.
-- **Editability & Legal Immutability**:
-  - Allowed edits (`case.edit` for Admin/Registrar): title, petitioner, respondent, description, priority, judgeId.
-  - Immutable fields: `caseNumber`, `caseType`, `filingDate`, and `status`.
-  - Closed cases (`status === 'CLOSED'`) cannot be modified.
-  - No deletion endpoint exists; court records are permanent legal artifacts.
-- **Backlog Tracking**: Dynamic `ageDays` and `isBacklog` calculation based on `backlog_threshold_days` setting (>= 90 days pendency for open cases).
-  Detailed endpoint specifications documented in docs/CASES.md.
+    Advocate ||--o{ CaseAdvocate : "represents"
 
-## Advocate Management & Case Assignment (Phase 5)
+    Courtroom ||--o{ Hearing : "hosts"
 
-- **Advocate Directory (`/api/v1/advocates`)**:
-  - Filter by `specialization` and `hasLogin`, search across `name`, `barNumber`, `email`, with pagination up to 50 items.
-  - Active and total case count aggregation without N+1 queries.
-  - Strict Bar Council number format validation (`/^[A-Z0-9/-]{5,20}$/`) and duplicate collision rejection; bar numbers are permanent legal identifiers and immutable once created.
-  - Basic Indian mobile and landline telephone format verification.
-  - Advocate profile lookups role-scoped: `ADVOCATE` role is restricted to viewing exclusively their own advocate profile (`404` for out-of-scope IDs).
-  - No advocate deletion endpoint exists (preserves historical legal integrity).
-- **Case Advocate Audit & Schema**:
-  - `CaseAdvocate` records include `assignedById`, `unassignedAt`, `unassignedById`, and `unassignReason`.
-- **Assignment Business Rules & Conflict Defense**:
-  - Executed inside a single atomic database transaction with `advocate.assign` permission.
-  - Cannot assign to `CLOSED` cases.
-  - Advocates with linked user accounts must have active logins (`isActive: true`).
-  - Strict conflict-of-interest check: an advocate cannot simultaneously represent both petitioner and respondent on the same case.
-  - Maximum of 2 active advocates allowed per side per case.
-  - Re-assignment of a previously unassigned advocate reactivates the existing join record (retaining unassign reason in historical timeline).
-  - Removing the last active advocate is permitted only when status is `ADVOCATE_ASSIGNED`; cases further along (`HEARING_SCHEDULED`, `UNDER_TRIAL`, `JUDGMENT_RESERVED`) require assigning a replacement first.
-- **Workflow State Automation (`caseWorkflow.js`)**:
-  - Assigning the first active advocate to a `REGISTERED` case automatically transitions status to `ADVOCATE_ASSIGNED` with audit entry.
-  - Unassigning the last active advocate from an `ADVOCATE_ASSIGNED` case automatically reverts status back to `REGISTERED` with reason recorded.
-  - Assignments on cases in subsequent lifecycle statuses do not alter status.
-- **Workload Soft Warning**:
-  - Evaluates configurable `advocate_workload_warning_threshold` (seeded default: 15 active open cases). Emits an informational warning without blocking assignment.
-- **Audit Timeline Integration**:
-  - Case History timeline merges `CaseStatusHistory` records and `CaseAdvocate` assignment/unassignment events sorted chronologically without requiring auxiliary audit tables.
-    Detailed endpoint specifications and workflow contracts documented in docs/ADVOCATES.md.
+    Case ||--o{ CaseAdvocate : "counsel representation"
+    Case ||--o{ Hearing : "proceedings"
+    Case ||--o| Judgment : "disposition (1:1)"
+    Case ||--o{ CaseStatusHistory : "status audit trail"
 
-## Hearing Scheduling, Cause Lists & Automation (Phase 6)
+    Hearing ||--o{ HearingEvent : "procedural events"
 
-- **IST Timezone & Court Hours Standard (`Asia/Kolkata`)**:
-  - Centralized in `server/src/utils/courtTime.js` powered by Luxon.
-  - Court operating hours strictly enforced: 10:00 to 17:00 IST on working days (Monday–Friday).
-  - Daily lunch recess strictly protected: 13:00 to 14:00 IST (no hearings may begin or overlap this recess).
-  - Slot alignment: all hearings must start on clean 15-minute clock boundaries (`:00`, `:15`, `:30`, `:45`).
-- **Dynamic Slot Availability Engine (`GET /hearings/availability`)**:
-  - Calculates free, non-overlapping candidate slots for any active courtroom and date.
-  - Automatically filters out weekends, lunch break, past time intervals, and existing booked hearings.
-- **Daily Cause List & Scoping (`GET /hearings/cause-list`)**:
-  - Daily judicial listings grouped by courtroom, ordered chronologically, and sequentially serial numbered (1..N).
-  - Role-scoped: Judges see only their courtroom bench; advocates see only cases where they actively represent counsel; registry and admins see all courts.
-- **Transactional Scheduling & Concurrency Safety**:
-  - Handled in atomic Prisma transactions with pessimistic current-reads (`SELECT ... FOR UPDATE`) to prevent double-booking.
-  - Concurrent identical slot reservations return deterministic `409 Conflict`.
-  - Advocate workload soft-warning emitted when counsel has concurrent commitments or excessive active listings.
-- **Lifecycle Automation & Status Transitions**:
-  - First scheduled hearing automatically advances `ADVOCATE_ASSIGNED` $\rightarrow$ `HEARING_SCHEDULED`.
-  - Completing a hearing advances `HEARING_SCHEDULED` $\rightarrow$ `UNDER_TRIAL`.
-  - Cancelling or adjourning without a next date reverts `HEARING_SCHEDULED` $\rightarrow$ `ADVOCATE_ASSIGNED` if no other scheduled hearing remains.
-  - Cross-module judge protection: updating `judgeId` on a case via `PATCH /cases/:id` is blocked if scheduled hearings exist.
-- **Comprehensive Audit Trail**:
-  - Every action writes an immutable `HearingEvent` (`SCHEDULED`, `RESCHEDULED`, `CANCELLED`, `COMPLETED`, `ADJOURNED`) with actor, timestamp, and mandatory reason.
-  - Case detail timeline seamlessly merges status transitions and hearing events.
-    Detailed endpoint specifications, rules, and workflows documented in docs/HEARINGS.md.
+    CaseSequence {
+        string id PK
+        string prefix "CC, CV, FM, PR, CM, WP, MC"
+        int year "Calendar filing year"
+        int lastNumber "Consecutive sequence counter"
+    }
 
-## Judgment Tracker (Phase 7)
+    SystemSetting {
+        string id PK
+        string key UK "operating_hours, thresholds, etc"
+        string value "Dynamic config value"
+        string description "Administrative documentation"
+    }
+```
 
-- **Two-Stage Disposition Workflow**:
-  - **Reserve Stage (`UNDER_TRIAL -> JUDGMENT_RESERVED`)**: Presiding judge or admin reserves judgment when oral arguments conclude. Requires at least 1 `COMPLETED` hearing and 0 `SCHEDULED` hearings.
-  - **Deliver Stage (`JUDGMENT_RESERVED -> CLOSED`)**: Presiding judge or admin delivers operative judgment decree with mandatory outcome (`ALLOWED`, `DISMISSED`, `CONVICTED`, `ACQUITTED`, `SETTLED`, `DISPOSED`), summary text ($\ge 20$ chars), and IST calendar date.
-- **Pessimistic Concurrency & Double-Pronouncement Defense**:
-  - Both reservation and delivery execute inside atomic transactions with exclusive row locks (`SELECT ... FOR UPDATE` on `cases` and `judgments`).
-  - Concurrent delivery attempts result in exactly 1 successful delivery and deterministic 409 Conflicts for all others.
-- **Permanent Closure & Read-Only Guarantees**:
-  - Transitioning to `CLOSED` permanently stamps `cases.closed_at`.
-  - Closed cases are strictly immutable across all endpoints: case editing, advocate assignment/unassignment, hearing scheduling/updating, and judgment modifications are permanently blocked with 400 Bad Request.
-- **Dedicated Registry & Case Detail Integration**:
-  - Full registry view at `/judgments` with search, state filtering (`RESERVED` / `DELIVERED`), outcome filtering, judge selector, and summary preview.
-  - Dynamic 3-state Judgment Tab on `/cases/:id?tab=judgment` with live character counters, action modals, and closed-case banner.
-- **Client Response Unification (`client/src/api/unwrap.js`)**:
-  - Centralized unwrapper eliminating dual-shape payload parsing across frontend components.
-    Detailed endpoint specifications, rules, and workflows documented in docs/JUDGMENTS.md.
+---
 
-## Automation Engine & Registry Dashboard (Phase 8)
+## Complete API Route Directory
 
-- **Real-Time Caseload Telemetry (Zero Caching Layer)**:
-  - Dynamic status distribution across all 6 lifecycle stages computed via atomic `groupBy`.
-  - Open vs closed totals, today's hearings, and upcoming hearings within configurable window.
-- **Overdue Backlog Monitor**:
-  - Real-time worklist of active open cases exceeding `backlog_threshold_days` (default 90 days), sortable by age or filing date, with direct case links.
-- **Stale Case Detection Engine**:
-  - Unified worklist tracking two distinct stagnation bottlenecks:
-    - **Rule 1 (`NO_ADVOCATE`)**: `REGISTERED` cases older than `stale_case_no_advocate_days` (default 14 days) with zero active advocates.
-    - **Rule 2 (`NO_HEARING`)**: `ADVOCATE_ASSIGNED` cases older than `stale_case_no_hearing_days` (default 21 days) with zero hearings ever scheduled.
-- **Personnel Workload & Capacity Distribution**:
-  - Live active docket counts per advocate and judge with automated `isOverloaded` warning flags triggered by `advocate_workload_warning_threshold` (default 15) and `judge_workload_warning_threshold` (default 25).
-  - Role-scoped: available to ADMIN, REGISTRAR, and JUDGE (scoped to own bench row); completely omitted for ADVOCATE.
-- **Administrative Configuration & Audit Trail**:
-  - ADMIN-managed threshold configuration via `PATCH /dashboard/settings`, validated with strict integer range checks (1-3650 days).
-  - Updates execute in atomic transactions writing immutable audit records (`audit:<timestamp>:<uuid>`) capturing who changed what and when.
-  - Changes immediately reflect across dashboard telemetry without full page reload.
-    Detailed endpoint specifications, thresholds, and query strategies documented in docs/DASHBOARD.md.
+All routes are mounted under `/api/v1`.
 
-## Implementation Roadmap
+### 1. Health & System
 
-- **Phase 1**: Project Setup, Architecture & App Shell (Completed)
-- **Phase 2**: Database Schema, Migrations & Seed Data (Completed)
-- **Phase 3**: Authentication, RBAC & User Management (Completed)
-- **Phase 4**: Case Filing & Master Docket Registry (Completed)
-- **Phase 5**: Advocate Assignment & Bar Directory (Completed)
-- **Phase 6**: Hearing Scheduling, Cause Lists & Case-Status Automation (Completed)
-- **Phase 7**: Judgment Tracker, State Machine & Permissions (Completed)
-- **Phase 8**: Automation Engine and Registry Dashboard (Completed)
-- **Phase 9**: Testing, polish, accessibility pass, Prisma config migration and final documentation (Next)
+- `GET /health` — Public uptime, system timestamp, and database connectivity check.
+
+### 2. Authentication (`/auth`)
+
+- `POST /auth/login` — Authenticate credentials, set signed `httpOnly` cookie (`court_cms_token`), rate-limited.
+- `POST /auth/logout` — Clear session cookie and invalidate client state.
+- `GET /auth/me` — Return current authenticated user profile, permissions, and advocate linkage.
+- `POST /auth/change-password` — Change password for authenticated session user.
+
+### 3. Personnel Directory & User Administration (`/users`)
+
+- `GET /users` — List and search personnel (ADMIN only).
+- `POST /users` — Onboard new court personnel with role assignment (ADMIN only).
+- `PATCH /users/:id` — Update personnel profile and active status (ADMIN only).
+- `POST /users/:id/reset-password` — Set temporary password for personnel account (ADMIN only).
+
+### 4. Case Management & Master Docket (`/cases`)
+
+- `GET /cases/meta` — Case types, priorities, statuses, active judges metadata.
+- `GET /cases/stats` — High-level open, overdue, and pending summary counts.
+- `GET /cases` — Paginated case docket query with search and filters (role-scoped).
+- `POST /cases` — Register new court case with atomic sequence generation (ADMIN, REGISTRAR).
+- `GET /cases/:id` — Case detail with active counsel and presiding judge (role-scoped).
+- `PATCH /cases/:id` — Edit editable metadata on active cases (ADMIN, REGISTRAR; closed cases blocked).
+- `GET /cases/:id/history` — Chronological audit trail merging status transitions, counsel events, and hearings.
+
+### 5. Advocate Management & Representation (`/advocates` & `/cases/:id/advocates`)
+
+- `GET /advocates` — Directory of enrolled advocates with caseload aggregation (role-scoped).
+- `POST /advocates` — Enrol new advocate into bar directory (ADMIN, REGISTRAR).
+- `GET /advocates/:id` — Advocate profile detail with active dockets (role-scoped).
+- `PATCH /advocates/:id` — Update advocate contact details and specialization (ADMIN, REGISTRAR).
+- `POST /cases/:id/advocates` — Assign counsel under PETITIONER/RESPONDENT side (ADMIN, REGISTRAR).
+- `POST /cases/:id/advocates/:advocateId/unassign` — Unassign counsel with legal reason (ADMIN, REGISTRAR).
+
+### 6. Hearing Scheduling & Cause Lists (`/hearings`)
+
+- `GET /hearings/meta` — Active courtrooms, slot duration, and court hours configuration.
+- `GET /hearings/availability` — Real-time candidate free slots for given courtroom, judge, and date.
+- `GET /hearings/cause-list` — Daily judicial court proceedings list grouped by courtroom (role-scoped).
+- `GET /hearings` — Query hearings with search and date filters (role-scoped).
+- `POST /hearings` — Schedule court hearing with pessimistic locking (ADMIN, REGISTRAR).
+- `GET /hearings/:id` — Hearing detail with attendees, courtroom, and audit events.
+- `PATCH /hearings/:id` — Reschedule hearing to a new slot (ADMIN, REGISTRAR, presiding JUDGE).
+- `POST /hearings/:id/cancel` — Cancel hearing with mandatory reason (ADMIN, REGISTRAR, presiding JUDGE).
+- `POST /hearings/:id/complete` — Record hearing outcome notes and advance state (ADMIN, presiding JUDGE).
+- `POST /hearings/:id/adjourn` — Reasoned adjournment with optional next slot booking (ADMIN, presiding JUDGE).
+
+### 7. Judgment Tracker (`/judgments` & `/cases/:id/judgment`)
+
+- `GET /judgments` — Master judgment registry with state, outcome, and date filters (role-scoped).
+- `GET /cases/:id/judgment` — Case judgment decree detail (role-scoped).
+- `POST /cases/:id/judgment/reserve` — Reserve judgment on completed trial docket (ADMIN, presiding JUDGE).
+- `POST /cases/:id/judgment/deliver` — Deliver judgment decree with outcome, summary, and date (ADMIN, presiding JUDGE).
+
+### 8. Automation Engine & Registry Dashboard (`/dashboard`)
+
+- `GET /dashboard/summary` — Real-time caseload distribution across 6 states and today's proceedings (role-scoped).
+- `GET /dashboard/backlog` — Active open cases exceeding backlog pendency threshold (role-scoped).
+- `GET /dashboard/stale-cases` — Bottleneck worklist (Rule 1: no advocate; Rule 2: no hearing) (role-scoped).
+- `GET /dashboard/upcoming-hearings` — Scheduled hearings within configurable upcoming window (role-scoped).
+- `GET /dashboard/workload` — Active caseload distribution per judge and advocate with overload alerts (ADMIN, REGISTRAR, JUDGE).
+- `GET /dashboard/settings` — Current configurable threshold parameters (ADMIN, REGISTRAR).
+- `PATCH /dashboard/settings` — Atomically update thresholds with range validation and audit log (ADMIN only).
+
+---
+
+## Known Limitations
+
+1. **Single Judicial District / Court Complex**: Operating hours and cause lists assume a single court complex under Indian Standard Time (`Asia/Kolkata`). Multi-district or state-wide High Court bench partitioning is deferred to future work.
+2. **Permanent Judgment Finality**: Delivered judgments permanently transition cases to `CLOSED` without an in-app clerical amendment or review petition filing workflow.
+3. **Local Intranet Auth Model**: User onboarding and password reset use direct administrative allocation rather than external SMTP email verification links, suitable for closed judicial complex intranets.
+4. **Live Analytical Querying**: Telemetry metrics are computed directly against MySQL via transactional aggregate queries; for multi-million case enterprise deployments, read replicas or Redis caching layers would be beneficial.
+5. **No Bulk Docket Ingestion**: Case filing is optimized for rigorous atomic sequential validation; bulk legacy CSV docket ingestion is left for future administrative tooling.
+
+---
+
+## Ready-to-Run Demo Accounts
+
+All accounts use the standard password: `Demo@1234`
+
+| Role          | Name                     | Official Email                      | Key Demonstration Purpose                                          |
+| ------------- | ------------------------ | ----------------------------------- | ------------------------------------------------------------------ |
+| **ADMIN**     | Chief Administrator      | `admin@courtcms.gov.in`             | User management, threshold tuning, court-wide audit oversight      |
+| **REGISTRAR** | Chief Court Registrar    | `registrar@courtcms.gov.in`         | Docket registration, counsel assignment, hearing scheduling        |
+| **JUDGE**     | Hon. Justice Swaminathan | `judge.swaminathan@courtcms.gov.in` | Courtroom 1 bench, conducting trial hearings, delivering judgments |
+| **JUDGE**     | Hon. Justice Banerjee    | `judge.banerjee@courtcms.gov.in`    | Courtroom 2 bench, civil suits, hearing completion & adjournment   |
+| **ADVOCATE**  | Adv. Tariq Khan          | `adv.khan@courtcms.gov.in`          | Senior Criminal Defense, restricted client-only view               |
+| **ADVOCATE**  | Adv. Priya Mehta         | `adv.mehta@courtcms.gov.in`         | Commercial & Civil Litigator, restricted client-only view          |
+| **ADVOCATE**  | Adv. K. S. Iyer          | `adv.iyer@courtcms.gov.in`          | Constitutional & Appellate Counsel, cause list inspection          |

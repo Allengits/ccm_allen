@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { unwrap } from '../../api/unwrap';
 import { X, Clock, AlertCircle, AlertTriangle, Loader2, CalendarPlus } from 'lucide-react';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearing }) {
+  const modalRef = useModalA11y(isOpen, onClose);
   const [reason, setReason] = useState('');
   const [scheduleNext, setScheduleNext] = useState(true);
 
@@ -148,38 +150,61 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-2xl border border-gray-200 w-full max-w-lg my-8 overflow-hidden animate-in fade-in duration-200">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="adjourn-hearing-title"
+        className="bg-white rounded-lg shadow-2xl border border-gray-200 w-full max-w-lg my-8 overflow-hidden animate-in fade-in duration-200"
+      >
         <div className="flex items-center justify-between px-6 py-4 bg-navy-900 text-white">
           <div className="flex items-center space-x-2">
             <div className="p-1.5 bg-brass-500/20 text-brass-400 rounded-md">
-              <Clock className="w-5 h-5" />
+              <Clock className="w-5 h-5" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="font-serif text-lg font-bold">Adjourn Court Hearing</h2>
+              <h2 id="adjourn-hearing-title" className="font-serif text-lg font-bold">
+                Adjourn Court Hearing
+              </h2>
               <p className="text-xs text-gray-300">
                 Case {hearing.case?.caseNumber || hearing.caseNumber}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded-md">
-            <X className="w-5 h-5" />
+          <button
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="text-gray-400 hover:text-white p-1 rounded-md"
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs flex items-start space-x-2">
-              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+            <div
+              role="alert"
+              className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs flex items-start space-x-2"
+            >
+              <AlertCircle
+                className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5"
+                aria-hidden="true"
+              />
               <span>{error}</span>
             </div>
           )}
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-navy-900">
+              <label
+                htmlFor="adjourn-reason"
+                className="block text-xs font-bold uppercase tracking-wider text-navy-900"
+              >
                 Adjournment Reason (Recorded in Daily Order) *
               </label>
               <span
+                id="adjourn-reason-counter"
+                aria-live="polite"
                 className={`text-[11px] font-mono ${
                   reason.trim().length < 5
                     ? 'text-amber-600 font-semibold'
@@ -192,13 +217,15 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
               </span>
             </div>
             <textarea
+              id="adjourn-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
+              aria-describedby="adjourn-reason-counter adjourn-reason-hint"
               placeholder="e.g. Adjourned upon request of counsel for respondent to file reply affidavit."
               rows={2}
               className="w-full text-xs border border-gray-300 rounded-md py-2 px-3 focus:ring-2 focus:ring-brass-500 focus:outline-none"
             />
-            <p className="text-[11px] text-gray-500 mt-1">
+            <p id="adjourn-reason-hint" className="text-[11px] text-gray-500 mt-1">
               Official adjournment justification recorded in daily judicial order.
             </p>
           </div>
@@ -320,10 +347,15 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[11px] font-bold text-gray-700">
+                    <label
+                      htmlFor="adjourn-next-purpose"
+                      className="block text-[11px] font-bold text-gray-700"
+                    >
                       Purpose of Next Hearing *
                     </label>
                     <span
+                      id="adjourn-next-purpose-counter"
+                      aria-live="polite"
                       className={`text-[11px] font-mono ${
                         nextPurpose.trim().length < 3
                           ? 'text-amber-600 font-semibold'
@@ -336,13 +368,15 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
                     </span>
                   </div>
                   <input
+                    id="adjourn-next-purpose"
                     type="text"
                     value={nextPurpose}
                     onChange={(e) => setNextPurpose(e.target.value)}
+                    aria-describedby="adjourn-next-purpose-counter adjourn-next-purpose-hint"
                     placeholder="e.g. Filing of Written Statement, Framing of Issues"
                     className="w-full text-xs border border-gray-300 rounded py-1.5 px-2 focus:ring-1 focus:ring-brass-500 focus:outline-none"
                   />
-                  <p className="text-[10px] text-gray-500 mt-0.5">
+                  <p id="adjourn-next-purpose-hint" className="text-[10px] text-gray-500 mt-0.5">
                     Specify objective for next hearing session.
                   </p>
                 </div>
@@ -353,7 +387,7 @@ export default function AdjournHearingModal({ isOpen, onClose, onSuccess, hearin
           <div className="flex items-center justify-end space-x-3 pt-3 border-t border-gray-200">
             {(reason.trim().length < 5 ||
               (scheduleNext && (!selectedSlot || nextPurpose.trim().length < 3))) && (
-              <span className="text-[11px] text-gray-500 mr-auto">
+              <span aria-live="polite" className="text-[11px] text-gray-500 mr-auto">
                 {reason.trim().length < 5
                   ? `Reason requires ${5 - reason.trim().length} more character(s)`
                   : scheduleNext && !selectedSlot

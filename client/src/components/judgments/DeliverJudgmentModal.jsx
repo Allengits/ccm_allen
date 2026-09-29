@@ -2,6 +2,7 @@ import { useState } from 'react';
 import api from '../../api/axios';
 import { unwrap } from '../../api/unwrap';
 import { Scale, X, AlertTriangle, Loader2, Calendar } from 'lucide-react';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 const OUTCOME_OPTIONS = [
   { value: 'ALLOWED', label: 'ALLOWED — Relief granted in favor of petitioner/appellant' },
@@ -13,6 +14,8 @@ const OUTCOME_OPTIONS = [
 ];
 
 export default function DeliverJudgmentModal({ isOpen, onClose, courtCase, onDelivered }) {
+  const modalRef = useModalA11y(isOpen, onClose);
+
   // Today in IST (YYYY-MM-DD)
   const getTodayISTString = () => {
     const now = new Date();
@@ -96,12 +99,18 @@ export default function DeliverJudgmentModal({ isOpen, onClose, courtCase, onDel
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-navy-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-2xl border border-navy-900/10 max-w-xl w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="deliver-judgment-title"
+        className="bg-white rounded-lg shadow-2xl border border-navy-900/10 max-w-xl w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      >
         {/* Header */}
         <div className="bg-navy-900 px-6 py-4 flex items-center justify-between text-white">
           <div className="flex items-center space-x-2">
-            <Scale className="w-5 h-5 text-brass-400" />
-            <h2 className="font-serif text-lg font-bold tracking-wide">
+            <Scale className="w-5 h-5 text-brass-400" aria-hidden="true" />
+            <h2 id="deliver-judgment-title" className="font-serif text-lg font-bold tracking-wide">
               Pronounce & Deliver Judgment
             </h2>
           </div>
@@ -109,16 +118,24 @@ export default function DeliverJudgmentModal({ isOpen, onClose, courtCase, onDel
             onClick={onClose}
             className="text-navy-300 hover:text-white transition-colors"
             title="Close dialog"
+            aria-label="Close dialog"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs flex items-start space-x-2">
-              <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+            <div
+              id="deliver-judgment-error"
+              role="alert"
+              className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs flex items-start space-x-2"
+            >
+              <AlertTriangle
+                className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5"
+                aria-hidden="true"
+              />
               <span>{error}</span>
             </div>
           )}
@@ -187,6 +204,8 @@ export default function DeliverJudgmentModal({ isOpen, onClose, courtCase, onDel
                 Operative Judgment Summary & Reasoning <span className="text-red-500">*</span>
               </label>
               <span
+                id="judgment-summary-counter"
+                aria-live="polite"
                 className={`font-mono text-[11px] ${
                   trimmedSummary.length < 20
                     ? 'text-amber-600 font-semibold'
@@ -203,10 +222,11 @@ export default function DeliverJudgmentModal({ isOpen, onClose, courtCase, onDel
               rows={5}
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
+              aria-describedby="judgment-summary-counter judgment-summary-hint"
               placeholder="Provide a comprehensive summary of facts, issues considered, legal ratio decidendi, and operative relief / sentencing decree..."
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brass-500 focus:border-brass-500 font-serif leading-relaxed"
             />
-            <p className="text-[11px] text-gray-500">
+            <p id="judgment-summary-hint" className="text-[11px] text-gray-500">
               Minimum 20 characters required. The summary becomes part of the permanent judicial
               public record.
             </p>

@@ -79,7 +79,7 @@ export default function Sidebar() {
       </div>
 
       {/* Role-Filtered Navigation Menu */}
-      <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
+      <nav aria-label="Main Navigation" className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
         <div className="px-3 pb-2 text-[10px] font-semibold tracking-wider text-navy-400 uppercase">
           Authorized Portals
         </div>

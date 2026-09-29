@@ -12,6 +12,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { DateTime } from 'luxon';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 const THRESHOLD_FIELDS = [
   {
@@ -66,6 +67,7 @@ const THRESHOLD_FIELDS = [
 ];
 
 export default function ThresholdSettingsModal({ isOpen, onClose, userRole, onSaved }) {
+  const modalRef = useModalA11y(isOpen, onClose);
   const [formData, setFormData] = useState({});
   const [initialData, setInitialData] = useState({});
   const [auditLog, setAuditLog] = useState([]);
@@ -191,15 +193,23 @@ export default function ThresholdSettingsModal({ isOpen, onClose, userRole, onSa
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 flex items-center justify-center p-4 backdrop-blur-2xs">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden border border-navy-800 flex flex-col max-h-[90vh]">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="threshold-settings-title"
+        className="bg-white rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden border border-navy-800 flex flex-col max-h-[90vh]"
+      >
         {/* Modal Header */}
         <div className="px-6 py-4 bg-navy-950 text-white flex items-center justify-between border-b border-navy-800">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-lg bg-brass-500/20 border border-brass-400/30 flex items-center justify-center text-brass-400">
-              <Sliders className="w-4 h-4" />
+              <Sliders className="w-4 h-4" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="font-serif text-lg font-bold">Court Configuration Engine</h2>
+              <h2 id="threshold-settings-title" className="font-serif text-lg font-bold">
+                Court Configuration Engine
+              </h2>
               <p className="text-xs text-navy-300">
                 Configure systemic thresholds for pendency, workload monitoring, and stale dockets.
               </p>

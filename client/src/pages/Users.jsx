@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import { unwrap } from '../api/unwrap';
 import { useAuth } from '../context/AuthContext';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   UserPlus,
   Search,
@@ -30,6 +31,10 @@ export default function Users() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+
+  const createModalRef = useModalA11y(showCreateModal, () => setShowCreateModal(false));
+  const editModalRef = useModalA11y(showEditModal, () => setShowEditModal(false));
+  const resetModalRef = useModalA11y(showResetModal, () => setShowResetModal(false));
 
   // Form states
   const [formData, setFormData] = useState({
@@ -236,10 +241,14 @@ export default function Users() {
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col sm:flex-row items-center gap-3">
         <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
+          <Search
+            className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none"
+            aria-hidden="true"
+          />
           <input
             type="text"
             placeholder="Search by user name or official email..."
+            aria-label="Search by user name or official email"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-brass-500 focus:border-brass-500"
@@ -248,6 +257,7 @@ export default function Users() {
         <div className="w-full sm:w-56">
           <select
             value={roleFilter}
+            aria-label="Filter by role"
             onChange={(e) => setRoleFilter(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-brass-500 focus:border-brass-500"
           >
@@ -263,8 +273,9 @@ export default function Users() {
           onClick={fetchUsers}
           className="p-2 border border-gray-300 rounded-md hover:bg-gray-50 text-gray-600"
           title="Refresh User List"
+          aria-label="Refresh User List"
         >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
         </button>
       </div>
 
@@ -366,21 +377,24 @@ export default function Users() {
                           onClick={() => openEditModal(u)}
                           className="px-2.5 py-1 text-xs font-medium text-navy-800 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 transition-colors"
                           title="Edit User"
+                          aria-label={`Edit user ${u.name}`}
                         >
-                          <Edit2 className="w-3.5 h-3.5 inline mr-1" />
+                          <Edit2 className="w-3.5 h-3.5 inline mr-1" aria-hidden="true" />
                           Edit
                         </button>
                         <button
                           onClick={() => openResetModal(u)}
                           className="px-2.5 py-1 text-xs font-medium text-amber-900 bg-amber-50 hover:bg-amber-100 rounded border border-amber-300 transition-colors"
                           title="Reset Password"
+                          aria-label={`Reset password for ${u.name}`}
                         >
-                          <KeyRound className="w-3.5 h-3.5 inline mr-1" />
+                          <KeyRound className="w-3.5 h-3.5 inline mr-1" aria-hidden="true" />
                           Reset
                         </button>
                         <button
                           onClick={() => handleToggleActive(u)}
                           disabled={isCurrent}
+                          aria-label={`${u.isActive ? 'Deactivate' : 'Activate'} user ${u.name}`}
                           className={`px-2.5 py-1 text-xs font-medium rounded border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
                             u.isActive
                               ? 'text-red-700 bg-red-50 hover:bg-red-100 border-red-200'
@@ -402,22 +416,41 @@ export default function Users() {
       {/* CREATE USER MODAL */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-lg w-full p-6 shadow-xl border border-gray-200">
+          <div
+            ref={createModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-user-modal-title"
+            className="bg-white rounded-lg max-w-lg w-full p-6 shadow-xl border border-gray-200"
+          >
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-serif text-lg font-bold text-navy-950">Onboard New Personnel</h3>
+              <h3
+                id="create-user-modal-title"
+                className="font-serif text-lg font-bold text-navy-950"
+              >
+                Onboard New Personnel
+              </h3>
               <button
+                type="button"
                 onClick={() => setShowCreateModal(false)}
+                aria-label="Close dialog"
                 className="text-gray-400 hover:text-gray-600"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
 
             {formErrors.length > 0 && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs space-y-1">
+              <div
+                role="alert"
+                className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs space-y-1"
+              >
                 {formErrors.map((err, i) => (
                   <div key={i} className="flex items-center space-x-1.5">
-                    <AlertCircle className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />
+                    <AlertCircle
+                      className="w-3.5 h-3.5 text-red-600 flex-shrink-0"
+                      aria-hidden="true"
+                    />
                     <span>{err}</span>
                   </div>
                 ))}
@@ -426,8 +459,14 @@ export default function Users() {
 
             <form onSubmit={handleCreateUser} className="mt-4 space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-navy-900 uppercase">Full Name</label>
+                <label
+                  htmlFor="create-user-name"
+                  className="block font-semibold text-navy-900 uppercase"
+                >
+                  Full Name
+                </label>
                 <input
+                  id="create-user-name"
                   type="text"
                   required
                   value={formData.name}
@@ -438,10 +477,14 @@ export default function Users() {
               </div>
 
               <div>
-                <label className="block font-semibold text-navy-900 uppercase">
+                <label
+                  htmlFor="create-user-email"
+                  className="block font-semibold text-navy-900 uppercase"
+                >
                   Official Email
                 </label>
                 <input
+                  id="create-user-email"
                   type="email"
                   required
                   value={formData.email}
@@ -452,8 +495,14 @@ export default function Users() {
               </div>
 
               <div>
-                <label className="block font-semibold text-navy-900 uppercase">Assigned Role</label>
+                <label
+                  htmlFor="create-user-role"
+                  className="block font-semibold text-navy-900 uppercase"
+                >
+                  Assigned Role
+                </label>
                 <select
+                  id="create-user-role"
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                   className="mt-1 w-full px-3 py-2 border rounded-md text-sm focus:ring-brass-500 focus:border-brass-500"
@@ -467,17 +516,22 @@ export default function Users() {
               </div>
 
               <div>
-                <label className="block font-semibold text-navy-900 uppercase">
+                <label
+                  htmlFor="create-user-password"
+                  className="block font-semibold text-navy-900 uppercase"
+                >
                   Initial Password
                 </label>
                 <input
+                  id="create-user-password"
                   type="text"
                   required
+                  aria-describedby="create-user-pwd-help"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="mt-1 w-full px-3 py-2 border rounded-md text-sm font-mono focus:ring-brass-500 focus:border-brass-500"
                 />
-                <span className="text-[11px] text-gray-500">
+                <span id="create-user-pwd-help" className="text-[11px] text-gray-500">
                   Minimum 8 characters with at least one letter and one number.
                 </span>
               </div>
@@ -506,24 +560,38 @@ export default function Users() {
       {/* EDIT USER MODAL */}
       {showEditModal && selectedUser && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-lg w-full p-6 shadow-xl border border-gray-200">
+          <div
+            ref={editModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-user-modal-title"
+            className="bg-white rounded-lg max-w-lg w-full p-6 shadow-xl border border-gray-200"
+          >
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-serif text-lg font-bold text-navy-950">
+              <h3 id="edit-user-modal-title" className="font-serif text-lg font-bold text-navy-950">
                 Modify User Details: {selectedUser.email}
               </h3>
               <button
+                type="button"
                 onClick={() => setShowEditModal(false)}
+                aria-label="Close dialog"
                 className="text-gray-400 hover:text-gray-600"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
 
             {formErrors.length > 0 && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs space-y-1">
+              <div
+                role="alert"
+                className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs space-y-1"
+              >
                 {formErrors.map((err, i) => (
                   <div key={i} className="flex items-center space-x-1.5">
-                    <AlertCircle className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />
+                    <AlertCircle
+                      className="w-3.5 h-3.5 text-red-600 flex-shrink-0"
+                      aria-hidden="true"
+                    />
                     <span>{err}</span>
                   </div>
                 ))}
@@ -532,8 +600,14 @@ export default function Users() {
 
             <form onSubmit={handleEditUser} className="mt-4 space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-navy-900 uppercase">Full Name</label>
+                <label
+                  htmlFor="edit-user-name"
+                  className="block font-semibold text-navy-900 uppercase"
+                >
+                  Full Name
+                </label>
                 <input
+                  id="edit-user-name"
                   type="text"
                   required
                   value={formData.name}
@@ -543,8 +617,14 @@ export default function Users() {
               </div>
 
               <div>
-                <label className="block font-semibold text-navy-900 uppercase">Role</label>
+                <label
+                  htmlFor="edit-user-role"
+                  className="block font-semibold text-navy-900 uppercase"
+                >
+                  Role
+                </label>
                 <select
+                  id="edit-user-role"
                   value={formData.role}
                   disabled={selectedUser.id === currentUser?.id}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
@@ -601,16 +681,27 @@ export default function Users() {
       {/* RESET PASSWORD MODAL */}
       {showResetModal && selectedUser && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl border border-gray-200">
+          <div
+            ref={resetModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reset-user-modal-title"
+            className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl border border-gray-200"
+          >
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-serif text-lg font-bold text-navy-950">
+              <h3
+                id="reset-user-modal-title"
+                className="font-serif text-lg font-bold text-navy-950"
+              >
                 Administrative Password Reset
               </h3>
               <button
+                type="button"
                 onClick={() => setShowResetModal(false)}
+                aria-label="Close dialog"
                 className="text-gray-400 hover:text-gray-600"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
 
@@ -620,10 +711,16 @@ export default function Users() {
             </p>
 
             {formErrors.length > 0 && (
-              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs space-y-1">
+              <div
+                role="alert"
+                className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs space-y-1"
+              >
                 {formErrors.map((err, i) => (
                   <div key={i} className="flex items-center space-x-1.5">
-                    <AlertCircle className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />
+                    <AlertCircle
+                      className="w-3.5 h-3.5 text-red-600 flex-shrink-0"
+                      aria-hidden="true"
+                    />
                     <span>{err}</span>
                   </div>
                 ))}
@@ -632,10 +729,14 @@ export default function Users() {
 
             <form onSubmit={handleResetPassword} className="mt-4 space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-navy-900 uppercase">
+                <label
+                  htmlFor="reset-user-password"
+                  className="block font-semibold text-navy-900 uppercase"
+                >
                   New Temporary Password
                 </label>
                 <input
+                  id="reset-user-password"
                   type="text"
                   required
                   value={resetPasswordVal}
