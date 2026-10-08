@@ -54,7 +54,7 @@ ccm_allen/
 
 - **Frontend**: React 19, Vite 6, Tailwind CSS 3.4, React Router 7, Axios, Lucide Icons, WCAG AA accessible components
 - **Backend**: Node.js 22 LTS (ES Modules), Express 4.21, Luxon 3.7 (IST Court Timezone standard), Zod 3.24
-- **Database & ORM**: MySQL 26.7.0 (Port `3307`), Prisma ORM 6.4.1 (configured via `prisma.config.js`)
+- **Database**: MongoDB (Port `27017`, db `court_cms`), native MongoDB client adapter maintaining Prisma model interface
 - **Testing**: Vitest 3.0.7, Supertest 7.0.0, 7 automated suites (228 tests passing under UTC and `Asia/Kolkata`)
 - **Quality Gates**: ESLint 9 (Flat Config, 0/0 clean), Prettier 3 (formatted), Vite Production Build
 
@@ -65,10 +65,7 @@ ccm_allen/
 - **Node.js**: v20.x or v22.x LTS (tested on Node v24.14.0)
 - **npm**: v10.x or v11.x
 - **Git**: 2.40+
-- **MySQL Database**: Running on `localhost:3307` (or configured via `DATABASE_URL`)
-  - Default database name: `court_cms`
-  - Default user: `court_user`
-  - Default password: `CourtCms2026`
+- **MongoDB Database**: Running on `localhost:27017` (database `court_cms`)
 
 ---
 
@@ -81,7 +78,8 @@ Create `server/.env` based on `server/.env.example`:
 ```env
 PORT=5000
 NODE_ENV=development
-DATABASE_URL="mysql://court_user:CourtCms2026@localhost:3307/court_cms"
+DATABASE_URL="mongodb://localhost:27017/court_cms"
+MONGODB_URI="mongodb://localhost:27017/court_cms"
 CORS_ORIGIN=http://localhost:5173
 JWT_SECRET=your_super_secret_jwt_key_at_least_32_chars_long_2026
 JWT_EXPIRES_IN=8h

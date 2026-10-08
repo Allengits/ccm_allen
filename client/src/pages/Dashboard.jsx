@@ -507,7 +507,7 @@ export default function Dashboard() {
                   {healthLoading
                     ? 'Probing...'
                     : healthData?.database === 'connected'
-                      ? 'Connected (MySQL)'
+                      ? `Connected (${healthData?.engine || 'MongoDB'})`
                       : 'Error'}
                 </p>
               </div>

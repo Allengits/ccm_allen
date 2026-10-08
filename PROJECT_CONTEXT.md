@@ -73,7 +73,7 @@ The court case record follows an automated, state-machine-driven lifecycle acros
 
 - **Frontend**: React 19, Vite 6, Tailwind CSS 3.4, React Router 7, Axios, Lucide React, Prettier, ESLint 9.
 - **Backend**: Node.js 22 LTS, Express 4.21 (native ES modules), Luxon 3.7 (IST Court Timezone standard), Zod 3.24 (strict schemas), Helmet, Express Rate Limit, Cookie Parser.
-- **Database & ORM**: MySQL 26.7.0 Community Server (Port 3307), Prisma ORM 6.4.1 configured via modern `server/prisma.config.js`.
+- **Database**: MongoDB (Port 27017, database `court_cms`), native MongoDB client adapter maintaining Prisma model interface.
 - **Testing**: Vitest 3.0.7, Supertest 7.0.0, 7 comprehensive test suites (228 automated tests passing under both UTC and `Asia/Kolkata` timezones).
 - **Architecture**: Monorepo (`/client` and `/server`), stateless signed `httpOnly` JWT sessions, RESTful API under `/api/v1`.
 
@@ -222,7 +222,7 @@ All routes are mounted under `/api/v1`.
 1. **Single Judicial District / Court Complex**: Operating hours and cause lists assume a single court complex under Indian Standard Time (`Asia/Kolkata`). Multi-district or state-wide High Court bench partitioning is deferred to future work.
 2. **Permanent Judgment Finality**: Delivered judgments permanently transition cases to `CLOSED` without an in-app clerical amendment or review petition filing workflow.
 3. **Local Intranet Auth Model**: User onboarding and password reset use direct administrative allocation rather than external SMTP email verification links, suitable for closed judicial complex intranets.
-4. **Live Analytical Querying**: Telemetry metrics are computed directly against MySQL via transactional aggregate queries; for multi-million case enterprise deployments, read replicas or Redis caching layers would be beneficial.
+4. **Live Analytical Querying**: Telemetry metrics are computed directly against MongoDB via real-time aggregation queries; for multi-million case enterprise deployments, read replicas or Redis caching layers would be beneficial.
 5. **No Bulk Docket Ingestion**: Case filing is optimized for rigorous atomic sequential validation; bulk legacy CSV docket ingestion is left for future administrative tooling.
 
 ---

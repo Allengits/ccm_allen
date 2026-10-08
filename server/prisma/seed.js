@@ -2,11 +2,10 @@
 // Populates realistic demo dataset for the Court Case Management System.
 // Safe to re-run: clears all tables in foreign-key dependency order before reseeding.
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../src/db/prisma.js';
 import bcrypt from 'bcryptjs';
 import { DateTime } from 'luxon';
 
-const prisma = new PrismaClient();
 const COURT_TZ = 'Asia/Kolkata';
 
 // Helper to generate dates relative to current execution time
@@ -979,7 +978,7 @@ async function main() {
       caseId: case9.id,
       courtroomId: cr4.id,
       judgeId: judge1.id,
-      scheduledAt: getISTWorkingDate(4, 10, 0),
+      scheduledAt: getISTWorkingDate(5, 10, 0),
       durationMins: 30,
       purpose: 'Cross-Examination of Revenue Surveyor',
       status: 'SCHEDULED',
@@ -990,7 +989,7 @@ async function main() {
       caseId: case7.id,
       courtroomId: cr1.id,
       judgeId: judge1.id,
-      scheduledAt: getISTWorkingDate(4, 11, 30),
+      scheduledAt: getISTWorkingDate(5, 11, 30),
       durationMins: 45,
       purpose: 'Subsequent Trial Hearing on Prosecution Arguments',
       status: 'SCHEDULED',

@@ -18,6 +18,7 @@ router.get('/', async (req, res) => {
       data: {
         api: 'ok',
         database: 'connected',
+        engine: 'MongoDB',
         timestamp: new Date().toISOString(),
       },
     });

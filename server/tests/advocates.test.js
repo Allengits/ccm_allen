@@ -28,6 +28,7 @@ describe('Court CMS - Phase 5 Advocate Management & Case Assignment Suite', () =
 
   // Cleanup helper to restore baseline exactly
   const restoreBaseline = async () => {
+    if (!seededStatusHistories || !seededCaseAdvocates || !seededAdvocates || !seededCases) return;
     // 1. Delete any new status history records not in baseline
     const baselineHistoryIds = seededStatusHistories.map((h) => h.id);
     await prisma.caseStatusHistory.deleteMany({

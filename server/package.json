@@ -11,6 +11,8 @@
     "test:advocates": "vitest run tests/advocates.test.js",
     "test:hearings": "vitest run tests/hearings.test.js",
     "test:judgments": "vitest run tests/judgments.test.js",
+    "test:dashboard": "vitest run tests/dashboard.test.js",
+    "test:e2e": "vitest run tests/e2e.test.js",
     "test:tz": "node scripts/run_test_tz.js",
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -30,6 +32,7 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "luxon": "^3.7.2",
+    "mongodb": "^7.7.0",
     "morgan": "^1.10.0",
     "zod": "^3.24.2"
   },

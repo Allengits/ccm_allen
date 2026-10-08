@@ -7,10 +7,9 @@
 // 5. Backlog threshold case verification (>= 3 open cases > threshold days)
 // Exits with code 0 on all PASS, code 1 if any check FAILS.
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../src/db/prisma.js';
 import { DateTime } from 'luxon';
 
-const prisma = new PrismaClient();
 const COURT_TZ = 'Asia/Kolkata';
 
 async function runVerification() {

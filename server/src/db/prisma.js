@@ -1,5 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import mongoClient from './mongodb.js';
 
-const prisma = new PrismaClient();
+export default mongoClient;
 
-export default prisma;
