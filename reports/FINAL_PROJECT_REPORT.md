@@ -69,11 +69,11 @@ Court CMS is structured as a modular, decoupled monorepo:
 └──────────────────────────────┬──────────────────────────────┘
                                │ Prisma ORM 6 (prisma.config.js)
 ┌──────────────────────────────▼──────────────────────────────┐
-│           Data Layer (MySQL 26.7.0 on Port 3307)            │
-│  - 11 Normalized Tables with Foreign Key Constraints        │
-│  - Row-Level Locking (`SELECT ... FOR UPDATE`)              │
-│  - Atomic Multi-Write Transactions                          │
-│  - Immutable Audit Tables (`HearingEvent`, `StatusHistory`) │
+│        Data Layer (MongoDB on localhost:27017/court_cms)     │
+│  - 11 Collections with Native Indexes & Relational Logic     │
+│  - Atomic Multi-Write Transactions & In-Process Locks        │
+│  - Atomic Sequence Incrementing via MongoDB $inc             │
+│  - Immutable Audit Collections (HearingEvent, StatusHistory) │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -84,7 +84,7 @@ Court CMS is structured as a modular, decoupled monorepo:
 ### Module 1: Authentication & RBAC Administration
 
 - **Session Architecture**: Stateless signed JWT stored in an `httpOnly` cookie (`court_cms_token`, SameSite=Lax, Secure in production).
-- **Immediate Revocation**: The `authenticate` middleware re-queries MySQL on every request to instantly enforce deactivations or role changes.
+- **Immediate Revocation**: The `authenticate` middleware re-queries MongoDB on every request to instantly enforce deactivations or role changes.
 - **Timing Defense**: Unified generic error messages with dummy bcrypt comparisons to eliminate timing side channels.
 - **Granular Permissions Matrix**: 14 distinct functional permissions mapped across 4 roles (`ADMIN`, `REGISTRAR`, `JUDGE`, `ADVOCATE`).
 
@@ -139,7 +139,7 @@ Court CMS is structured as a modular, decoupled monorepo:
 
 ### Database Integrity Verification (`npm run db:verify`)
 
-The automated verification script executes 6 comprehensive checks against MySQL 26.7.0:
+The automated verification script executes 6 comprehensive checks against MongoDB:
 
 1. **Table Row Counts**: Validates all 11 tables (`users: 7`, `advocates: 6`, `courtrooms: 4`, `cases: 14`, `caseAdvocates: 26`, `hearings: 16`, `hearingEvents: 25`, `judgments: 4`, `caseStatusHistory: 50`, `caseSequences: 2`, `systemSettings: 14`).
 2. **Case Status Consistency**: Confirms all 14 cases strictly satisfy their lifecycle invariants.
@@ -155,7 +155,7 @@ The automated verification script executes 6 comprehensive checks against MySQL 
 1. **Single Court Complex Jurisdiction**: Operating hours, cause lists, and courtroom availability are modeled for a single court complex under Indian Standard Time (`Asia/Kolkata`).
 2. **Permanent Judgment Finality**: Delivered judgments permanently close cases without an in-app clerical correction or review petition workflow.
 3. **Local Intranet Auth Model**: User onboarding and password reset use administrative direct allocation rather than external SMTP email verification links, suitable for closed judicial complex intranets.
-4. **Live Analytical Querying**: Telemetry metrics are computed directly against MySQL via transactional aggregate queries; for multi-million case enterprise deployments, read replicas or Redis caching layers would be beneficial.
+4. **Live Analytical Querying**: Telemetry metrics are computed directly against MongoDB via real-time aggregation queries; for multi-million case enterprise deployments, read replicas or Redis caching layers would be beneficial.
 5. **No Bulk Docket Ingestion**: Case filing is optimized for rigorous atomic sequential validation; bulk legacy CSV docket ingestion is left for future administrative tooling.
 
 ---
