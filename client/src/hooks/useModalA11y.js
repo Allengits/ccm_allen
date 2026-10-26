@@ -10,17 +10,26 @@ import { useEffect, useRef } from 'react';
 export function useModalA11y(isOpen, onClose) {
   const modalRef = useRef(null);
   const previousActiveElementRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+
+  // Keep latest onClose callback without triggering effects
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!isOpen) return;
 
+    // Save previous active element before opening modal
     previousActiveElementRef.current = document.activeElement;
 
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        onClose();
+        if (typeof onCloseRef.current === 'function') {
+          onCloseRef.current();
+        }
         return;
       }
 
@@ -49,16 +58,29 @@ export function useModalA11y(isOpen, onClose) {
 
     document.addEventListener('keydown', handleKeyDown);
 
-    // Initial focus: focus first focusable child or modal element itself
+    // Initial focus on open: focus first interactive form field without stealing focus if user is already typing
     const timer = setTimeout(() => {
       if (modalRef.current) {
-        const firstFocusable = modalRef.current.querySelector(
-          'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])'
+        // Do not steal focus if an element inside the modal is already focused
+        if (modalRef.current.contains(document.activeElement)) {
+          return;
+        }
+
+        // Prefer first form input/select/textarea over the header close button
+        const firstInput = modalRef.current.querySelector(
+          'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
         );
-        if (firstFocusable) {
-          firstFocusable.focus();
+        if (firstInput) {
+          firstInput.focus();
         } else {
-          modalRef.current.focus();
+          const firstFocusable = modalRef.current.querySelector(
+            'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          );
+          if (firstFocusable) {
+            firstFocusable.focus();
+          } else if (typeof modalRef.current.focus === 'function') {
+            modalRef.current.focus();
+          }
         }
       }
     }, 50);
@@ -73,7 +95,7 @@ export function useModalA11y(isOpen, onClose) {
         previousActiveElementRef.current.focus();
       }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   return modalRef;
 }

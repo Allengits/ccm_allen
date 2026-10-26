@@ -32,9 +32,13 @@ export default function Users() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
-  const createModalRef = useModalA11y(showCreateModal, () => setShowCreateModal(false));
-  const editModalRef = useModalA11y(showEditModal, () => setShowEditModal(false));
-  const resetModalRef = useModalA11y(showResetModal, () => setShowResetModal(false));
+  const handleCloseCreateModal = useCallback(() => setShowCreateModal(false), []);
+  const handleCloseEditModal = useCallback(() => setShowEditModal(false), []);
+  const handleCloseResetModal = useCallback(() => setShowResetModal(false), []);
+
+  const createModalRef = useModalA11y(showCreateModal, handleCloseCreateModal);
+  const editModalRef = useModalA11y(showEditModal, handleCloseEditModal);
+  const resetModalRef = useModalA11y(showResetModal, handleCloseResetModal);
 
   // Form states
   const [formData, setFormData] = useState({
