@@ -135,26 +135,38 @@ export const createUser = async (req, res, next) => {
       });
     }
 
-    // If linking an advocate, verify existence and availability
-    if (role === 'ADVOCATE' && advocateId) {
-      const advocate = await prisma.advocate.findUnique({
-        where: { id: advocateId },
-      });
-
-      if (!advocate) {
-        return res.status(404).json({
-          success: false,
-          message: 'Specified advocate record not found',
-          errors: ['Advocate profile does not exist'],
+    // If linking an advocate, verify existence and availability (or auto-match by email)
+    let finalAdvocateId = advocateId;
+    if (role === 'ADVOCATE') {
+      if (finalAdvocateId) {
+        const advocate = await prisma.advocate.findUnique({
+          where: { id: finalAdvocateId },
         });
-      }
 
-      if (advocate.userId) {
-        return res.status(400).json({
-          success: false,
-          message: 'Advocate profile is already linked to another user account',
-          errors: ['Advocate profile already linked'],
+        if (!advocate) {
+          return res.status(404).json({
+            success: false,
+            message: 'Specified advocate record not found',
+            errors: ['Advocate profile does not exist'],
+          });
+        }
+
+        if (advocate.userId) {
+          return res.status(400).json({
+            success: false,
+            message: 'Advocate profile is already linked to another user account',
+            errors: ['Advocate profile already linked'],
+          });
+        }
+      } else {
+        const matchedAdv = await prisma.advocate.findFirst({
+          where: {
+            email: { equals: email.trim().toLowerCase() },
+          },
         });
+        if (matchedAdv && !matchedAdv.userId) {
+          finalAdvocateId = matchedAdv.id;
+        }
       }
     }
 
@@ -171,9 +183,9 @@ export const createUser = async (req, res, next) => {
         },
       });
 
-      if (role === 'ADVOCATE' && advocateId) {
+      if (role === 'ADVOCATE' && finalAdvocateId) {
         await tx.advocate.update({
-          where: { id: advocateId },
+          where: { id: finalAdvocateId },
           data: { userId: user.id },
         });
       }
@@ -191,7 +203,7 @@ export const createUser = async (req, res, next) => {
           email: newUser.email,
           role: newUser.role,
           isActive: newUser.isActive,
-          advocateId: advocateId || null,
+          advocateId: finalAdvocateId || null,
         },
       },
     });

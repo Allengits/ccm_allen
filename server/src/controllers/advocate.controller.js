@@ -303,13 +303,22 @@ export const createAdvocate = async (req, res) => {
       });
     }
 
+    // Check if an advocate user account already exists with matching email
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email: { equals: email.trim().toLowerCase() },
+        role: 'ADVOCATE',
+      },
+    });
+
     const newAdvocate = await prisma.advocate.create({
       data: {
         name,
         barNumber,
         specialization,
-        email,
+        email: email.trim().toLowerCase(),
         phone: phone || null,
+        userId: existingUser ? existingUser.id : null,
       },
     });
 
@@ -319,8 +328,8 @@ export const createAdvocate = async (req, res) => {
       data: {
         advocate: {
           ...newAdvocate,
-          hasLogin: false,
-          loginActive: false,
+          hasLogin: !!existingUser,
+          loginActive: existingUser ? existingUser.isActive : false,
           activeCaseCount: 0,
           totalCaseCount: 0,
         },

@@ -14,12 +14,42 @@ export default function AdvocateDetailModal({ isOpen, onClose, advocateId, onEdi
   const [advocate, setAdvocate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [grantingLogin, setGrantingLogin] = useState(false);
+  const [grantMessage, setGrantMessage] = useState(null);
 
   useEffect(() => {
     if (isOpen && advocateId) {
+      setGrantMessage(null);
       fetchAdvocateDetail();
     }
   }, [isOpen, advocateId]);
+
+  const handleGrantPortalAccess = async () => {
+    if (!advocate) return;
+    setGrantingLogin(true);
+    setGrantMessage(null);
+    try {
+      await api.post('/users', {
+        name: advocate.name,
+        email: advocate.email,
+        role: 'ADVOCATE',
+        password: 'Demo@1234',
+        advocateId: advocate.id,
+      });
+      setGrantMessage({
+        type: 'success',
+        text: `Portal access granted! Email: ${advocate.email} | Default Password: Demo@1234`,
+      });
+      fetchAdvocateDetail();
+    } catch (err) {
+      setGrantMessage({
+        type: 'error',
+        text: err.response?.data?.message || err.message || 'Failed to grant portal access',
+      });
+    } finally {
+      setGrantingLogin(false);
+    }
+  };
 
   const fetchAdvocateDetail = async () => {
     setLoading(true);
@@ -147,9 +177,32 @@ export default function AdvocateDetailModal({ isOpen, onClose, advocateId, onEdi
                         <span>Active Portal Account</span>
                       </div>
                     ) : (
-                      <div className="flex items-center space-x-1.5 text-gray-500 mt-1">
-                        <XCircle className="w-4 h-4 text-gray-400" />
-                        <span>No Portal Login Registered</span>
+                      <div className="space-y-2 mt-1">
+                        <div className="flex items-center space-x-1.5 text-gray-500">
+                          <XCircle className="w-4 h-4 text-gray-400" />
+                          <span>No Portal Login Registered</span>
+                        </div>
+                        {can('user.manage') && (
+                          <button
+                            type="button"
+                            disabled={grantingLogin}
+                            onClick={handleGrantPortalAccess}
+                            className="inline-flex items-center space-x-1 px-2.5 py-1 bg-navy-900 text-white rounded text-[11px] font-medium hover:bg-navy-800 disabled:opacity-50 transition-colors shadow-sm"
+                          >
+                            <span>{grantingLogin ? 'Authorizing...' : 'Grant Portal Access'}</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {grantMessage && (
+                      <div
+                        className={`mt-2 p-2 rounded text-[11px] leading-tight ${
+                          grantMessage.type === 'error'
+                            ? 'bg-red-50 text-red-700 border border-red-200'
+                            : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        }`}
+                      >
+                        {grantMessage.text}
                       </div>
                     )}
                   </div>
