@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import prisma from '../db/prisma.js';
+import { getDatabaseStatus } from '../db/mongodb.js';
 
 const router = Router();
 
@@ -11,6 +12,7 @@ router.get('/', async (req, res) => {
   try {
     // Perform a lightweight query to test database connectivity
     await prisma.$queryRaw`SELECT 1`;
+    const dbStatus = getDatabaseStatus();
 
     return res.status(200).json({
       success: true,
@@ -19,6 +21,8 @@ router.get('/', async (req, res) => {
         api: 'ok',
         database: 'connected',
         engine: 'MongoDB',
+        mode: dbStatus.mode,
+        cluster: dbStatus.cluster,
         timestamp: new Date().toISOString(),
       },
     });

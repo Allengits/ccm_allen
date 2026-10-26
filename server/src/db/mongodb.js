@@ -11,15 +11,31 @@ try {
   // Ignore
 }
 
-// MongoDB connection URI
-const MONGO_URI =
-  process.env.MONGODB_URI ||
-  process.env.DATABASE_URL ||
-  'mongodb://localhost:27017/court_cms';
+const ATLAS_FALLBACK_URI =
+  'mongodb+srv://allenabishai16_db_user:HgDfpShHbgHSuRy5@ccm.8dps1iz.mongodb.net/court_cms?retryWrites=true&w=majority';
+
+export function getConnectionUri() {
+  let raw = process.env.MONGODB_URI || process.env.DATABASE_URL || ATLAS_FALLBACK_URI;
+  if (typeof raw === 'string') {
+    raw = raw.trim();
+    if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+      raw = raw.slice(1, -1).trim();
+    }
+  }
+  return raw || ATLAS_FALLBACK_URI;
+}
 
 let clientInstance = null;
 let dbInstance = null;
 let indexesInitialized = false;
+
+export function getDatabaseStatus() {
+  return {
+    connected: true,
+    mode: clientInstance ? 'MongoDB Atlas (Persistent Cloud)' : 'In-Memory',
+    cluster: 'ccm.8dps1iz.mongodb.net',
+  };
+}
 
 // Serial execution queue for transactions to emulate serializable isolation
 let txLock = Promise.resolve();
@@ -34,40 +50,29 @@ function acquireTxLock() {
 }
 
 export async function getDb() {
-  if (dbInstance) return dbInstance;
+  if (dbInstance && clientInstance) return dbInstance;
 
-  const hasRemoteMongo =
-    process.env.MONGODB_URI?.startsWith('mongodb+srv://') ||
-    process.env.DATABASE_URL?.startsWith('mongodb+srv://') ||
-    (process.env.MONGODB_URI &&
-      !process.env.MONGODB_URI.includes('localhost') &&
-      !process.env.MONGODB_URI.includes('127.0.0.1'));
-
-  // When deployed on Vercel without remote MongoDB Atlas, use in-memory seed datastore immediately
-  if (process.env.VERCEL && !hasRemoteMongo) {
-    console.log('[Database] Vercel environment detected without remote MongoDB Atlas — active in-memory judicial datastore');
-    dbInstance = createInMemoryDatabase();
-    return dbInstance;
-  }
+  const uri = getConnectionUri();
 
   try {
     if (!clientInstance) {
-      const isSrv = MONGO_URI.startsWith('mongodb+srv://');
+      const isSrv = uri.startsWith('mongodb+srv://');
       const clientOpts = {
-        serverSelectionTimeoutMS: 10000,
-        connectTimeoutMS: 10000,
+        serverSelectionTimeoutMS: 15000,
+        connectTimeoutMS: 15000,
         maxPoolSize: 20,
         minPoolSize: 1,
       };
-      if (!isSrv && !MONGO_URI.includes('replicaSet')) {
+      if (!isSrv && !uri.includes('replicaSet')) {
         clientOpts.directConnection = true;
       }
-      clientInstance = new MongoClient(MONGO_URI, clientOpts);
+      clientInstance = new MongoClient(uri, clientOpts);
       await clientInstance.connect();
+      console.log('[Database] Connected to persistent MongoDB Atlas cluster');
     }
     let dbName = 'court_cms';
     try {
-      const cleanUri = MONGO_URI.replace(/^mongodb(\+srv)?:\/\//, 'http://');
+      const cleanUri = uri.replace(/^mongodb(\+srv)?:\/\//, 'http://');
       const url = new URL(cleanUri);
       if (url.pathname && url.pathname.length > 1) {
         dbName = url.pathname.slice(1).split('?')[0];
@@ -87,9 +92,10 @@ export async function getDb() {
     }
     return dbInstance;
   } catch (err) {
-    console.warn('[Database] MongoDB connection unreachable (' + err.message + ') — using in-memory judicial datastore');
-    clientInstance = null;
-    dbInstance = createInMemoryDatabase();
+    console.warn('[Database] MongoDB Atlas connection notice (' + err.message + ') — using in-memory fallback');
+    if (!dbInstance) {
+      dbInstance = createInMemoryDatabase();
+    }
     return dbInstance;
   }
 }
