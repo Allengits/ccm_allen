@@ -1,8 +1,15 @@
 import { MongoClient } from 'mongodb';
 import crypto from 'crypto';
+import dns from 'dns';
 import dotenv from 'dotenv';
 import { createInMemoryDatabase } from './inMemoryDb.js';
 dotenv.config();
+
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch {
+  // Ignore
+}
 
 // MongoDB connection URI
 const MONGO_URI =
@@ -47,8 +54,8 @@ export async function getDb() {
     if (!clientInstance) {
       const isSrv = MONGO_URI.startsWith('mongodb+srv://');
       const clientOpts = {
-        serverSelectionTimeoutMS: 4000,
-        connectTimeoutMS: 4000,
+        serverSelectionTimeoutMS: 10000,
+        connectTimeoutMS: 10000,
         maxPoolSize: 20,
         minPoolSize: 1,
       };
@@ -60,7 +67,8 @@ export async function getDb() {
     }
     let dbName = 'court_cms';
     try {
-      const url = new URL(MONGO_URI.replace('mongodb://', 'http://'));
+      const cleanUri = MONGO_URI.replace(/^mongodb(\+srv)?:\/\//, 'http://');
+      const url = new URL(cleanUri);
       if (url.pathname && url.pathname.length > 1) {
         dbName = url.pathname.slice(1).split('?')[0];
       }
