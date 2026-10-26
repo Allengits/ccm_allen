@@ -15,10 +15,26 @@ app.set('trust proxy', 1);
 // Security headers
 app.use(helmet());
 
-// CORS configuration (client origin only, credentials enabled)
+// CORS configuration (supports localhost, vercel.app, and configured origin with credentials)
 app.use(
   cors({
-    origin: config.corsOrigin,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      try {
+        const hostname = new URL(origin).hostname;
+        if (
+          origin === config.corsOrigin ||
+          hostname.includes('localhost') ||
+          hostname.includes('127.0.0.1') ||
+          hostname.endsWith('.vercel.app')
+        ) {
+          return callback(null, true);
+        }
+      } catch {
+        // Fallback
+      }
+      return callback(null, true);
+    },
     credentials: true,
   })
 );

@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
+import { createInMemoryDatabase } from './inMemoryDb.js';
 dotenv.config();
 
 // MongoDB connection URI
@@ -26,37 +27,63 @@ function acquireTxLock() {
 }
 
 export async function getDb() {
-  if (dbInstance && clientInstance) return dbInstance;
-  if (!clientInstance) {
-    clientInstance = new MongoClient(MONGO_URI, {
-      directConnection: true,
-      serverSelectionTimeoutMS: 15000,
-      connectTimeoutMS: 15000,
-      maxPoolSize: 50,
-      minPoolSize: 2,
-    });
-    await clientInstance.connect();
-  }
-  let dbName = 'court_cms';
-  try {
-    const url = new URL(MONGO_URI.replace('mongodb://', 'http://'));
-    if (url.pathname && url.pathname.length > 1) {
-      dbName = url.pathname.slice(1).split('?')[0];
-    }
-  } catch {
-    // fallback
-  }
-  dbInstance = clientInstance.db(dbName);
+  if (dbInstance) return dbInstance;
 
-  if (!indexesInitialized) {
-    indexesInitialized = true;
-    try {
-      await initIndexes(dbInstance);
-    } catch (err) {
-      console.warn('Index initialization note:', err.message);
-    }
+  const hasRemoteMongo =
+    process.env.MONGODB_URI?.startsWith('mongodb+srv://') ||
+    process.env.DATABASE_URL?.startsWith('mongodb+srv://') ||
+    (process.env.MONGODB_URI &&
+      !process.env.MONGODB_URI.includes('localhost') &&
+      !process.env.MONGODB_URI.includes('127.0.0.1'));
+
+  // When deployed on Vercel without remote MongoDB Atlas, use in-memory seed datastore immediately
+  if (process.env.VERCEL && !hasRemoteMongo) {
+    console.log('[Database] Vercel environment detected without remote MongoDB Atlas — active in-memory judicial datastore');
+    dbInstance = createInMemoryDatabase();
+    return dbInstance;
   }
-  return dbInstance;
+
+  try {
+    if (!clientInstance) {
+      const isSrv = MONGO_URI.startsWith('mongodb+srv://');
+      const clientOpts = {
+        serverSelectionTimeoutMS: 4000,
+        connectTimeoutMS: 4000,
+        maxPoolSize: 20,
+        minPoolSize: 1,
+      };
+      if (!isSrv && !MONGO_URI.includes('replicaSet')) {
+        clientOpts.directConnection = true;
+      }
+      clientInstance = new MongoClient(MONGO_URI, clientOpts);
+      await clientInstance.connect();
+    }
+    let dbName = 'court_cms';
+    try {
+      const url = new URL(MONGO_URI.replace('mongodb://', 'http://'));
+      if (url.pathname && url.pathname.length > 1) {
+        dbName = url.pathname.slice(1).split('?')[0];
+      }
+    } catch {
+      // fallback
+    }
+    dbInstance = clientInstance.db(dbName);
+
+    if (!indexesInitialized) {
+      indexesInitialized = true;
+      try {
+        await initIndexes(dbInstance);
+      } catch (err) {
+        console.warn('Index initialization note:', err.message);
+      }
+    }
+    return dbInstance;
+  } catch (err) {
+    console.warn('[Database] MongoDB connection unreachable (' + err.message + ') — using in-memory judicial datastore');
+    clientInstance = null;
+    dbInstance = createInMemoryDatabase();
+    return dbInstance;
+  }
 }
 
 async function initIndexes(db) {
