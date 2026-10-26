@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import AddAdvocateModal from '../components/advocates/AddAdvocateModal';
 import EditAdvocateModal from '../components/advocates/EditAdvocateModal';
 import AdvocateDetailModal from '../components/advocates/AdvocateDetailModal';
+import GrantAdvocateAccessModal from '../components/advocates/GrantAdvocateAccessModal';
 import {
   Users,
   Search,
@@ -20,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  KeyRound,
 } from 'lucide-react';
 
 export default function Advocates() {
@@ -52,6 +54,7 @@ export default function Advocates() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingAdvocate, setEditingAdvocate] = useState(null);
   const [detailAdvocateId, setDetailAdvocateId] = useState(null);
+  const [grantingAdvocate, setGrantingAdvocate] = useState(null);
   const [bannerNotice, setBannerNotice] = useState(null);
 
   const isAdvocateRole = user?.role === 'ADVOCATE';
@@ -195,6 +198,13 @@ export default function Advocates() {
 
   const handleUpdated = (updatedAdv) => {
     setBannerNotice(`Advocate details for "${updatedAdv.name}" updated successfully.`);
+    fetchDirectory();
+  };
+
+  const handleGrantSuccess = (createdUser, adv) => {
+    setBannerNotice(
+      `Portal access granted for "${adv.name}" (${adv.email}). Initial password: Demo@1234.`
+    );
     fetchDirectory();
   };
 
@@ -543,6 +553,19 @@ export default function Advocates() {
                             Inactive
                           </span>
                         )
+                      ) : can('user.manage') ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setGrantingAdvocate(adv);
+                          }}
+                          className="inline-flex items-center space-x-1 px-2.5 py-1 rounded text-[11px] font-semibold bg-navy-900 text-white hover:bg-navy-800 transition-all shadow-xs"
+                          title={`Grant portal access for ${adv.name}`}
+                        >
+                          <KeyRound className="w-3 h-3 text-brass-400" />
+                          <span>Grant Access</span>
+                        </button>
                       ) : (
                         <span className="text-gray-400 text-[11px]">Unlinked</span>
                       )}
@@ -621,6 +644,14 @@ export default function Advocates() {
         onClose={() => setDetailAdvocateId(null)}
         advocateId={detailAdvocateId}
         onEdit={(adv) => setEditingAdvocate(adv)}
+      />
+
+      {/* Grant Advocate Access Modal */}
+      <GrantAdvocateAccessModal
+        isOpen={!!grantingAdvocate}
+        onClose={() => setGrantingAdvocate(null)}
+        advocate={grantingAdvocate}
+        onSuccess={handleGrantSuccess}
       />
     </div>
   );

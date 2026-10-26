@@ -13,6 +13,7 @@ import {
   AlertCircle,
   RefreshCw,
   X,
+  Scale,
 } from 'lucide-react';
 
 const ROLES = ['ADMIN', 'REGISTRAR', 'JUDGE', 'ADVOCATE'];
@@ -47,10 +48,32 @@ export default function Users() {
     role: 'REGISTRAR',
     password: 'Password@2026',
     isActive: true,
+    advocateId: '',
   });
   const [resetPasswordVal, setResetPasswordVal] = useState('Demo@1234');
   const [formErrors, setFormErrors] = useState([]);
   const [formSubmitting, setFormSubmitting] = useState(false);
+
+  // Unlinked advocates registered by Registrar awaiting portal access
+  const [unlinkedAdvocates, setUnlinkedAdvocates] = useState([]);
+  const [loadingAdvocates, setLoadingAdvocates] = useState(false);
+
+  const fetchUnlinkedAdvocates = useCallback(async () => {
+    try {
+      setLoadingAdvocates(true);
+      const res = await api.get('/advocates', { params: { hasLogin: 'false', pageSize: 100 } });
+      const data = unwrap(res);
+      setUnlinkedAdvocates(Array.isArray(data?.items) ? data.items : []);
+    } catch {
+      // Ignore
+    } finally {
+      setLoadingAdvocates(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUnlinkedAdvocates();
+  }, [fetchUnlinkedAdvocates]);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -91,6 +114,7 @@ export default function Users() {
         email: formData.email,
         role: formData.role,
         password: formData.password,
+        advocateId: formData.advocateId || undefined,
       });
 
       showToast(`User ${formData.email} created successfully`);
@@ -101,8 +125,10 @@ export default function Users() {
         role: 'REGISTRAR',
         password: 'Password@2026',
         isActive: true,
+        advocateId: '',
       });
       fetchUsers();
+      fetchUnlinkedAdvocates();
     } catch (err) {
       setFormErrors(err.errors || [err.message]);
     } finally {
@@ -122,11 +148,13 @@ export default function Users() {
         name: formData.name,
         role: formData.role,
         isActive: formData.isActive,
+        advocateId: formData.role === 'ADVOCATE' ? (formData.advocateId || null) : null,
       });
 
       showToast(`User ${selectedUser.email} updated successfully`);
       setShowEditModal(false);
       fetchUsers();
+      fetchUnlinkedAdvocates();
     } catch (err) {
       setFormErrors(err.errors || [err.message]);
     } finally {
@@ -180,6 +208,7 @@ export default function Users() {
       email: u.email,
       role: u.role,
       isActive: u.isActive,
+      advocateId: u.advocateId || '',
     });
     setFormErrors([]);
     setShowEditModal(true);
@@ -231,9 +260,11 @@ export default function Users() {
               role: 'REGISTRAR',
               password: 'Password@2026',
               isActive: true,
+              advocateId: '',
             });
             setFormErrors([]);
             setShowCreateModal(true);
+            fetchUnlinkedAdvocates();
           }}
           className="inline-flex items-center space-x-2 px-4 py-2 bg-navy-900 text-white rounded-md text-sm font-medium hover:bg-navy-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brass-500 shadow-sm transition-all"
         >
@@ -241,6 +272,42 @@ export default function Users() {
           <span>Onboard New User</span>
         </button>
       </div>
+
+      {/* Banner if advocates are waiting for portal access */}
+      {unlinkedAdvocates.length > 0 && (
+        <div className="p-3.5 rounded-lg bg-brass-50 border border-brass-300 text-navy-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center space-x-2.5">
+            <Scale className="w-5 h-5 text-brass-700 flex-shrink-0" />
+            <div>
+              <span className="font-bold">
+                {unlinkedAdvocates.length} Advocate{unlinkedAdvocates.length > 1 ? 's' : ''} registered by Registrar awaiting Portal Access
+              </span>
+              <p className="text-[11px] text-gray-600 mt-0.5">
+                Click &quot;Onboard New User&quot; and select an advocate, or grant access directly in the Advocates panel.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const firstAdv = unlinkedAdvocates[0];
+              setFormData({
+                name: firstAdv?.name || '',
+                email: firstAdv?.email || '',
+                role: 'ADVOCATE',
+                password: 'Demo@1234',
+                isActive: true,
+                advocateId: firstAdv?.id || '',
+              });
+              setFormErrors([]);
+              setShowCreateModal(true);
+            }}
+            className="px-3 py-1.5 bg-navy-900 text-white rounded-md text-xs font-semibold hover:bg-navy-800 transition-colors shadow-xs whitespace-nowrap self-start sm:self-auto flex items-center space-x-1"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-brass-400" />
+            <span>Grant Portal Access Now</span>
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col sm:flex-row items-center gap-3">
@@ -349,15 +416,21 @@ export default function Users() {
                         </span>
                       </td>
                       <td className="px-5 py-4 text-gray-600">
-                        {u.advocateBarNumber ? (
-                          <div>
-                            <span className="font-mono text-xs font-semibold text-navy-900">
-                              {u.advocateBarNumber}
-                            </span>
-                            <div className="text-[10px] text-gray-500 truncate max-w-xs">
-                              {u.advocateSpecialization}
+                        {u.role === 'ADVOCATE' ? (
+                          u.advocateBarNumber ? (
+                            <div>
+                              <span className="font-mono text-xs font-bold text-navy-900 bg-brass-100/70 border border-brass-300/70 px-2 py-0.5 rounded">
+                                {u.advocateBarNumber}
+                              </span>
+                              <div className="text-[10px] text-gray-500 mt-1 truncate max-w-xs">
+                                {u.advocateSpecialization || 'Advocate Profile'}
+                              </div>
                             </div>
-                          </div>
+                          ) : (
+                            <span className="inline-flex items-center text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded text-[11px] font-medium">
+                              Unlinked Profile
+                            </span>
+                          )
                         ) : (
                           <span className="text-gray-400 italic">Not applicable</span>
                         )}
@@ -508,7 +581,14 @@ export default function Users() {
                 <select
                   id="create-user-role"
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  onChange={(e) => {
+                    const newRole = e.target.value;
+                    setFormData((prev) => ({
+                      ...prev,
+                      role: newRole,
+                      password: newRole === 'ADVOCATE' ? 'Demo@1234' : prev.password,
+                    }));
+                  }}
                   className="mt-1 w-full px-3 py-2 border rounded-md text-sm focus:ring-brass-500 focus:border-brass-500"
                 >
                   {ROLES.map((r) => (
@@ -518,6 +598,62 @@ export default function Users() {
                   ))}
                 </select>
               </div>
+
+              {formData.role === 'ADVOCATE' && (
+                <div className="p-3 bg-brass-50/80 border border-brass-300 rounded-md space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="create-user-advocate-link"
+                      className="block font-semibold text-navy-950 uppercase text-[11px]"
+                    >
+                      Registered Advocate Roll (From Registrar)
+                    </label>
+                    {unlinkedAdvocates.length > 0 && (
+                      <span className="text-[10px] bg-brass-200 text-navy-950 font-bold px-2 py-0.5 rounded-full">
+                        {unlinkedAdvocates.length} awaiting portal login
+                      </span>
+                    )}
+                  </div>
+                  <select
+                    id="create-user-advocate-link"
+                    value={formData.advocateId || ''}
+                    onChange={(e) => {
+                      const selId = e.target.value;
+                      if (!selId) {
+                        setFormData((prev) => ({ ...prev, advocateId: '' }));
+                        return;
+                      }
+                      const found = unlinkedAdvocates.find((a) => a.id === selId);
+                      if (found) {
+                        setFormData((prev) => ({
+                          ...prev,
+                          advocateId: found.id,
+                          name: found.name,
+                          email: found.email,
+                        }));
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-brass-300 rounded-md text-xs bg-white text-gray-800 focus:ring-brass-500 focus:border-brass-500"
+                  >
+                    <option value="">-- Choose from Registered Advocates (or fill manually) --</option>
+                    {unlinkedAdvocates.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} ({a.barNumber}) — {a.email}
+                      </option>
+                    ))}
+                  </select>
+                  {formData.advocateId ? (
+                    <p className="text-[11px] text-emerald-800 font-medium flex items-center space-x-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 inline mr-1 flex-shrink-0" />
+                      <span>Linked! Name and email auto-filled from Bar Council registration.</span>
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-gray-600">
+                      Select an advocate registered by the Registrar to automatically link their portal access and caseload.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label
@@ -646,6 +782,37 @@ export default function Users() {
                   </p>
                 )}
               </div>
+
+              {formData.role === 'ADVOCATE' && (
+                <div className="p-3 bg-brass-50/80 border border-brass-300 rounded-md space-y-1.5">
+                  <label
+                    htmlFor="edit-user-advocate-link"
+                    className="block font-semibold text-navy-950 uppercase text-[11px]"
+                  >
+                    Linked Advocate Profile
+                  </label>
+                  <select
+                    id="edit-user-advocate-link"
+                    value={formData.advocateId || ''}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, advocateId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-brass-300 rounded-md text-xs bg-white text-gray-800 focus:ring-brass-500 focus:border-brass-500"
+                  >
+                    <option value="">-- No linked advocate record --</option>
+                    {selectedUser.advocateId && (
+                      <option value={selectedUser.advocateId}>
+                        Currently linked: {selectedUser.advocateBarNumber || 'Advocate'}
+                      </option>
+                    )}
+                    {unlinkedAdvocates
+                      .filter((a) => a.id !== selectedUser.advocateId)
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name} ({a.barNumber}) — {a.email}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
 
               <div className="flex items-center space-x-2 pt-1">
                 <input
